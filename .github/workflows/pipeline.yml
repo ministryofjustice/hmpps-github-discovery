@@ -1,6 +1,7 @@
 name: Pipeline
 
-permissions: read-all
+permissions:
+  packages: write
 
 on:
   push:

@@ -56,4 +56,3 @@ jobs:
           cluster: ${{ secrets.DEVELOPMENT_KUBE_CLUSTER }}
           namespace: ${{ secrets.DEVELOPMENT_KUBE_NAMESPACE }}
           token: ${{ secrets.DEVELOPMENT_KUBE_TOKEN }}
-

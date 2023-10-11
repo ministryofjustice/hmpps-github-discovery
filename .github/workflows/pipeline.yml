@@ -2,6 +2,7 @@ name: Pipeline
 
 permissions:
   packages: write
+  contents: read
 
 on:
   push:

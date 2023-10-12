@@ -28,7 +28,7 @@ MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 # limit results for testing/dev
-#SC_FILTER = '&filters[name][$contains]=community-api'
+#SC_FILTER = '&filters[name][$contains]=hmpps-prisoner-search'
 SC_FILTER = ''
 SC_PAGE_SIZE=10
 SC_PAGINATION_PAGE_SIZE=f"&pagination[pageSize]={SC_PAGE_SIZE}"
@@ -100,10 +100,19 @@ def test_endpoint(url, endpoint):
     log.debug(f"Couldn't connect to endpoint: {url}{endpoint} ")
     return False
 
-def process_repo(c_name, c_id):
-  log.info(c_name)
+def process_repo(**component):
+  c_name = component["attributes"]["name"]
+  c_id = component["id"]
+  github_repo = component["attributes"]["github_repo"]
+  part_of_monorepo = component["attributes"]["part_of_monorepo"]
+  if part_of_monorepo:
+    monorepo_dir_suffix = f"{c_name}/"
+  else:
+    monorepo_dir_suffix = ""
+
+  log.info(f"Processing component: {c_name}")
   try:
-    repo = gh.get_repo(f"ministryofjustice/{c_name}")
+    repo = gh.get_repo(f"ministryofjustice/{github_repo}")
     default_branch = repo.get_branch(repo.default_branch)
     branch_protection = default_branch.get_protection()
   except Exception as e:
@@ -174,7 +183,7 @@ def process_repo(c_name, c_id):
       log.debug('No hmpps orb version found')
 
   # Helm charts
-  helm_chart = get_file_yaml(repo, f"helm_deploy/{repo.name}/Chart.yaml") or {}
+  helm_chart = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/Chart.yaml") or {}
   if 'dependencies' in helm_chart:
     helm_dep_versions = {}
     for item in helm_chart['dependencies']:
@@ -183,7 +192,7 @@ def process_repo(c_name, c_id):
 
   helm_environments = []
   try:
-    helm_deploy = repo.get_contents("helm_deploy", default_branch.commit.sha)
+    helm_deploy = repo.get_contents(f"{monorepo_dir_suffix}helm_deploy", default_branch.commit.sha)
   except Exception as e:
     helm_deploy = False
     log.debug(f"helm_deploy folder: {e}")
@@ -193,7 +202,7 @@ def process_repo(c_name, c_id):
       if file.name.startswith('values-'):
         env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', file.name)[1]
         helm_environments.append(env)
-    helm_default_values = get_file_yaml(repo, f"helm_deploy/{repo.name}/values.yaml")
+    helm_default_values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/values.yaml")
     if helm_default_values:
       # Try to get the container image
       try:
@@ -210,7 +219,7 @@ def process_repo(c_name, c_id):
   # helm env values files, extract useful values
   helm_envs={}
   for env in helm_environments:
-    values = get_file_yaml(repo, f"helm_deploy/values-{env}.yaml")
+    values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/values-{env}.yaml")
     if values:
       # Ingress hostname
       try:
@@ -325,13 +334,13 @@ def process_repo(c_name, c_id):
 
   # App insights cloud_RoleName
   if repo.language == 'Kotlin' or repo.language == 'Java':
-    app_insights_config = get_file_json(repo, 'applicationinsights.json')
+    app_insights_config = get_file_json(repo, f"{monorepo_dir_suffix}applicationinsights.json")
     if app_insights_config:
       app_insights_cloud_role_name = app_insights_config['role']['name']
       data.update({"app_insights_cloud_role_name": app_insights_cloud_role_name})
 
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
-    package_json = get_file_json(repo, 'package.json')
+    package_json = get_file_json(repo, f"{monorepo_dir_suffix}package.json")
     if package_json:
       app_insights_cloud_role_name = package_json['name']
       if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
@@ -358,7 +367,7 @@ def process_repo(c_name, c_id):
 
   # Parse Dockerfile
   try:
-    file_contents = repo.get_contents('Dockerfile')
+    file_contents = repo.get_contents(f"{monorepo_dir_suffix}Dockerfile")
     dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
     dockerfile.content = b64decode(file_contents.content)
     # Get list of parent images, and strip out references to 'base'
@@ -397,16 +406,16 @@ def process_components(data):
       log.info(f"Backing off for {time_to_reset} second, to avoid github API limits.")
       sleep(time_to_reset)
 
-    c_name = component["attributes"]["name"]
-    c_id = component["id"]
-    t_repo = threading.Thread(target=process_repo, args=(c_name,c_id), daemon=True)
+    t_repo = threading.Thread(target=process_repo, kwargs=component, daemon=True)
 
     # Apply limit on total active threads, avoid github secondary API rate limit
     while threading.active_count() > (MAX_THREADS-1):
       log.debug(f"Active Threads={threading.active_count()}, Max Threads={MAX_THREADS}")
       sleep(10)
+
     t_repo.start()
-    log.info(f"Started thread for {c_name}")
+    component_name = component["attributes"]["name"]
+    log.info(f"Started thread for {component_name}")
 
 if __name__ == '__main__':
   logging.basicConfig(

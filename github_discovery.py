@@ -235,6 +235,13 @@ def process_repo(**component):
         log.debug(f"{env} ingress host: {host}")
       except KeyError:
         pass
+      # Ingress alternative location
+      try:
+        host = values['ingress']['host']
+        helm_envs.update({env: {'host': host}})
+        log.debug(f"{env} ingress host: {host}")
+      except KeyError:
+        pass
       # Container image alternative location
       try:
         container_image = values['image']['repository']

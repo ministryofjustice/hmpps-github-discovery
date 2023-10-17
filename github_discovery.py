@@ -28,7 +28,7 @@ MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 # limit results for testing/dev
-#SC_FILTER = '&filters[name][$contains]=hmpps-prisoner-search'
+#SC_FILTER = '&filters[name][$contains]=calculate-journey-variable-payments'
 SC_FILTER = ''
 SC_PAGE_SIZE=10
 SC_PAGINATION_PAGE_SIZE=f"&pagination[pageSize]={SC_PAGE_SIZE}"
@@ -45,10 +45,10 @@ class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
     self.wfile.write(bytes("UP", "utf8"))
     return
 
-def update_sc_component(data, c_id):
+def update_sc_component(c_id, data):
   try:
     log.debug(data)
-    x = requests.put(f"{SC_API_ENDPOINT}/v1/components/{c_id}", headers=sc_api_headers, json = data, timeout=10)
+    x = requests.put(f"{SC_API_ENDPOINT}/v1/components/{c_id}", headers=sc_api_headers, json = {"data": data}, timeout=10)
     if x.status_code == 200:
       log.info(f"Successfully updated component id {c_id}: {x.status_code}")
     else:
@@ -242,6 +242,13 @@ def process_repo(**component):
         log.debug(f"{env} ingress host: {host}")
       except KeyError:
         pass
+      # Ingress alternative location
+      try:
+        host = values['ingress']['hosts'][0]['host']
+        helm_envs.update({env: {'host': host}})
+        log.debug(f"{env} ingress host: {host}")
+      except KeyError:
+        pass
       # Container image alternative location
       try:
         container_image = values['image']['repository']
@@ -280,7 +287,15 @@ def process_repo(**component):
           e.update({'info_path': '/auth/info'})
         if 'sign-in' in dev_url and test_endpoint(dev_url, '/auth/health'):
           e.update({'health_path': '/auth/health'})
+      # Try to add the existing env ID so we dont overwrite existing env entries
+      existing_envs = component["attributes"]["environments"]
+      for item in existing_envs:
+        if item["name"] == "dev" or item["name"] == "development":
+          env_id = item["id"]
+          e.update({'id': env_id})
+          break
       environments.append(e)
+
     # Get other env namespaces based on circleci context data
     if 'circleci_context_k8s_namespaces' in p:
       for c in p['circleci_context_k8s_namespaces']:
@@ -337,6 +352,13 @@ def process_repo(**component):
           if 'sign-in' in env_url and test_endpoint(dev_url, '/auth/health'):
             e.update({'health_path': '/auth/health'})
 
+        # Try to add the existing env ID so we dont overwrite existing env entries
+        existing_envs = component["attributes"]["environments"]
+        for item in existing_envs:
+          if item["name"] == env_name:
+            env_id = item["id"]
+            e.update({'id': env_id})
+            break
         environments.append(e)
 
   # App insights cloud_RoleName
@@ -395,7 +417,7 @@ def process_repo(**component):
   data.update({'versions': versions_data})
 
   # Update component with all results in data dict.
-  update_sc_component({"data": data}, c_id)
+  update_sc_component(c_id, data)
 
 def startHttpServer():
   handler_object = HealthHttpRequestHandler

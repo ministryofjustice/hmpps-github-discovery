@@ -28,8 +28,9 @@ MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 # limit results for testing/dev
-#SC_FILTER = '&filters[name][$contains]=calculate-journey-variable-payments'
-SC_FILTER = ''
+# See strapi filter syntax https://docs.strapi.io/dev-docs/api/rest/filters-locale-publication
+# Example filter string = '&filters[name][$contains]=example'
+SC_FILTER = os.getenv("SC_FILTER", '')
 SC_PAGE_SIZE=10
 SC_PAGINATION_PAGE_SIZE=f"&pagination[pageSize]={SC_PAGE_SIZE}"
 # Example Sort filter

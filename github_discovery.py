@@ -94,7 +94,7 @@ def test_endpoint(url, endpoint):
   try:
     r = requests.get(f"{url}{endpoint}", headers=headers, allow_redirects=False, timeout=10)
     # Test if json is returned
-    if r.json():
+    if r.json() and r.status_code != 404:
       log.debug(f"Found endpoint: {url}{endpoint} ")
       return True
   except Exception:

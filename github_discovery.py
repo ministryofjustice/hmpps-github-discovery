@@ -178,7 +178,7 @@ def process_repo(**component):
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
           hmpps_orb_version=value.split('@')[1]
-          versions_data.update({'circleci': {'orbs': {'hmpps': hmpps_orb_version}}})
+          versions_data.update({'circleci': {'hmpps_orb': hmpps_orb_version}})
           log.debug(f"hmpps orb version: {hmpps_orb_version}")
     except Exception:
       log.debug('No hmpps orb version found')
@@ -189,7 +189,7 @@ def process_repo(**component):
     helm_dep_versions = {}
     for item in helm_chart['dependencies']:
       helm_dep_versions.update({item['name']: item['version']})
-    versions_data.update({'helm': {'dependencies': helm_dep_versions}})
+    versions_data.update({'helm_dependencies': helm_dep_versions})
 
   helm_environments = []
   try:

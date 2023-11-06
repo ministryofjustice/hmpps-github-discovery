@@ -231,7 +231,7 @@ def process_repo(**component):
         pass
       # Ingress alternative location
       try:
-        host = values['generic-service']['ingress']['hosts'][0]
+        host = values['generic-service']['ingress']['hosts'][-1]
         helm_envs.update({env: {'host': host}})
         log.debug(f"{env} ingress host: {host}")
       except KeyError:
@@ -245,7 +245,7 @@ def process_repo(**component):
         pass
       # Ingress alternative location
       try:
-        host = values['ingress']['hosts'][0]['host']
+        host = values['ingress']['hosts'][-1]['host']
         helm_envs.update({env: {'host': host}})
         log.debug(f"{env} ingress host: {host}")
       except KeyError:
@@ -313,7 +313,7 @@ def process_repo(**component):
           env_type='preprod'
         elif env_name.startswith('prod'):
           env_type='prod'
-        e.update({'type': env_type})
+        e.update({'type': env_type, 'name': env_type})
 
         if env_name in helm_envs:
           env_url=f"https://{helm_envs[env_name]['host']}"
@@ -330,6 +330,9 @@ def process_repo(**component):
         elif 'staging' in helm_envs:
           env_url=f"https://{helm_envs['staging']['host']}"
           e.update({'type': 'stage', 'name': 'staging', 'url': env_url})
+        elif 'qa' in helm_envs:
+          env_url=f"https://{helm_envs['qa']['host']}"
+          e.update({'type': 'preprod', 'name': 'qa', 'url': env_url})
         elif 'production' in helm_envs:
           env_url=f"https://{helm_envs['production']['host']}"
           e.update({'type': 'prod', 'name': 'production', 'url': env_url})

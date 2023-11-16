@@ -183,6 +183,17 @@ def process_repo(**component):
     except Exception:
       log.debug('No hmpps orb version found')
 
+    # Find veracode job, if setup.
+    try:
+      cirleci_security_jobs = cirlcleci_config['workflows']['security']['jobs']
+      for job in cirleci_security_jobs:
+        if 'hmpps/veracode_pipeline_scan' in job:
+          log.debug("Found veracode job in circleci config.")
+          data.update({"veracode_scan": True})
+          break
+    except Exception:
+      log.debug('No veracode scan job found in circleci config.')
+
   # Helm charts
   helm_chart = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/Chart.yaml") or {}
   if 'dependencies' in helm_chart:

@@ -233,7 +233,7 @@ def process_repo(**component):
       try:
         product_id = helm_default_values['generic-service']['productId']
         sc_product_id = get_sc_product_id(product_id)
-        if get_sc_product_id:
+        if sc_product_id:
           data.update({"product": sc_product_id})
       except KeyError:
         pass

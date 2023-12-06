@@ -101,6 +101,19 @@ def test_endpoint(url, endpoint):
     log.debug(f"Couldn't connect to endpoint: {url}{endpoint} ")
     return False
 
+def get_sc_product_id(product_id):
+  try:
+    r = requests.get(f"{SC_API_ENDPOINT}/v1/products?filters[p_id][$eq]={product_id}", headers=sc_api_headers, timeout=10)
+    if r.status_code == 200:
+      log.info(f"Successfully found product with internal ID {product_id}: {r.status_code}")
+      return r.json()['data'][0]['id']
+    else:
+      log.info(f"Received non-200 response from service catalogue searching for internal product ID: {product_id}: {r.status_code} {r.content}")
+      return False
+  except Exception as e:
+    log.error(f"Error getting product ID from SC: {e}")
+    return False
+
 def process_repo(**component):
   c_name = component["attributes"]["name"]
   c_id = component["id"]
@@ -214,6 +227,14 @@ def process_repo(**component):
       try:
         container_image = helm_default_values['generic-service']['image']['repository']
         data.update({"container_image": container_image})
+      except KeyError:
+        pass
+      # Try to get the productID
+      try:
+        product_id = helm_default_values['generic-service']['productId']
+        sc_product_id = get_sc_product_id(product_id)
+        if get_sc_product_id:
+          data.update({"product": sc_product_id})
       except KeyError:
         pass
 
@@ -480,18 +501,18 @@ if __name__ == '__main__':
     log.critical("Unable to connect to the github API.")
     raise SystemExit(e) from e
 
-  # Get projects.json from bootstrap repo for namespaces data
-  bootstrap_repo = gh.get_repo("ministryofjustice/dps-project-bootstrap")
-  bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
-  # Convert dict for easier lookup
-  bootstrap_projects={}
-  for p in bootstrap_projects_json:
-    bootstrap_projects.update({p['github_repo_name']: p})
-
   while True:
     # Start health endpoint.
     httpHealth = threading.Thread(target=startHttpServer, daemon=True)
     httpHealth.start()
+
+    # Get projects.json from bootstrap repo for namespaces data
+    bootstrap_repo = gh.get_repo("ministryofjustice/dps-project-bootstrap")
+    bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
+    # Convert dict for easier lookup
+    bootstrap_projects={}
+    for p in bootstrap_projects_json:
+      bootstrap_projects.update({p['github_repo_name']: p})
 
     log.info(SC_ENDPOINT)
     try:

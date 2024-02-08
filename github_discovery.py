@@ -507,7 +507,7 @@ if __name__ == '__main__':
     httpHealth.start()
 
     # Get projects.json from bootstrap repo for namespaces data
-    bootstrap_repo = gh.get_repo("ministryofjustice/dps-project-bootstrap")
+    bootstrap_repo = gh.get_repo("ministryofjustice/hmpps-project-bootstrap")
     bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
     # Convert dict for easier lookup
     bootstrap_projects={}

@@ -105,7 +105,7 @@ def test_swagger_docs(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(f"{url}/swagger-ui.html", headers=headers, allow_redirects=False, timeout=10)
-    # Test if json is returned
+    # Test for 302 redirect
     if r.status_code == 302 and "/swagger-ui/index.html" in r.headers['Location']:
       log.debug(f"LOCATION: {r.headers['Location']}")
       log.debug(f"Found swagger docs: {url}/swagger-ui.html")

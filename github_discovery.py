@@ -393,10 +393,10 @@ def process_repo(**component):
             health_path = "/auth/health"
             info_path = "/auth/info"
 
-          if test_endpoint(env_url, '/health'):
-            e.update({'health_path': '/health'})
-          if test_endpoint(env_url, '/info'):
-            e.update({'info_path': '/info'})
+          if test_endpoint(env_url, health_path):
+            e.update({'health_path': health_path})
+          if test_endpoint(env_url, info_path):
+            e.update({'info_path': info_path})
           if test_swagger_docs(env_url):
             e.update({'swagger_docs': '/swagger-ui.html'})
             data.update({'api': True, 'frontend': False})

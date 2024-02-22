@@ -23,7 +23,7 @@ GITHUB_APP_ID = int(os.getenv("GITHUB_APP_ID"))
 GITHUB_APP_INSTALLATION_ID = int(os.getenv("GITHUB_APP_INSTALLATION_ID"))
 GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY")
 REFRESH_INTERVAL_HOURS = int(os.getenv("REFRESH_INTERVAL_HOURS", "6"))
-# Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
+# Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
@@ -101,6 +101,19 @@ def test_endpoint(url, endpoint):
     log.debug(f"Couldn't connect to endpoint: {url}{endpoint} ")
     return False
 
+def test_swagger_docs(url):
+  headers = {'User-Agent': 'hmpps-service-discovery'}
+  try:
+    r = requests.get(f"{url}/swagger-ui.html", headers=headers, allow_redirects=False, timeout=10)
+    # Test if json is returned
+    if r.status_code == 302 and "/swagger-ui/index.html" in r.headers['Location']:
+      log.debug(f"LOCATION: {r.headers['Location']}")
+      log.debug(f"Found swagger docs: {url}/swagger-ui.html")
+      return True
+  except Exception:
+    log.debug(f"Couldn't connect: {url}/swagger-ui.html")
+    return False
+
 def get_sc_product_id(product_id):
   try:
     r = requests.get(f"{SC_API_ENDPOINT}/v1/products?filters[p_id][$eq]={product_id}", headers=sc_api_headers, timeout=10)
@@ -133,7 +146,7 @@ def process_repo(**component):
     log.error(f"Error with ministryofjustice/{c_name}, check github app has permissions to see it. {e}")
     return False
 
-  # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
+  # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
 
   # Add standard github repo properties
@@ -142,7 +155,7 @@ def process_repo(**component):
   data.update({"github_project_visibility": repo.visibility})
   data.update({"github_repo": repo.name})
 
-  # GitHub teams access, branch protection etc.
+  # GitHub teams access, branch protection etc.
   branch_protection_restricted_teams = []
   teams_write = []
   teams_admin = []
@@ -300,15 +313,18 @@ def process_repo(**component):
         dev_url = False
 
       if dev_url:
+        # Hack for hmpps-auth non standard endpoints
+        if 'sign-in' in dev_url:
+          dev_url = f"{dev_url}/auth"
+
         if test_endpoint(dev_url, '/health'):
           e.update({'health_path': '/health'})
         if test_endpoint(dev_url, '/info'):
           e.update({'info_path': '/info'})
-        # Hack for hmpps-auth non standard endpoints
-        if 'sign-in' in dev_url and test_endpoint(dev_url, '/auth/info'):
-          e.update({'info_path': '/auth/info'})
-        if 'sign-in' in dev_url and test_endpoint(dev_url, '/auth/health'):
-          e.update({'health_path': '/auth/health'})
+        if test_swagger_docs(dev_url):
+          e.update({'swagger_docs': '/swagger-ui.html'})
+          data.update({'api': True, 'frontend': False})
+
       # Try to add the existing env ID so we dont overwrite existing env entries
       existing_envs = component["attributes"]["environments"]
       for item in existing_envs:
@@ -367,15 +383,17 @@ def process_repo(**component):
         e.update({'namespace': env_namespace})
 
         if env_url:
+          # Hack for hmpps-auth non standard endpoints
+          if 'sign-in' in env_url:
+            env_url = f"{env_url}/auth"
+
           if test_endpoint(env_url, '/health'):
             e.update({'health_path': '/health'})
           if test_endpoint(env_url, '/info'):
             e.update({'info_path': '/info'})
-          # Hack for hmpps-auth non standard endpoints
-          if 'sign-in' in env_url and test_endpoint(dev_url, '/auth/info'):
-            e.update({'info_path': '/auth/info'})
-          if 'sign-in' in env_url and test_endpoint(dev_url, '/auth/health'):
-            e.update({'health_path': '/auth/health'})
+          if test_swagger_docs(env_url):
+            e.update({'swagger_docs': '/swagger-ui.html'})
+            data.update({'api': True, 'frontend': False})
 
         # Try to add the existing env ID so we dont overwrite existing env entries
         existing_envs = component["attributes"]["environments"]
@@ -386,7 +404,7 @@ def process_repo(**component):
             break
         environments.append(e)
 
-  # App insights cloud_RoleName
+  # App insights cloud_RoleName
   if repo.language == 'Kotlin' or repo.language == 'Java':
     app_insights_config = get_file_json(repo, f"{monorepo_dir_suffix}applicationinsights.json")
     if app_insights_config:
@@ -405,7 +423,7 @@ def process_repo(**component):
   if repo.language == 'Kotlin' or repo.language == 'Java':
     build_gradle_kts_config = get_file_plain(repo, 'build.gradle.kts')
     build_gradle_config_content = build_gradle_kts_config
-  # Try alternative location for java projects
+  # Try alternative location for java projects
   if not build_gradle_config_content:
     build_gradle_java_config = get_file_plain(repo, 'build.gradle')
     build_gradle_config_content = build_gradle_java_config
@@ -426,7 +444,7 @@ def process_repo(**component):
     dockerfile.content = b64decode(file_contents.content)
     # Get list of parent images, and strip out references to 'base'
     parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
-    # Get the last element in the array, which should be the base image of the final stage.
+    # Get the last element in the array, which should be the base image of the final stage.
     base_image = parent_images[-1]
     versions_data.update({'dockerfile': {'base_image': base_image}})
     log.debug(f"Found Dockerfile base image: {base_image}")
@@ -452,7 +470,7 @@ def startHttpServer():
 def process_components(data):
   log.info(f"Processing batch of {len(data)} components...")
   for component in data:
-    # Wait until the API limit is reset if we are close to the limit
+    # Wait until the API limit is reset if we are close to the limit
     while core_rate_limit.remaining < 100:
       time_delta = datetime.now() - core_rate_limit.reset
       time_to_reset = time_delta.total_seconds()
@@ -478,7 +496,7 @@ if __name__ == '__main__':
 
   sc_api_headers = {"Authorization": f"Bearer {SC_API_TOKEN}", "Content-Type":"application/json","Accept": "application/json"}
 
-  # Test connection to Service Catalogue
+  # Test connection to Service Catalogue
   try:
     r = requests.head(f"{SC_API_ENDPOINT}/_health", headers=sc_api_headers, timeout=10)
     log.info(f"Successfully connected to the Service Catalogue. {r.status_code}")
@@ -486,7 +504,7 @@ if __name__ == '__main__':
     log.critical("Unable to connect to the Service Catalogue.")
     raise SystemExit(e) from e
 
-  # Test auth and connection to github
+  # Test auth and connection to github
   try:
     private_key = b64decode(GITHUB_APP_PRIVATE_KEY).decode('ascii')
     auth = github.Auth.AppAuth(GITHUB_APP_ID, private_key).get_installation_auth(GITHUB_APP_INSTALLATION_ID)
@@ -506,7 +524,7 @@ if __name__ == '__main__':
     httpHealth = threading.Thread(target=startHttpServer, daemon=True)
     httpHealth.start()
 
-    # Get projects.json from bootstrap repo for namespaces data
+    # Get projects.json from bootstrap repo for namespaces data
     bootstrap_repo = gh.get_repo("ministryofjustice/hmpps-project-bootstrap")
     bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
     # Convert dict for easier lookup

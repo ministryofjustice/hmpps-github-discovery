@@ -313,14 +313,17 @@ def process_repo(**component):
         dev_url = False
 
       if dev_url:
+        health_path = "/health"
+        info_path = "/info"
         # Hack for hmpps-auth non standard endpoints
         if 'sign-in' in dev_url:
-          dev_url = f"{dev_url}/auth"
+          health_path = "/auth/health"
+          info_path = "/auth/info"
 
-        if test_endpoint(dev_url, '/health'):
-          e.update({'health_path': '/health'})
-        if test_endpoint(dev_url, '/info'):
-          e.update({'info_path': '/info'})
+        if test_endpoint(dev_url, health_path):
+          e.update({'health_path': health_path})
+        if test_endpoint(dev_url, info_path):
+          e.update({'info_path': info_path})
         if test_swagger_docs(dev_url):
           e.update({'swagger_docs': '/swagger-ui.html'})
           data.update({'api': True, 'frontend': False})
@@ -383,9 +386,12 @@ def process_repo(**component):
         e.update({'namespace': env_namespace})
 
         if env_url:
+          health_path = "/health"
+          info_path = "/info"
           # Hack for hmpps-auth non standard endpoints
           if 'sign-in' in env_url:
-            env_url = f"{env_url}/auth"
+            health_path = "/auth/health"
+            info_path = "/auth/info"
 
           if test_endpoint(env_url, '/health'):
             e.update({'health_path': '/health'})

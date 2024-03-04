@@ -107,11 +107,26 @@ def test_swagger_docs(url):
     r = requests.get(f"{url}/swagger-ui.html", headers=headers, allow_redirects=False, timeout=10)
     # Test for 302 redirect
     if r.status_code == 302 and "/swagger-ui/index.html" in r.headers['Location']:
-      log.debug(f"LOCATION: {r.headers['Location']}")
       log.debug(f"Found swagger docs: {url}/swagger-ui.html")
       return True
   except Exception:
     log.debug(f"Couldn't connect: {url}/swagger-ui.html")
+    return False
+
+def test_subject_access_request_endpoint(url):
+  headers = {'User-Agent': 'hmpps-service-discovery'}
+  try:
+    r = requests.get(f"{url}/v3/api-docs", headers=headers, allow_redirects=False, timeout=10)
+    if r.status_code == 200:
+      try:
+        if r.json()['paths']['/subject-access-request']:
+          log.debug(f"Found SAR endpoint at: {url}/v3/api-docs")
+          return True
+      except KeyError:
+        log.debug("No SAR endpoint found.")
+        return False
+  except Exception:
+    log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
     return False
 
 def get_sc_product_id(product_id):
@@ -305,10 +320,10 @@ def process_repo(**component):
       e={'namespace': dev_namespace, 'type': 'dev'}
       if 'dev' in helm_envs:
         dev_url = f"https://{helm_envs['dev']['host']}"
-        e.update({'name': 'dev', 'url': dev_url})
+        e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
       elif 'development' in helm_envs:
         dev_url = f"https://{helm_envs['development']['host']}"
-        e.update({'name': 'development', 'url': dev_url})
+        e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
       else:
         dev_url = False
 
@@ -341,18 +356,9 @@ def process_repo(**component):
     if 'circleci_context_k8s_namespaces' in p:
       for c in p['circleci_context_k8s_namespaces']:
         e = {}
-        env_name=c['env']
-        # Try to set env type according to name e.g. stage or staging, prod or production
-        if env_name.startswith('dev'):
-          env_type='dev'
-        elif env_name.startswith('test'):
-          env_type='test'
-        elif env_name.startswith('stag'):
-          env_type='stage'
-        elif env_name.startswith('preprod'):
-          env_type='preprod'
-        elif env_name.startswith('prod'):
-          env_type='prod'
+        env_name=c['env_name']
+        env_type=c['env_type']
+
         e.update({'type': env_type, 'name': env_type})
 
         if env_name in helm_envs:
@@ -397,9 +403,12 @@ def process_repo(**component):
             e.update({'health_path': health_path})
           if test_endpoint(env_url, info_path):
             e.update({'info_path': info_path})
+          # Test for API docs - and if found also test for SAR endpoint.
           if test_swagger_docs(env_url):
             e.update({'swagger_docs': '/swagger-ui.html'})
             data.update({'api': True, 'frontend': False})
+            if env_type == 'prod' and test_subject_access_request_endpoint(env_url):
+              data.update({'include_in_subject_access_requests': True})
 
         # Try to add the existing env ID so we dont overwrite existing env entries
         existing_envs = component["attributes"]["environments"]

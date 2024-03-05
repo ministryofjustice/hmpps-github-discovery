@@ -211,7 +211,7 @@ def process_repo(**component):
   data.update({"github_topics": topics})
 
   # Try to detect frontends or UIs
-  if re.search("([fF]rontend)|(-ui)|(\s?UI\s)", f"{c_name} {repo.description}"):
+  if re.search("([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)", f"{c_name} {repo.description}"):
     log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data.update({"frontend": True})
 

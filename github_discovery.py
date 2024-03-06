@@ -210,6 +210,11 @@ def process_repo(**component):
   topics = repo.get_topics()
   data.update({"github_topics": topics})
 
+  # Try to detect frontends or UIs
+  if re.search("([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)", f"{c_name} {repo.description}"):
+    log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
+    data.update({"frontend": True})
+
   versions_data = {}
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")

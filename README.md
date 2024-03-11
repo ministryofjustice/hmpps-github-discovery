@@ -19,4 +19,3 @@ Retrieval of key data from files (if they exists):
  - helm_deploy/ - various data including dependency chart versions.
  - applicationinsights.json - for azure app insights cloudRole_name
  - package.json - for azure app insights cloudRole_name
-

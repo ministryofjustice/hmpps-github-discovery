@@ -142,7 +142,45 @@ def get_sc_product_id(product_id):
     log.error(f"Error getting product ID from SC: {e}")
     return False
 
+# This method is to find the values defined for allowlist in values*.yaml files under helm_deploy folder of each project.
+# This methods read all the values files under helm_deploy folder and create a dictionary object of allowlist for each environment
+# including the default values.
+def fetch_values_for_allowlist_key(yaml_data, key):
+    values = {}
+    if isinstance(yaml_data, dict):
+        if key in yaml_data:
+            values.update(yaml_data[key])
+        for k, v in yaml_data.items():
+            if isinstance(v, dict) or isinstance(v, list):
+                child_values = fetch_values_for_allowlist_key(v, key)
+                if child_values:
+                    values.update({k: child_values})
+    elif isinstance(yaml_data, list):
+        for item in yaml_data:
+            child_values = fetch_values_for_allowlist_key(item, key)
+            if child_values:
+                values.update(child_values)
+    return values
+
+# This method read the value stored in dictionary passed to it and prepares the data payload that need to be displayed for each
+# environment including deafult values, if any. Usually it prepares the data that includes values from values.yaml file for each 
+# environment and default values present in default values.yaml file. It also sets a boolean variable to True and fale if the project
+# has allowlist attribute present in environment specific values.yaml or default values.yaml file
+
+def prepare_ipallow_list_data_for_env(yaml_data,env): 
+    ipallow_list_env_values=[]
+    ip_allow_list_enabled = False
+    print({f"ip_allow_list_{env}": yaml_data.get(f"ip_allow_list_{env}"), 'ip_allow_list_default': yaml_data.get('ip_allow_list_default')})
+
+    ipallow_list_env_values.append({f"ip_allow_list_{env}": yaml_data.get(f"ip_allow_list_{env}"), 'ip_allow_list_default': yaml_data.get('ip_allow_list_default')})
+    
+    if len(ipallow_list_env_values) !=0:
+        ip_allow_list_enabled = True
+        ipallow_list_env_values.append(ip_allow_list_enabled)    
+    return ipallow_list_env_values
+
 def process_repo(**component):
+  allow_list_key = "allowlist"
   c_name = component["attributes"]["name"]
   c_id = component["id"]
   github_repo = component["attributes"]["github_repo"]
@@ -164,6 +202,8 @@ def process_repo(**component):
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
 
+  ip_allow_list_data={}
+
   # Add standard github repo properties
   data.update({"language": repo.language})
   data.update({"description": repo.description})
@@ -175,6 +215,7 @@ def process_repo(**component):
   teams_write = []
   teams_admin = []
   teams_maintain = []
+  ip_allow_list = {}
 
   try:
     branch_protection = default_branch.get_protection()
@@ -249,8 +290,23 @@ def process_repo(**component):
       if file.name.startswith('values-'):
         env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', file.name)[1]
         helm_environments.append(env)
+
+        # HEAT-223 Start : Read and collate data for allowlist from all environment specific values.yaml files.
+
+        ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{file.name}"), allow_list_key) 
+        ip_allow_list_data.update({f"ip_allow_list_{env}": ip_allow_list[file]})
+        # HEAT-223 End : Read and collate data for allowlist from all environment specific values.yaml files.
+
     helm_default_values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/values.yaml")
+    
     if helm_default_values:
+
+      # HEAT-223 Start : Read and collate data for allowlist from default values.yaml files.   
+      default_values = "default"
+      ip_allow_list[default_values] = fetch_values_for_allowlist_key(helm_default_values, allow_list_key)
+      ip_allow_list_data.update({f"ip_allow_list_{default_values}": ip_allow_list[default_values]}) 
+      # HEAT-223 End : Read and collate data for allowlist from default values.yaml files. 
+
       # Try to get the container image
       try:
         container_image = helm_default_values['image']['repository']
@@ -322,10 +378,16 @@ def process_repo(**component):
     # Get dev namespace data
     if 'circleci_project_k8s_namespace' in p:
       dev_namespace = p['circleci_project_k8s_namespace']
-      e={'namespace': dev_namespace, 'type': 'dev'}
+      e={'namespace': dev_namespace, 'type': 'dev'} 
       if 'dev' in helm_envs:
         dev_url = f"https://{helm_envs['dev']['host']}"
         e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
+
+        #HEAT-223 start: If the project is defined under circleci_project_k8s_namespace in hmpps-bootstrap
+        allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'dev')
+        e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+        #HEAT-223 End: Prepare and add the data payload that need to be passed to service catalogue
+
       elif 'development' in helm_envs:
         dev_url = f"https://{helm_envs['development']['host']}"
         e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
@@ -361,6 +423,7 @@ def process_repo(**component):
     if 'circleci_context_k8s_namespaces' in p:
       for c in p['circleci_context_k8s_namespaces']:
         e = {}
+        allow_list_values=[]
         env_name=c['env_name']
         env_type=c['env_type']
 
@@ -369,24 +432,54 @@ def process_repo(**component):
         if env_name in helm_envs:
           env_url=f"https://{helm_envs[env_name]['host']}"
           e.update({'name': env_name, 'url': env_url})
+
+          #HEAT-223 start: If the project is defined under circleci_context_k8s_namespaces in hmpps-bootstrap
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,env_name)
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+          # HEAT-223 End: Prepare and add the data payload that need to be passed to service catalogue for each environment
+          # that is defined in Service Catalogue for the project
+
         elif 'developement' in helm_envs:
           env_url=f"https://{helm_envs['developement']['host']}"
           e.update({'type': 'dev', 'name': 'developement', 'url': env_url})
         elif 'test' in helm_envs:
           env_url=f"https://{helm_envs['test']['host']}"
           e.update({'type': 'test', 'name': 'test', 'url': env_url})
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'test')
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+
         elif 'testing' in helm_envs:
           env_url=f"https://{helm_envs['testing']['host']}"
           e.update({'type': 'test', 'name': 'testing', 'url': env_url})
+
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'testing')
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+
         elif 'staging' in helm_envs:
           env_url=f"https://{helm_envs['staging']['host']}"
           e.update({'type': 'stage', 'name': 'staging', 'url': env_url})
+
+
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'staging')
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+
         elif 'qa' in helm_envs:
           env_url=f"https://{helm_envs['qa']['host']}"
           e.update({'type': 'preprod', 'name': 'qa', 'url': env_url})
+
+
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'qa')
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+
+          
         elif 'production' in helm_envs:
           env_url=f"https://{helm_envs['production']['host']}"
           e.update({'type': 'prod', 'name': 'production', 'url': env_url})
+
+
+          allow_list_values= prepare_ipallow_list_data_for_env(ip_allow_list_data,'production')
+          e.update({'ip_allow_list': allow_list_values[0], 'ip_allow_list_enabled': allow_list_values[1]}) 
+          
         else:
           env_url = False
 

@@ -292,7 +292,6 @@ def process_repo(**component):
         helm_environments.append(env)
 
         # HEAT-223 Start : Read and collate data for allowlist from all environment specific values.yaml files.
-
         ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{file.name}"), allow_list_key) 
         ip_allow_list_data.update({f"ip_allow_list_{env}": ip_allow_list[file]})
         # HEAT-223 End : Read and collate data for allowlist from all environment specific values.yaml files.

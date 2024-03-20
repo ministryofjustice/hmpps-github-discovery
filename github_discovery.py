@@ -170,9 +170,8 @@ def fetch_values_for_allowlist_key(yaml_data, key):
 def prepare_ipallow_list_data_for_env(yaml_data,env): 
     ipallow_list_env_values=[]
     ip_allow_list_enabled = False
-    print({f"ip_allow_list_{env}": yaml_data.get(f"ip_allow_list_{env}"), 'ip_allow_list_default': yaml_data.get('ip_allow_list_default')})
-
-    ipallow_list_env_values.append({f"ip_allow_list_{env}": yaml_data.get(f"ip_allow_list_{env}"), 'ip_allow_list_default': yaml_data.get('ip_allow_list_default')})
+    
+    ipallow_list_env_values.append({f"{env}.yaml": yaml_data.get(f"ip_allow_list_{env}"), 'values.yaml': yaml_data.get('ip_allow_list_default')})
     
     if len(ipallow_list_env_values) !=0:
         ip_allow_list_enabled = True

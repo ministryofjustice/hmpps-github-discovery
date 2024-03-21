@@ -447,20 +447,17 @@ def process_repo(**component):
             pass
           
           e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
-        
-        # This block is not required as 'test' environment is populated in helm_envs and the condition is met on line 429 and this block never 
-        # gets executed for env_name = 'test'
           
-          """ elif 'test' in helm_envs:
-            env_url=f"https://{helm_envs['test']['host']}"
-            e.update({'type': 'test', 'name': 'test', 'url': env_url})
-            try:
-              ip_allow_list_env=ip_allow_list_data[f'values-{env_name}.yaml']
-              allow_list_values.update({f'values-{env_name}.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default})
-            except KeyError:
+        elif 'test' in helm_envs:
+          env_url=f"https://{helm_envs['test']['host']}"
+          e.update({'type': 'test', 'name': 'test', 'url': env_url})
+          try:
+            ip_allow_list_env=ip_allow_list_data['values-test.yaml']
+            allow_list_values.update({'values-test.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default})
+          except KeyError:
               pass
             
-            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})  """
+          e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
 
         elif 'testing' in helm_envs:
           env_url=f"https://{helm_envs['testing']['host']}"

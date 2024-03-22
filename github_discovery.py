@@ -459,15 +459,16 @@ def process_repo(**component):
             ip_allow_list_env=ip_allow_list_data['values-test.yaml'] 
             allow_list_values.update({'values-test.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
-          except KeyError: 
+          except KeyError:
+            pass 
 
         elif 'testing' in helm_envs:
           env_url=f"https://{helm_envs['testing']['host']}"
           e.update({'type': 'test', 'name': 'testing', 'url': env_url})
           try:
-             ip_allow_list_env=ip_allow_list_data['values-testing.yaml'] 
-             allow_list_values.update({'values-testing.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env=ip_allow_list_data['values-testing.yaml'] 
+            allow_list_values.update({'values-testing.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
           except KeyError:
             pass
  

@@ -168,11 +168,14 @@ def fetch_values_for_allowlist_key(yaml_data, key):
 
 # This method read the value stored in dictionary passed to it checks if the ip allow list is present or not and returns boolean
 
-def is_ipallowList_enabled(yaml_data): 
+def is_ipallowList_enabled(yaml_data):
     ip_allow_list_enabled = False 
-    if len(yaml_data) !=0:
-        ip_allow_list_enabled = True 
+    if isinstance(yaml_data, dict):
+        for value in yaml_data.values():
+            if isinstance(value, dict) and value:
+                ip_allow_list_enabled= True  
     return ip_allow_list_enabled
+
 def process_repo(**component):
   
   allow_list_key = "allowlist"

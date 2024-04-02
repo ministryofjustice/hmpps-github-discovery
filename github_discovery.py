@@ -532,8 +532,6 @@ def process_repo(**component):
             data.update({'api': True, 'frontend': False})
             if test_subject_access_request_endpoint(env_url):
               e.update({'include_in_subject_access_requests': True})
-            if env_type == 'prod':
-              data.update({'include_in_subject_access_requests': True})
 
         # Try to add the existing env ID so we dont overwrite existing env entries
         existing_envs = component["attributes"]["environments"]

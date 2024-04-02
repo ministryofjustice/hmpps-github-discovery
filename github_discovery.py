@@ -31,12 +31,13 @@ LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 # See strapi filter syntax https://docs.strapi.io/dev-docs/api/rest/filters-locale-publication
 # Example filter string = '&filters[name][$contains]=example'
 SC_FILTER = os.getenv("SC_FILTER", '')
-SC_PAGE_SIZE=10
-SC_PAGINATION_PAGE_SIZE=f"&pagination[pageSize]={SC_PAGE_SIZE}"
+SC_PAGE_SIZE = 10
+SC_PAGINATION_PAGE_SIZE = f"&pagination[pageSize]={SC_PAGE_SIZE}"
 # Example Sort filter
-#SC_SORT='&sort=updatedAt:asc'
+# SC_SORT='&sort=updatedAt:asc'
 SC_SORT = ''
 SC_ENDPOINT = f"{SC_API_ENDPOINT}/v1/components?populate=environments{SC_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}"
+
 
 class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
   def do_GET(self):
@@ -46,16 +47,18 @@ class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
     self.wfile.write(bytes("UP", "utf8"))
     return
 
+
 def update_sc_component(c_id, data):
   try:
     log.debug(data)
-    x = requests.put(f"{SC_API_ENDPOINT}/v1/components/{c_id}", headers=sc_api_headers, json = {"data": data}, timeout=10)
+    x = requests.put(f"{SC_API_ENDPOINT}/v1/components/{c_id}", headers=sc_api_headers, json={"data": data}, timeout=10)
     if x.status_code == 200:
       log.info(f"Successfully updated component id {c_id}: {x.status_code}")
     else:
       log.info(f"Received non-200 response from service catalogue for component id {c_id}: {x.status_code} {x.content}")
   except Exception as e:
     log.error(f"Error updating component in the SC: {e}")
+
 
 def get_file_yaml(repo, path):
   try:
@@ -68,6 +71,7 @@ def get_file_yaml(repo, path):
   except Exception as e:
     log.error(f"Error getting yaml file: {e}")
 
+
 def get_file_json(repo, path):
   try:
     file_contents = repo.get_contents(path)
@@ -77,6 +81,7 @@ def get_file_json(repo, path):
     log.debug(f"404 File not found {repo.name}:{path}")
   except Exception as e:
     log.error(f"Error getting json file: {e}")
+
 
 def get_file_plain(repo, path):
   try:
@@ -88,6 +93,7 @@ def get_file_plain(repo, path):
     return False
   except Exception as e:
     log.error(f"Error getting contents from file: {e}")
+
 
 def test_endpoint(url, endpoint):
   headers = {'User-Agent': 'hmpps-service-discovery'}
@@ -101,6 +107,7 @@ def test_endpoint(url, endpoint):
     log.debug(f"Couldn't connect to endpoint: {url}{endpoint} ")
     return False
 
+
 def test_swagger_docs(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
@@ -112,6 +119,7 @@ def test_swagger_docs(url):
   except Exception:
     log.debug(f"Couldn't connect: {url}/swagger-ui.html")
     return False
+
 
 def test_subject_access_request_endpoint(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
@@ -129,6 +137,7 @@ def test_subject_access_request_endpoint(url):
     log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
     return False
 
+
 def get_sc_product_id(product_id):
   try:
     r = requests.get(f"{SC_API_ENDPOINT}/v1/products?filters[p_id][$eq]={product_id}", headers=sc_api_headers, timeout=10)
@@ -145,39 +154,42 @@ def get_sc_product_id(product_id):
 # This methods read all the values files under helm_deploy folder and create a dictionary object of allowlist for each environment
 # including the default values.
 
+
 def fetch_values_for_allowlist_key(yaml_data, key):
-    values = {}
-    if isinstance(yaml_data, dict):
-        if key in yaml_data:
-            if isinstance(yaml_data[key], dict):
-                values.update(yaml_data[key])
-            else:
-                values[key] = yaml_data[key]
-        for k, v in yaml_data.items():
-            if isinstance(v, (dict, list)):
-                child_values = fetch_values_for_allowlist_key(v, key)
-                if child_values:
-                    values.update({k: child_values})
-    elif isinstance(yaml_data, list):
-        for item in yaml_data:
-            child_values = fetch_values_for_allowlist_key(item, key)
-            if child_values:
-                values.update(child_values)
-     
-    return values
+  values = {}
+  if isinstance(yaml_data, dict):
+    if key in yaml_data:
+      if isinstance(yaml_data[key], dict):
+        values.update(yaml_data[key])
+      else:
+        values[key] = yaml_data[key]
+    for k, v in yaml_data.items():
+      if isinstance(v, (dict, list)):
+        child_values = fetch_values_for_allowlist_key(v, key)
+        if child_values:
+          values.update({k: child_values})
+  elif isinstance(yaml_data, list):
+    for item in yaml_data:
+      child_values = fetch_values_for_allowlist_key(item, key)
+      if child_values:
+        values.update(child_values)
+
+  return values
 
 # This method read the value stored in dictionary passed to it checks if the ip allow list is present or not and returns boolean
 
+
 def is_ipallowList_enabled(yaml_data):
-    ip_allow_list_enabled = False 
-    if isinstance(yaml_data, dict):
-        for value in yaml_data.values():
-            if isinstance(value, dict) and value:
-                ip_allow_list_enabled= True  
-    return ip_allow_list_enabled
+  ip_allow_list_enabled = False
+  if isinstance(yaml_data, dict):
+    for value in yaml_data.values():
+      if isinstance(value, dict) and value:
+        ip_allow_list_enabled = True
+  return ip_allow_list_enabled
+
 
 def process_repo(**component):
-  
+
   allow_list_key = "allowlist"
   c_name = component["attributes"]["name"]
   c_id = component["id"]
@@ -211,10 +223,10 @@ def process_repo(**component):
   teams_write = []
   teams_admin = []
   teams_maintain = []
-   #variables used for implemenmtation of findind IP allowlist in helm values files
-  ip_allow_list_data={}
+  # variables used for implemenmtation of findind IP allowlist in helm values files
+  ip_allow_list_data = {}
   ip_allow_list = {}
-  ip_allow_list_default={}
+  ip_allow_list_default = {}
 
   try:
     branch_protection = default_branch.get_protection()
@@ -263,7 +275,7 @@ def process_repo(**component):
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
-          hmpps_orb_version=value.split('@')[1]
+          hmpps_orb_version = value.split('@')[1]
           versions_data.update({'circleci': {'hmpps_orb': hmpps_orb_version}})
           log.debug(f"hmpps orb version: {hmpps_orb_version}")
     except Exception:
@@ -287,18 +299,18 @@ def process_repo(**component):
   if helm_deploy:
     for file in helm_deploy:
       if file.name.startswith('values-'):
-        env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', file.name)[1] 
-        helm_environments.append(env) 
-        
+        env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', file.name)[1]
+        helm_environments.append(env)
+
         # HEAT-223 Start : Read and collate data for IPallowlist from all environment specific values.yaml files.
-        ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{file.name}"), allow_list_key) 
+        ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{file.name}"), allow_list_key)
         ip_allow_list_data.update({file.name: ip_allow_list[file]})
         # HEAT-223 End : Read and collate data for IPallowlist from all environment specific values.yaml files.
 
     helm_default_values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/values.yaml")
     if helm_default_values:
-      
-      ip_allow_list_default = fetch_values_for_allowlist_key(helm_default_values, allow_list_key)  
+
+      ip_allow_list_default = fetch_values_for_allowlist_key(helm_default_values, allow_list_key)
 
       # Try to get the container image
       try:
@@ -321,7 +333,7 @@ def process_repo(**component):
         pass
 
   # helm env values files, extract useful values
-  helm_envs={}
+  helm_envs = {}
   for env in helm_environments:
     values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/values-{env}.yaml")
     if values:
@@ -371,31 +383,31 @@ def process_repo(**component):
     # Get dev namespace data
     if 'circleci_project_k8s_namespace' in p:
       dev_namespace = p['circleci_project_k8s_namespace']
-      e={'namespace': dev_namespace, 'type': 'dev'}
-      allow_list_values_for_prj_ns={}
+      e = {'namespace': dev_namespace, 'type': 'dev'}
+      allow_list_values_for_prj_ns = {}
       if 'dev' in helm_envs:
         dev_url = f"https://{helm_envs['dev']['host']}"
         e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
 
         try:
-             ip_allow_list_env=ip_allow_list_data['values-dev.yaml']
-             allow_list_values_for_prj_ns.update({'values-dev.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values_for_prj_ns, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values_for_prj_ns)}) 
+          ip_allow_list_env = ip_allow_list_data['values-dev.yaml']
+          allow_list_values_for_prj_ns.update({'values-dev.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+          e.update({'ip_allow_list': allow_list_values_for_prj_ns, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values_for_prj_ns)})
         except KeyError:
-          pass 
+          pass
 
       elif 'development' in helm_envs:
         dev_url = f"https://{helm_envs['development']['host']}"
         e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
 
         try:
-             ip_allow_list_env=ip_allow_list_data['values-development.yaml'] 
-             allow_list_values_for_prj_ns.update({'values-development.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default})     
-             e.update({'ip_allow_list': allow_list_values_for_prj_ns, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values_for_prj_ns)}) 
+          ip_allow_list_env = ip_allow_list_data['values-development.yaml']
+          allow_list_values_for_prj_ns.update({'values-development.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+          e.update({'ip_allow_list': allow_list_values_for_prj_ns, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values_for_prj_ns)})
 
         except KeyError:
-          pass  
- 
+          pass
+
       else:
         dev_url = False
 
@@ -430,90 +442,88 @@ def process_repo(**component):
     if 'circleci_context_k8s_namespaces' in p:
       for c in p['circleci_context_k8s_namespaces']:
         e = {}
-        allow_list_values={}
-        env_name=c['env_name']
-        env_type=c['env_type']
+        allow_list_values = {}
+        env_name = c['env_name']
+        env_type = c['env_type']
 
         e.update({'type': env_type, 'name': env_type})
 
         if env_name in helm_envs:
-          env_url=f"https://{helm_envs[env_name]['host']}"
+          env_url = f"https://{helm_envs[env_name]['host']}"
           e.update({'name': env_name, 'url': env_url})
           try:
-             ip_allow_list_env=ip_allow_list_data[f'values-{env_name}.yaml'] 
-             allow_list_values.update({f'values-{env_name}.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data[f'values-{env_name}.yaml']
+            allow_list_values.update({f'values-{env_name}.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
             pass
- 
+
         elif 'developement' in helm_envs:
-          env_url=f"https://{helm_envs['developement']['host']}"
+          env_url = f"https://{helm_envs['developement']['host']}"
           e.update({'type': 'dev', 'name': 'developement', 'url': env_url})
           try:
-             ip_allow_list_env=ip_allow_list_data[f'values-{env_name}.yaml'] 
-             allow_list_values.update({f'values-{env_name}.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data[f'values-{env_name}.yaml']
+            allow_list_values.update({f'values-{env_name}.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
             pass
-          
- 
+
         elif 'test' in helm_envs:
-          env_url=f"https://{helm_envs['test']['host']}"
+          env_url = f"https://{helm_envs['test']['host']}"
           e.update({'type': 'test', 'name': 'test', 'url': env_url})
           try:
-            ip_allow_list_env=ip_allow_list_data['values-test.yaml'] 
-            allow_list_values.update({'values-test.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data['values-test.yaml']
+            allow_list_values.update({'values-test.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
-            pass 
+            pass
 
         elif 'testing' in helm_envs:
-          env_url=f"https://{helm_envs['testing']['host']}"
+          env_url = f"https://{helm_envs['testing']['host']}"
           e.update({'type': 'test', 'name': 'testing', 'url': env_url})
           try:
-            ip_allow_list_env=ip_allow_list_data['values-testing.yaml'] 
-            allow_list_values.update({'values-testing.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data['values-testing.yaml']
+            allow_list_values.update({'values-testing.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
             pass
- 
 
         elif 'staging' in helm_envs:
-          env_url=f"https://{helm_envs['staging']['host']}"
+          env_url = f"https://{helm_envs['staging']['host']}"
           e.update({'type': 'stage', 'name': 'staging', 'url': env_url})
           try:
-             ip_allow_list_env=ip_allow_list_data['values-staging.yaml'] 
-             allow_list_values.update({'values-staging.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data['values-staging.yaml']
+            allow_list_values.update({'values-staging.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
             pass
- 
+
         elif 'qa' in helm_envs:
-          env_url=f"https://{helm_envs['qa']['host']}"
+          env_url = f"https://{helm_envs['qa']['host']}"
           e.update({'type': 'preprod', 'name': 'qa', 'url': env_url})
           try:
-             ip_allow_list_env=ip_allow_list_data['values-qa.yaml'] 
-             allow_list_values.update({'values-qa.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
-          except KeyError:
-            pass 
-        elif 'production' in helm_envs:
-          env_url=f"https://{helm_envs['production']['host']}"
-          e.update({'type': 'prod', 'name': 'production', 'url': env_url})
-          try:
-             ip_allow_list_env=ip_allow_list_data['values-production.yaml'] 
-             allow_list_values.update({'values-production.yaml' : ip_allow_list_env, 'values.yaml':ip_allow_list_default}) 
-             e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)}) 
+            ip_allow_list_env = ip_allow_list_data['values-qa.yaml']
+            allow_list_values.update({'values-qa.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
           except KeyError:
             pass
- 
+        elif 'production' in helm_envs:
+          env_url = f"https://{helm_envs['production']['host']}"
+          e.update({'type': 'prod', 'name': 'production', 'url': env_url})
+          try:
+            ip_allow_list_env = ip_allow_list_data['values-production.yaml']
+            allow_list_values.update({'values-production.yaml': ip_allow_list_env, 'values.yaml': ip_allow_list_default})
+            e.update({'ip_allow_list': allow_list_values, 'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values)})
+          except KeyError:
+            pass
+
         else:
           env_url = False
 
         if 'namespace' in c:
-          env_namespace=c['namespace']
+          env_namespace = c['namespace']
         else:
-          env_namespace=f"{repo.name}-{env_name}"
+          env_namespace = f"{repo.name}-{env_name}"
         e.update({'namespace': env_namespace})
 
         if env_url:
@@ -602,10 +612,12 @@ def process_repo(**component):
   # Update component with all results in data dict.
   update_sc_component(c_id, data)
 
+
 def startHttpServer():
   handler_object = HealthHttpRequestHandler
   with socketserver.TCPServer(("", 8080), handler_object) as httpd:
     httpd.serve_forever()
+
 
 def process_components(data):
   log.info(f"Processing batch of {len(data)} components...")
@@ -629,12 +641,13 @@ def process_components(data):
     component_name = component["attributes"]["name"]
     log.info(f"Started thread for {component_name}")
 
+
 if __name__ == '__main__':
   logging.basicConfig(
       format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=LOG_LEVEL)
   log = logging.getLogger(__name__)
 
-  sc_api_headers = {"Authorization": f"Bearer {SC_API_TOKEN}", "Content-Type":"application/json","Accept": "application/json"}
+  sc_api_headers = {"Authorization": f"Bearer {SC_API_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
 
   # Test connection to Service Catalogue
   try:
@@ -648,7 +661,7 @@ if __name__ == '__main__':
   try:
     private_key = b64decode(GITHUB_APP_PRIVATE_KEY).decode('ascii')
     auth = github.Auth.AppAuth(GITHUB_APP_ID, private_key).get_installation_auth(GITHUB_APP_INSTALLATION_ID)
-    gh = github.Github(auth=auth,pool_size=50)
+    gh = github.Github(auth=auth, pool_size=50)
 
     rate_limit = gh.get_rate_limit()
     core_rate_limit = rate_limit.core
@@ -668,7 +681,7 @@ if __name__ == '__main__':
     bootstrap_repo = gh.get_repo("ministryofjustice/hmpps-project-bootstrap")
     bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
     # Convert dict for easier lookup
-    bootstrap_projects={}
+    bootstrap_projects = {}
     for p in bootstrap_projects_json:
       bootstrap_projects.update({p['github_repo_name']: p})
 
@@ -687,7 +700,7 @@ if __name__ == '__main__':
       # Loop over the remaining pages and return one at a time
       num_pages = j_meta['pageCount']
       for p in range(2, num_pages+1):
-        page=f"&pagination[page]={p}"
+        page = f"&pagination[page]={p}"
         r = requests.get(f"{SC_ENDPOINT}{page}", headers=sc_api_headers, timeout=10)
         if r.status_code == 200:
           j_meta = r.json()["meta"]["pagination"]

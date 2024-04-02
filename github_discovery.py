@@ -530,7 +530,9 @@ def process_repo(**component):
           if test_swagger_docs(env_url):
             e.update({'swagger_docs': '/swagger-ui.html'})
             data.update({'api': True, 'frontend': False})
-            if env_type == 'prod' and test_subject_access_request_endpoint(env_url):
+            if test_subject_access_request_endpoint(env_url):
+              e.update({'include_in_subject_access_requests': True})
+            if env_type == 'prod':
               data.update({'include_in_subject_access_requests': True})
 
         # Try to add the existing env ID so we dont overwrite existing env entries

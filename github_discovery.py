@@ -554,6 +554,11 @@ def process_repo(**component):
             break
         environments.append(e)
 
+  # If no environment data is discovered above, and if environment data has been
+  # manually added to the SC, ensure we just pass the existing data to the SC update.
+  if not environments:
+    environments = component["attributes"]["environments"]
+
   # App insights cloud_RoleName
   if repo.language == 'Kotlin' or repo.language == 'Java':
     app_insights_config = get_file_json(repo, f"{monorepo_dir_suffix}applicationinsights.json")

@@ -286,13 +286,13 @@ def process_repo(**component):
     data.update({"frontend": True})
 
   versions_data = {}
-  trivy_scan_results = {}
+  trivy_scan_summary = {}
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
     try:
       trivy_scan_json = get_trivy_scan_json_data(c_name)
-      trivy_scan_results.update(trivy_scan_json)
+      trivy_scan_summary.update(trivy_scan_json)
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -636,7 +636,7 @@ def process_repo(**component):
   data.update({'versions': versions_data})
 
   # Add trivy scan result to final data dict.
-  data.update({'trivy_scan_results': trivy_scan_results})
+  data.update({'trivy_scan_summary': trivy_scan_summary})
 
  
 

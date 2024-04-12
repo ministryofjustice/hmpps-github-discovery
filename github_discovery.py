@@ -11,7 +11,7 @@ from datetime import datetime
 from base64 import b64decode
 import re
 import json
-
+import subprocess
 import yaml
 import github
 import requests
@@ -23,6 +23,9 @@ GITHUB_APP_ID = int(os.getenv("GITHUB_APP_ID"))
 GITHUB_APP_INSTALLATION_ID = int(os.getenv("GITHUB_APP_INSTALLATION_ID"))
 GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY")
 REFRESH_INTERVAL_HOURS = int(os.getenv("REFRESH_INTERVAL_HOURS", "6"))
+CIRCLECI_TOKEN = os.getenv("CIRCLECI_TOKEN")
+CIRCLECI_API_ENDPOINT = os.getenv("CIRCLECI_API_ENDPOINT")
+
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
@@ -187,6 +190,21 @@ def is_ipallowList_enabled(yaml_data):
         ip_allow_list_enabled = True
   return ip_allow_list_enabled
 
+def get_trivy_scan_json_data(project_name): 
+    
+  circleci_headers = {"Authorization": f"Circle-Token: {CIRCLECI_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
+  project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
+  try:                       
+      curl_command = f"""curl -H "Circle-Token: {CIRCLECI_TOKEN}" {project_url} | jq -r .[].build_num | head -n 1 | xargs -I {{}} echo "{project_url}/{{}}/artifacts" | xargs curl -s -H "Circle-Token: {CIRCLECI_TOKEN}" | jq -r .[].url | grep -E 'results.json' | head -n 1"""
+      output = subprocess.check_output(curl_command, shell=True)
+      url_for_trivy_data = output.decode("utf-8").strip() 
+      response = requests.get(url_for_trivy_data,headers=circleci_headers)
+      output_json = response.json() 
+      return output_json
+  except Exception as e:
+      log.debug(e)    
+       
+
 
 def process_repo(**component):
 
@@ -268,10 +286,13 @@ def process_repo(**component):
     data.update({"frontend": True})
 
   versions_data = {}
+  trivy_scan_results = {}
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
     try:
+      trivy_scan_json = get_trivy_scan_json_data(c_name)
+      trivy_scan_results.update(trivy_scan_json)
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -613,6 +634,11 @@ def process_repo(**component):
 
   # Add versions to final data dict.
   data.update({'versions': versions_data})
+
+  # Add trivy scan result to final data dict.
+  data.update({'trivy_scan_results': trivy_scan_results})
+
+ 
 
   # Update component with all results in data dict.
   update_sc_component(c_id, data)

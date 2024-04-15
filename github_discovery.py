@@ -195,17 +195,19 @@ def get_trivy_scan_json_data(project_name):
   project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
   try:
       response = requests.get(project_url, headers=circleci_headers) 
-      latest_build_num = response.json()[0]['build_num'] 
-      artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
-      response = requests.get(artifacts_url, headers=circleci_headers) 
-      artifact_urls = response.json()                     
-      output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
-      if output_json_url:
-        response = requests.get(output_json_url, headers=circleci_headers) 
-        output_json_content = response.json()
-        return output_json_content
-      else:
-        return None
+      latest_build_num = response.json()[0]['build_num']
+      workflow_name=response.json()[0]['workflows']['workflow_name']
+      if(workflow_name=='security'):
+        artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
+        response = requests.get(artifacts_url, headers=circleci_headers) 
+        artifact_urls = response.json()                     
+        output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
+        if output_json_url:
+          response = requests.get(output_json_url, headers=circleci_headers) 
+          output_json_content = response.json()
+          return output_json_content
+        else:
+          return None
   except Exception as e:
         print(f"Error: {e}")
         return None   
@@ -299,7 +301,6 @@ def process_repo(**component):
     try:
       trivy_scan_json = get_trivy_scan_json_data(c_name)
       trivy_scan_summary.update(trivy_scan_json)
-      print(trivy_scan_summary)
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:

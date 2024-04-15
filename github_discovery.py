@@ -11,7 +11,6 @@ from datetime import datetime
 from base64 import b64decode
 import re
 import json
-import subprocess
 import yaml
 import github
 import requests

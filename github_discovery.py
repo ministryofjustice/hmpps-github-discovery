@@ -193,24 +193,26 @@ def is_ipallowList_enabled(yaml_data):
 def get_trivy_scan_json_data(project_name):     
   circleci_headers = {"Authorization": f"Circle-Token: {CIRCLECI_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
   project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
+  output_json_content={}
   try:
-      response = requests.get(project_url, headers=circleci_headers) 
-      latest_build_num = response.json()[0]['build_num']
-      workflow_name=response.json()[0]['workflows']['workflow_name']
-      if(workflow_name=='security'):
+    response = requests.get(project_url, headers=circleci_headers) 
+    for build_info in response.json():
+      if build_info.get('workflows',{}).get('workflow_name') == 'security':
+        latest_build_num = build_info['build_num'] 
         artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
-        response = requests.get(artifacts_url, headers=circleci_headers) 
-        artifact_urls = response.json()                     
-        output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
-        if output_json_url:
-          response = requests.get(output_json_url, headers=circleci_headers) 
-          output_json_content = response.json()
-          return output_json_content
-        else:
-          return None
+        break
+    response = requests.get(artifacts_url, headers=circleci_headers) 
+    artifact_urls = response.json()                     
+    output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
+    if output_json_url:
+      response = requests.get(output_json_url, headers=circleci_headers) 
+      output_json_content = response.json()
+      return output_json_content
+    else:
+      return output_json_content
   except Exception as e:
-        print(f"Error: {e}")
-        return None   
+        log.debug(f"Error: {e}")
+        return output_json_content   
        
 
 
@@ -294,13 +296,15 @@ def process_repo(**component):
     data.update({"frontend": True})
 
   versions_data = {}
-  trivy_scan_summary = {}
+  trivy_scan_summary = {} 
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
     try:
       trivy_scan_json = get_trivy_scan_json_data(c_name)
-      trivy_scan_summary.update(trivy_scan_json)
+      #if len(trivy_scan_json) !=0 :
+      trivy_scan_date = trivy_scan_json.get("CreatedAt")
+      trivy_scan_summary.update({"trivy_scan_json": trivy_scan_json, "trivy_scan_date" : trivy_scan_date}) 
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -644,8 +648,9 @@ def process_repo(**component):
   data.update({'versions': versions_data})
 
   # Add trivy scan result to final data dict.
-  data.update({'trivy_scan_summary': trivy_scan_summary})
+  data.update({'trivy_scan_summary': trivy_scan_summary.get("trivy_scan_json")})
 
+  data.update({'trivy_last_completed_scan_date': trivy_scan_summary.get("trivy_scan_date")})
  
 
   # Update component with all results in data dict.

@@ -190,19 +190,25 @@ def is_ipallowList_enabled(yaml_data):
         ip_allow_list_enabled = True
   return ip_allow_list_enabled
 
-def get_trivy_scan_json_data(project_name): 
-    
+def get_trivy_scan_json_data(project_name):     
   circleci_headers = {"Authorization": f"Circle-Token: {CIRCLECI_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
   project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
-  try:                       
-      curl_command = f"""curl -H "Circle-Token: {CIRCLECI_TOKEN}" {project_url} | jq -r .[].build_num | head -n 1 | xargs -I {{}} echo "{project_url}/{{}}/artifacts" | xargs curl -s -H "Circle-Token: {CIRCLECI_TOKEN}" | jq -r .[].url | grep -E 'results.json' | head -n 1"""
-      output = subprocess.check_output(curl_command, shell=True)
-      url_for_trivy_data = output.decode("utf-8").strip() 
-      response = requests.get(url_for_trivy_data,headers=circleci_headers)
-      output_json = response.json() 
-      return output_json
+  try:
+      response = requests.get(project_url, headers=circleci_headers) 
+      latest_build_num = response.json()[0]['build_num'] 
+      artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
+      response = requests.get(artifacts_url, headers=circleci_headers) 
+      artifact_urls = response.json()                     
+      output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
+      if output_json_url:
+        response = requests.get(output_json_url, headers=circleci_headers) 
+        output_json_content = response.json()
+        return output_json_content
+      else:
+        return None
   except Exception as e:
-      log.debug(e)    
+        print(f"Error: {e}")
+        return None   
        
 
 
@@ -293,6 +299,7 @@ def process_repo(**component):
     try:
       trivy_scan_json = get_trivy_scan_json_data(c_name)
       trivy_scan_summary.update(trivy_scan_json)
+      print(trivy_scan_summary)
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:

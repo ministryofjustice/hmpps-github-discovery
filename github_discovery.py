@@ -300,10 +300,13 @@ def process_repo(**component):
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
     try:
-      trivy_scan_json = get_trivy_scan_json_data(c_name)
-      #if len(trivy_scan_json) !=0 :
+      trivy_scan_json = get_trivy_scan_json_data(c_name) 
       trivy_scan_date = trivy_scan_json.get("CreatedAt")
       trivy_scan_summary.update({"trivy_scan_json": trivy_scan_json, "trivy_scan_date" : trivy_scan_date}) 
+      # Add trivy scan result to final data dict.
+      data.update({'trivy_scan_summary': trivy_scan_summary.get("trivy_scan_json")})
+      data.update({'trivy_last_completed_scan_date': trivy_scan_summary.get("trivy_scan_date")})
+
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -644,13 +647,7 @@ def process_repo(**component):
   data.update({"environments": environments})
 
   # Add versions to final data dict.
-  data.update({'versions': versions_data})
-
-  # Add trivy scan result to final data dict.
-  data.update({'trivy_scan_summary': trivy_scan_summary.get("trivy_scan_json")})
-
-  data.update({'trivy_last_completed_scan_date': trivy_scan_summary.get("trivy_scan_date")})
- 
+  data.update({'versions': versions_data}) 
 
   # Update component with all results in data dict.
   update_sc_component(c_id, data)

@@ -11,7 +11,6 @@ from datetime import datetime
 from base64 import b64decode
 import re
 import json
-
 import yaml
 import github
 import requests
@@ -23,6 +22,9 @@ GITHUB_APP_ID = int(os.getenv("GITHUB_APP_ID"))
 GITHUB_APP_INSTALLATION_ID = int(os.getenv("GITHUB_APP_INSTALLATION_ID"))
 GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY")
 REFRESH_INTERVAL_HOURS = int(os.getenv("REFRESH_INTERVAL_HOURS", "6"))
+CIRCLECI_TOKEN = os.getenv("CIRCLECI_TOKEN")
+CIRCLECI_API_ENDPOINT = os.getenv("CIRCLECI_API_ENDPOINT")
+
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 MAX_THREADS = 10
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
@@ -187,6 +189,29 @@ def is_ipallowList_enabled(yaml_data):
         ip_allow_list_enabled = True
   return ip_allow_list_enabled
 
+def get_trivy_scan_json_data(project_name):     
+  circleci_headers = {"Authorization": f"Circle-Token: {CIRCLECI_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
+  project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
+  output_json_content={}
+  try:
+    response = requests.get(project_url, headers=circleci_headers)  
+    for build_info in response.json():
+      if build_info.get('workflows',{}).get('workflow_name') == 'security':
+        latest_build_num = build_info['build_num'] 
+        artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
+        break
+    response = requests.get(artifacts_url, headers=circleci_headers) 
+    artifact_urls = response.json()                     
+    output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
+    if output_json_url:
+      response = requests.get(output_json_url, headers=circleci_headers) 
+      output_json_content = response.json()
+    return output_json_content
+  except Exception as e:
+        log.debug(f"Error: {e}")
+         
+       
+
 
 def process_repo(**component):
 
@@ -268,10 +293,18 @@ def process_repo(**component):
     data.update({"frontend": True})
 
   versions_data = {}
+  trivy_scan_summary = {} 
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
     try:
+      trivy_scan_json = get_trivy_scan_json_data(c_name) 
+      trivy_scan_date = trivy_scan_json.get("CreatedAt")
+      trivy_scan_summary.update({"trivy_scan_json": trivy_scan_json, "trivy_scan_date" : trivy_scan_date}) 
+      # Add trivy scan result to final data dict.
+      data.update({'trivy_scan_summary': trivy_scan_summary.get("trivy_scan_json")})
+      data.update({'trivy_last_completed_scan_date': trivy_scan_summary.get("trivy_scan_date")})
+
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -612,7 +645,7 @@ def process_repo(**component):
   data.update({"environments": environments})
 
   # Add versions to final data dict.
-  data.update({'versions': versions_data})
+  data.update({'versions': versions_data}) 
 
   # Update component with all results in data dict.
   update_sc_component(c_id, data)

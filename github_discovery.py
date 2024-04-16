@@ -194,7 +194,7 @@ def get_trivy_scan_json_data(project_name):
   project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
   output_json_content={}
   try:
-    response = requests.get(project_url, headers=circleci_headers)   
+    response = requests.get(project_url, headers=circleci_headers)  
     for build_info in response.json():
       if build_info.get('workflows',{}).get('workflow_name') == 'security':
         latest_build_num = build_info['build_num'] 
@@ -206,7 +206,7 @@ def get_trivy_scan_json_data(project_name):
     if output_json_url:
       response = requests.get(output_json_url, headers=circleci_headers) 
       output_json_content = response.json()
-      return output_json_content
+    return output_json_content
   except Exception as e:
         log.debug(f"Error: {e}")
          

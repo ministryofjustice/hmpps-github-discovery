@@ -196,7 +196,10 @@ def get_trivy_scan_json_data(project_name):
   try:
     response = requests.get(project_url, headers=circleci_headers)  
     for build_info in response.json():
-      if build_info.get('workflows',{}).get('workflow_name') == 'security':
+      workflows = build_info.get('workflows',{})
+      workflow_name = workflows.get('workflow_name',{})
+      job_name = build_info.get('workflows',{}).get('job_name')
+      if workflow_name == 'security' and job_name == 'hmpps/trivy_latest_scan':
         latest_build_num = build_info['build_num'] 
         artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
         break

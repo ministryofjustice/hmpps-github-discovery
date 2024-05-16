@@ -144,11 +144,11 @@ def get_sc_id(match_type, match_field, match_string):
   try:
     r = requests.get(f"{SC_API_ENDPOINT}/v1/{match_type}?filters[{match_field}][$eq]={match_string}", headers=sc_api_headers, timeout=10)
     if r.status_code == 200:
-      id r.json()['data'][0]['id']
-      log.info(f"Successfully found ID {id} matching field: {match_field} and string: {match_string}")
-      return id
+      sc_id = r.json()['data'][0]['id']
+      log.info(f"Successfully found ID {sc_id} matching field: {match_field} and string: {match_string}")
+      return sc_id
     else:
-      log.info(f"Received non-200 response from service catalogue searching for internal product ID: {product_id}: {r.status_code} {r.content}")
+      log.info(f"Received non-200 response from service catalogue searching for ID: {r.status_code} {r.content}")
       return False
   except Exception as e:
     log.error(f"Error getting ID from SC: {e}")

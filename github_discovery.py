@@ -112,8 +112,8 @@ def test_swagger_docs(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(f"{url}/swagger-ui.html", headers=headers, allow_redirects=False, timeout=10)
-    # Test for 302 redirect
-    if r.status_code == 302 and "/swagger-ui/index.html" in r.headers['Location']:
+    # Test for 302 redirect)
+    if r.status_code == 302 and ("/swagger-ui/index.html" in r.headers['Location'] or "api-docs/index.html" in r.headers['Location']):
       log.debug(f"Found swagger docs: {url}/swagger-ui.html")
       return True
   except Exception:
@@ -138,17 +138,18 @@ def test_subject_access_request_endpoint(url):
     return False
 
 
-def get_sc_product_id(product_id):
+def get_sc_id(match_type, match_field, match_string):
   try:
-    r = requests.get(f"{SC_API_ENDPOINT}/v1/products?filters[p_id][$eq]={product_id}", headers=sc_api_headers, timeout=10)
+    r = requests.get(f"{SC_API_ENDPOINT}/v1/{match_type}?filters[{match_field}][$eq]={match_string}", headers=sc_api_headers, timeout=10)
     if r.status_code == 200:
-      log.info(f"Successfully found product with internal ID {product_id}: {r.status_code}")
-      return r.json()['data'][0]['id']
+      id r.json()['data'][0]['id']
+      log.info(f"Successfully found ID {id} matching field: {match_field} and string: {match_string}")
+      return id
     else:
       log.info(f"Received non-200 response from service catalogue searching for internal product ID: {product_id}: {r.status_code} {r.content}")
       return False
   except Exception as e:
-    log.error(f"Error getting product ID from SC: {e}")
+    log.error(f"Error getting ID from SC: {e}")
     return False
 # This method is to find the values defined for allowlist in values*.yaml files under helm_deploy folder of each project.
 # This methods read all the values files under helm_deploy folder and create a dictionary object of allowlist for each environment
@@ -326,7 +327,7 @@ def process_repo(**component):
       # Try to get the productID
       try:
         product_id = helm_default_values['generic-service']['productId']
-        sc_product_id = get_sc_product_id(product_id)
+        sc_product_id = get_sc_id('products', 'p_id', product_id)
         if sc_product_id:
           data.update({"product": sc_product_id})
       except KeyError:
@@ -384,6 +385,11 @@ def process_repo(**component):
     if 'circleci_project_k8s_namespace' in p:
       dev_namespace = p['circleci_project_k8s_namespace']
       e = {'namespace': dev_namespace, 'type': 'dev'}
+
+      ns_id = get_sc_id('namespaces', 'name', dev_namespace)
+      if ns_id:
+        e.update({'ns': ns_id})
+
       allow_list_values_for_prj_ns = {}
       if 'dev' in helm_envs:
         dev_url = f"https://{helm_envs['dev']['host']}"
@@ -525,6 +531,9 @@ def process_repo(**component):
         else:
           env_namespace = f"{repo.name}-{env_name}"
         e.update({'namespace': env_namespace})
+        ns_id = get_sc_id('namespaces', 'name', env_namespace)
+        if ns_id:
+          e.update({'ns': ns_id})
 
         if env_url:
           health_path = "/health"

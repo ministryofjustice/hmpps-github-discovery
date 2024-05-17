@@ -143,15 +143,14 @@ def test_subject_access_request_endpoint(url):
 def get_sc_id(match_type, match_field, match_string):
   try:
     r = requests.get(f"{SC_API_ENDPOINT}/v1/{match_type}?filters[{match_field}][$eq]={match_string}", headers=sc_api_headers, timeout=10)
-    if r.status_code == 200:
+    if r.status_code == 200 and r.json()['data']:
       sc_id = r.json()['data'][0]['id']
-      log.info(f"Successfully found ID {sc_id} matching field: {match_field} and string: {match_string}")
+      log.info(f"Successfully found ID {sc_id}, matching type/field/string: {match_type}/{match_field}/{match_string}")
       return sc_id
-    else:
-      log.info(f"Received non-200 response from service catalogue searching for ID: {r.status_code} {r.content}")
-      return False
+    log.info(f"Could not find ID, matching type/field/string: {match_type}/{match_field}/{match_string}")
+    return False
   except Exception as e:
-    log.error(f"Error getting ID from SC: {e}")
+    log.error(f"Error getting ID from SC: {e} - {r.status_code} {r.content}")
     return False
 # This method is to find the values defined for allowlist in values*.yaml files under helm_deploy folder of each project.
 # This methods read all the values files under helm_deploy folder and create a dictionary object of allowlist for each environment

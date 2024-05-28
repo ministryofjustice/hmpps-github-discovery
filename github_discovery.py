@@ -223,10 +223,8 @@ def process_repo(**component):
   c_id = component["id"]
   github_repo = component["attributes"]["github_repo"]
   part_of_monorepo = component["attributes"]["part_of_monorepo"]
-  if part_of_monorepo:
-    monorepo_dir_suffix = f"{c_name}/"
-  else:
-    monorepo_dir_suffix = ""
+  project_dir = (component["attributes"]["path_to_project"] or c_name) if part_of_monorepo else "."
+  helm_dir = component["attributes"]["path_to_helm_dir"] or f"{project_dir}/helm_deploy"
 
   log.info(f"Processing component: {c_name}")
   try:
@@ -318,7 +316,8 @@ def process_repo(**component):
       log.debug('No hmpps orb version found')
 
   # Helm charts
-  helm_chart = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/Chart.yaml") or {}
+  helm_chart = (get_file_yaml(repo, f"{helm_dir}/{c_name}/Chart.yaml") or
+                get_file_yaml(repo, f"{helm_dir}/Chart.yaml") or {})
   if 'dependencies' in helm_chart:
     helm_dep_versions = {}
     for item in helm_chart['dependencies']:
@@ -327,7 +326,7 @@ def process_repo(**component):
 
   helm_environments = []
   try:
-    helm_deploy = repo.get_contents(f"{monorepo_dir_suffix}helm_deploy", default_branch.commit.sha)
+    helm_deploy = repo.get_contents(helm_dir, default_branch.commit.sha)
   except Exception as e:
     helm_deploy = False
     log.debug(f"helm_deploy folder: {e}")
@@ -339,11 +338,12 @@ def process_repo(**component):
         helm_environments.append(env)
 
         # HEAT-223 Start : Read and collate data for IPallowlist from all environment specific values.yaml files.
-        ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{file.name}"), allow_list_key)
+        ip_allow_list[file] = fetch_values_for_allowlist_key(get_file_yaml(repo, f"{helm_dir}/{file.name}"), allow_list_key)
         ip_allow_list_data.update({file.name: ip_allow_list[file]})
         # HEAT-223 End : Read and collate data for IPallowlist from all environment specific values.yaml files.
 
-    helm_default_values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/{c_name}/values.yaml")
+    helm_default_values = (get_file_yaml(repo, f"{helm_dir}/{c_name}/values.yaml") or
+                           get_file_yaml(repo, f"{helm_dir}/values.yaml") or {})
     if helm_default_values:
 
       ip_allow_list_default = fetch_values_for_allowlist_key(helm_default_values, allow_list_key)
@@ -371,7 +371,7 @@ def process_repo(**component):
   # helm env values files, extract useful values
   helm_envs = {}
   for env in helm_environments:
-    values = get_file_yaml(repo, f"{monorepo_dir_suffix}helm_deploy/values-{env}.yaml")
+    values = get_file_yaml(repo, f"{helm_dir}/values-{env}.yaml")
     if values:
       # Ingress hostname
       try:
@@ -605,13 +605,13 @@ def process_repo(**component):
 
   # App insights cloud_RoleName
   if repo.language == 'Kotlin' or repo.language == 'Java':
-    app_insights_config = get_file_json(repo, f"{monorepo_dir_suffix}applicationinsights.json")
+    app_insights_config = get_file_json(repo, f"{project_dir}/applicationinsights.json")
     if app_insights_config:
       app_insights_cloud_role_name = app_insights_config['role']['name']
       data.update({"app_insights_cloud_role_name": app_insights_cloud_role_name})
 
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
-    package_json = get_file_json(repo, f"{monorepo_dir_suffix}package.json")
+    package_json = get_file_json(repo, f"{project_dir}/package.json")
     if package_json:
       app_insights_cloud_role_name = package_json['name']
       if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
@@ -638,7 +638,7 @@ def process_repo(**component):
 
   # Parse Dockerfile
   try:
-    file_contents = repo.get_contents(f"{monorepo_dir_suffix}Dockerfile")
+    file_contents = repo.get_contents(f"{project_dir}/Dockerfile")
     dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
     dockerfile.content = b64decode(file_contents.content)
     # Get list of parent images, and strip out references to 'base'

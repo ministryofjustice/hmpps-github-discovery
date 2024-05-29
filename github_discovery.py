@@ -485,7 +485,11 @@ def process_repo(**component):
         e = {}
         allow_list_values = {}
         env_name = c['env_name']
-        env_type = c['env_type']
+
+        if 'env_type' in c:
+          env_type = c['env_type']
+        else:
+          env_type = env_name
 
         e.update({'type': env_type, 'name': env_type})
 

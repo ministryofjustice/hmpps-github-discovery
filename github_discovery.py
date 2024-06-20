@@ -23,7 +23,7 @@ GITHUB_APP_INSTALLATION_ID = int(os.getenv("GITHUB_APP_INSTALLATION_ID"))
 GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY")
 REFRESH_INTERVAL_HOURS = int(os.getenv("REFRESH_INTERVAL_HOURS", "6"))
 CIRCLECI_TOKEN = os.getenv("CIRCLECI_TOKEN")
-CIRCLECI_API_ENDPOINT = os.getenv("CIRCLECI_API_ENDPOINT")
+CIRCLECI_API_ENDPOINT = os.getenv("CIRCLECI_API_ENDPOINT", "https://circleci.com/api/v1.1/project/gh/ministryofjustice/")
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 MAX_THREADS = 10
@@ -190,31 +190,28 @@ def is_ipallowList_enabled(yaml_data):
   return ip_allow_list_enabled
 
 def get_trivy_scan_json_data(project_name):     
-  circleci_headers = {"Authorization": f"Circle-Token: {CIRCLECI_TOKEN}", "Content-Type": "application/json", "Accept": "application/json"}
-  project_url = f"{CIRCLECI_API_ENDPOINT}"+ project_name
+  circleci_headers = {"Circle-Token": CIRCLECI_TOKEN, "Content-Type": "application/json", "Accept": "application/json"}
+  project_url = f"{CIRCLECI_API_ENDPOINT}{project_name}"
   output_json_content={}
   try:
-    response = requests.get(project_url, headers=circleci_headers)  
+    response = requests.get(project_url, headers=circleci_headers, timeout=30)
     for build_info in response.json():
       workflows = build_info.get('workflows',{})
       workflow_name = workflows.get('workflow_name',{})
       job_name = build_info.get('workflows',{}).get('job_name')
       if workflow_name == 'security' and job_name == 'hmpps/trivy_latest_scan':
         latest_build_num = build_info['build_num'] 
-        artifacts_url = f"{project_url}/{latest_build_num}/artifacts" 
+        artifacts_url = f"{project_url}/{latest_build_num}/artifacts"
         break
-    response = requests.get(artifacts_url, headers=circleci_headers) 
-    artifact_urls = response.json()                     
+    response = requests.get(artifacts_url, headers=circleci_headers, timeout=30)
+    artifact_urls = response.json()
     output_json_url = next((artifact['url'] for artifact in artifact_urls if 'results.json' in artifact['url']), None)
     if output_json_url:
-      response = requests.get(output_json_url, headers=circleci_headers) 
+      response = requests.get(output_json_url, headers=circleci_headers, timeout=30)
       output_json_content = response.json()
     return output_json_content
   except Exception as e:
-        log.debug(f"Error: {e}")
-         
-       
-
+    log.debug(f"Error: {e}")
 
 def process_repo(**component):
 
@@ -254,6 +251,13 @@ def process_repo(**component):
   ip_allow_list = {}
   ip_allow_list_default = {}
 
+  versions_data = {}
+  trivy_scan_summary = {}
+
+  modsecurity_enabled_default = None
+  modsecurity_audit_enabled_default = None
+  modsecurity_snippet_default = None
+
   try:
     branch_protection = default_branch.get_protection()
     branch_protection_teams = branch_protection.get_team_push_restrictions() or []
@@ -289,12 +293,10 @@ def process_repo(**component):
   data.update({"github_topics": topics})
 
   # Try to detect frontends or UIs
-  if re.search("([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)", f"{c_name} {repo.description}"):
+  if re.search(r"([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)", f"{c_name} {repo.description}"):
     log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data.update({"frontend": True})
 
-  versions_data = {}
-  trivy_scan_summary = {} 
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, ".circleci/config.yml")
   if cirlcleci_config:
@@ -305,7 +307,10 @@ def process_repo(**component):
       # Add trivy scan result to final data dict.
       data.update({'trivy_scan_summary': trivy_scan_summary.get("trivy_scan_json")})
       data.update({'trivy_last_completed_scan_date': trivy_scan_summary.get("trivy_scan_date")})
+    except Exception:
+      log.debug('Unable to get trivy scan results')
 
+    try:
       cirleci_orbs = cirlcleci_config['orbs']
       for key, value in cirleci_orbs.items():
         if "ministryofjustice/hmpps" in value:
@@ -344,6 +349,7 @@ def process_repo(**component):
 
     helm_default_values = (get_file_yaml(repo, f"{helm_dir}/{c_name}/values.yaml") or
                            get_file_yaml(repo, f"{helm_dir}/values.yaml") or {})
+
     if helm_default_values:
 
       ip_allow_list_default = fetch_values_for_allowlist_key(helm_default_values, allow_list_key)
@@ -365,6 +371,25 @@ def process_repo(**component):
         sc_product_id = get_sc_id('products', 'p_id', product_id)
         if sc_product_id:
           data.update({"product": sc_product_id})
+      except KeyError:
+        pass
+
+      # Get modsecurity data, if enabled.
+      modsecurity_enabled_env = None
+      modsecurity_audit_enabled_env = None
+      modsecurity_snippet_env = None
+      try:
+        modsecurity_enabled_default = helm_default_values['generic-service']['ingress']['modsecurity_enabled']
+      except KeyError:
+        pass
+
+      try:
+        modsecurity_audit_enabled_default = helm_default_values['generic-service']['ingress']['modsecurity_audit_enabled']
+      except KeyError:
+        pass
+
+      try:
+        modsecurity_snippet_default = helm_default_values['generic-service']['ingress']['modsecurity_snippet']
       except KeyError:
         pass
 
@@ -413,6 +438,25 @@ def process_repo(**component):
       except KeyError:
         pass
 
+      # Get modsecurity data
+      modsecurity_enabled_env = None
+      modsecurity_audit_enabled_env = None
+      modsecurity_snippet_env = None
+      try:
+        modsecurity_enabled_env = values['generic-service']['ingress']['modsecurity_enabled']
+      except KeyError:
+        pass
+
+      try:
+        modsecurity_audit_enabled_env = values['generic-service']['ingress']['modsecurity_audit_enabled']
+      except KeyError:
+        pass
+
+      try:
+        modsecurity_snippet_env = values['generic-service']['ingress']['modsecurity_snippet']
+      except KeyError:
+        pass
+
   environments = []
   if repo.name in bootstrap_projects:
     p = bootstrap_projects[repo.name]
@@ -424,6 +468,27 @@ def process_repo(**component):
       ns_id = get_sc_id('namespaces', 'name', dev_namespace)
       if ns_id:
         e.update({'ns': ns_id})
+
+      if modsecurity_enabled_env is None and modsecurity_enabled_default:
+        e.update({'modsecurity_enabled': True})
+      elif modsecurity_enabled_env:
+        e.update({'modsecurity_enabled': True})
+      else:
+        e.update({'modsecurity_enabled': False})
+
+      if modsecurity_audit_enabled_env is None and modsecurity_audit_enabled_default:
+        e.update({'modsecurity_audit_enabled': True})
+      elif modsecurity_enabled_env:
+        e.update({'modsecurity_audit_enabled': True})
+      else:
+        e.update({'modsecurity_audit_enabled': False})
+
+      if modsecurity_snippet_env is None and modsecurity_snippet_default:
+        e.update({'modsecurity_snippet': modsecurity_snippet_default})
+      elif modsecurity_snippet_env:
+        e.update({'modsecurity_snippet': modsecurity_snippet_env})
+      else:
+        e.update({'modsecurity_snippet': None})
 
       allow_list_values_for_prj_ns = {}
       if 'dev' in helm_envs:
@@ -573,6 +638,27 @@ def process_repo(**component):
         ns_id = get_sc_id('namespaces', 'name', env_namespace)
         if ns_id:
           e.update({'ns': ns_id})
+
+        if modsecurity_enabled_env is None and modsecurity_enabled_default:
+          e.update({'modsecurity_enabled': True})
+        elif modsecurity_enabled_env:
+          e.update({'modsecurity_enabled': True})
+        else:
+          e.update({'modsecurity_enabled': False})
+
+        if modsecurity_audit_enabled_env is None and modsecurity_audit_enabled_default:
+          e.update({'modsecurity_audit_enabled': True})
+        elif modsecurity_enabled_env:
+          e.update({'modsecurity_audit_enabled': True})
+        else:
+          e.update({'modsecurity_audit_enabled': False})
+
+        if modsecurity_snippet_env is None and modsecurity_snippet_default:
+          e.update({'modsecurity_snippet': modsecurity_snippet_default})
+        elif modsecurity_snippet_env:
+          e.update({'modsecurity_snippet': modsecurity_snippet_env})
+        else:
+          e.update({'modsecurity_snippet': None})
 
         if env_url:
           health_path = "/health"

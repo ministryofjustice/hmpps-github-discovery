@@ -375,9 +375,9 @@ def process_repo(**component):
         pass
 
       # Get modsecurity data, if enabled.
-      modsecurity_enabled_env = None
-      modsecurity_audit_enabled_env = None
-      modsecurity_snippet_env = None
+      modsecurity_enabled_default = None
+      modsecurity_audit_enabled_default = None
+      modsecurity_snippet_default = None
       try:
         modsecurity_enabled_default = helm_default_values['generic-service']['ingress']['modsecurity_enabled']
       except KeyError:
@@ -731,12 +731,26 @@ def process_repo(**component):
     file_contents = repo.get_contents(f"{project_dir}/Dockerfile")
     dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
     dockerfile.content = b64decode(file_contents.content)
-    # Get list of parent images, and strip out references to 'base'
-    parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
-    # Get the last element in the array, which should be the base image of the final stage.
-    base_image = parent_images[-1]
-    versions_data.update({'dockerfile': {'base_image': base_image}})
-    log.debug(f"Found Dockerfile base image: {base_image}")
+
+    docker_data = {}
+    if re.search(r"rds-ca-2019-root\.pem", dockerfile.content, re.MULTILINE):
+      docker_data.update({'rds_ca_cert': 'rds-ca-2019-root.pem'})
+    if re.search(r"global-bundle\.pem", dockerfile.content, re.MULTILINE):
+      docker_data.update({'rds_ca_cert': 'global-bundle.pem'})
+
+    try:
+      # Get list of parent images, and strip out references to 'base'
+      parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
+      # Get the last element in the array, which should be the base image of the final stage.
+      base_image = parent_images[-1]
+      docker_data.update({'base_image': base_image})
+      log.debug(f"Found Dockerfile base image: {base_image}")
+    except Exception as e:
+      log.error(f"Error parent/base image from Dockerfile: {e}")
+
+    if docker_data:
+      versions_data.update({'dockerfile': docker_data})
+
   except github.UnknownObjectException:
     log.info(f"404 File not found {repo.name}:Dockerfile")
   except Exception as e:

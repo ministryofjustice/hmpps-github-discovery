@@ -1188,7 +1188,7 @@ if __name__ == '__main__':
       log.debug(r)
       if r.status_code == 200:
         j_meta = r.json()['meta']['pagination']
-        log.debug(f'Got result page: {j_meta['page']} from SC')
+        log.debug(f'Got result page: {j_meta["page"]} from SC')
         j_data = r.json()['data']
         process_components(j_data)
       else:
@@ -1205,7 +1205,7 @@ if __name__ == '__main__':
         )
         if r.status_code == 200:
           j_meta = r.json()['meta']['pagination']
-          log.debug(f'Got result page: {j_meta['page']} from SC')
+          log.debug(f'Got result page: {j_meta["page"]} from SC')
           j_data = r.json()['data']
           process_components(j_data)
         else:
@@ -1225,7 +1225,7 @@ if __name__ == '__main__':
       log.debug(r)
       if r.status_code == 200:
         j_meta = r.json()['meta']['pagination']
-        log.debug(f'Got result page: {j_meta['page']} from SC')
+        log.debug(f'Got result page: {j_meta["page"]} from SC')
         j_data = r.json()['data']
         process_products(j_data)
       else:
@@ -1242,7 +1242,7 @@ if __name__ == '__main__':
         )
         if r.status_code == 200:
           j_meta = r.json()['meta']['pagination']
-          log.debug(f'Got result page: {j_meta['page']} from SC')
+          log.debug(f'Got result page: {j_meta["page"]} from SC')
           j_data = r.json()['data']
           process_products(j_data)
         else:

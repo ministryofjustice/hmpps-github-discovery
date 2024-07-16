@@ -290,7 +290,10 @@ def get_slack_channel_name_by_id(slack_channel_id):
     log.debug(f"Getting Slack Channel Name for id {slack_channel_id}")
     slack_channel_name = None
     try:
-        slack_channel_name = slack_client.conversations_info(channel=slack_channel_id)
+        slack_channel_name = slack_client.conversations_info(channel=slack_channel_id)[
+            "channel"
+        ]["name"]
+        log.debug(f"Slack channel name is {slack_channel_name}")
     except SlackApiError as e:
         if "channel_not_found" in str(e):
             log.info(
@@ -1053,9 +1056,10 @@ def process_repo_product(**product):
     # Update Slack Channel name if necessary:
     p_slack_channel_id = product["attributes"]["slack_channel_id"]
     p_slack_channel_name = product["attributes"]["slack_channel_name"]
-    slack_channel_name = get_slack_channel_name_by_id(p_slack_channel_id)
-    if p_slack_channel_name != slack_channel_name:
-        data.update({"slack_channel_name": slack_channel_name})
+    if p_slack_channel_id != "":
+        slack_channel_name = get_slack_channel_name_by_id(p_slack_channel_id)
+        if p_slack_channel_name and p_slack_channel_name != slack_channel_name:
+            data.update({"slack_channel_name": slack_channel_name})
 
     if data:
         # Update product with all results in data dict.
@@ -1250,5 +1254,5 @@ if __name__ == "__main__":
             log.error(
                 f"Problem with Service Catalogue API while processing products. {e}"
             )
-
+        log.info(f"All done - sleeping for {REFRESH_INTERVAL_HOURS} hours")
         sleep((REFRESH_INTERVAL_HOURS * 60 * 60))

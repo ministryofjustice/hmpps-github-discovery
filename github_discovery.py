@@ -637,7 +637,7 @@ def process_repo(**component):
 
       allow_list_values_for_prj_ns = {}
       if 'dev' in helm_envs:
-        dev_url = f'https://{helm_envs['dev']['host']}'
+        dev_url = f'https://{helm_envs["dev"]["host"]}'
         e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
 
         try:
@@ -660,7 +660,7 @@ def process_repo(**component):
           pass
 
       elif 'development' in helm_envs:
-        dev_url = f'https://{helm_envs['development']['host']}'
+        dev_url = f'https://{helm_envs["development"]["host"]}'
         e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
 
         try:
@@ -728,7 +728,7 @@ def process_repo(**component):
         e.update({'type': env_type, 'name': env_type})
 
         if env_name in helm_envs:
-          env_url = f'https://{helm_envs[env_name]['host']}'
+          env_url = f'https://{helm_envs[env_name]["host"]}'
           e.update({'name': env_name, 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data[
@@ -751,9 +751,9 @@ def process_repo(**component):
           except KeyError:
             pass
 
-        elif 'developement' in helm_envs:
-          env_url = f'https://{helm_envs['developement']['host']}'
-          e.update({'type': 'dev', 'name': 'developement', 'url': env_url})
+        elif 'development' in helm_envs:
+          env_url = f'https://{helm_envs["development"]["host"]}'
+          e.update({'type': 'dev', 'name': 'development', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data[
               f'values-{env_name}.yaml'
@@ -776,7 +776,7 @@ def process_repo(**component):
             pass
 
         elif 'test' in helm_envs:
-          env_url = f'https://{helm_envs['test']['host']}'
+          env_url = f'https://{helm_envs["test"]["host"]}'
           e.update({'type': 'test', 'name': 'test', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data['values-test.yaml']
@@ -798,7 +798,7 @@ def process_repo(**component):
             pass
 
         elif 'testing' in helm_envs:
-          env_url = f'https://{helm_envs['testing']['host']}'
+          env_url = f'https://{helm_envs["testing"]["host"]}'
           e.update({'type': 'test', 'name': 'testing', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data['values-testing.yaml']
@@ -820,7 +820,7 @@ def process_repo(**component):
             pass
 
         elif 'staging' in helm_envs:
-          env_url = f'https://{helm_envs['staging']['host']}'
+          env_url = f'https://{helm_envs["staging"]["host"]}'
           e.update({'type': 'stage', 'name': 'staging', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data['values-staging.yaml']
@@ -842,7 +842,7 @@ def process_repo(**component):
             pass
 
         elif 'qa' in helm_envs:
-          env_url = f'https://{helm_envs['qa']['host']}'
+          env_url = f'https://{helm_envs["qa"]["host"]}'
           e.update({'type': 'preprod', 'name': 'qa', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data['values-qa.yaml']
@@ -863,7 +863,7 @@ def process_repo(**component):
           except KeyError:
             pass
         elif 'production' in helm_envs:
-          env_url = f'https://{helm_envs['production']['host']}'
+          env_url = f'https://{helm_envs["production"]["host"]}'
           e.update({'type': 'prod', 'name': 'production', 'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data['values-production.yaml']

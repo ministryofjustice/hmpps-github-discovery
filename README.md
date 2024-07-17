@@ -37,6 +37,6 @@ Retrieval of key data from files (if they exist):
  - Service Catalogue API token
  - Github app ID / installation ID / private key
  - Circle CI token
- - Slackbot token
+ - Slackbot token (this uses the [`hmpps-sre-app`](https://api.slack.com/apps/A07BZTDHRNK/general) Slack app)
 
 

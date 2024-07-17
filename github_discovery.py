@@ -293,7 +293,6 @@ def get_slack_channel_name_by_id(slack_channel_id):
     slack_channel_name = slack_client.conversations_info(channel=slack_channel_id)[
       'channel'
     ]['name']
-    log.debug(f'Slack channel name is {slack_channel_name}')
   except SlackApiError as e:
     if 'channel_not_found' in str(e):
       log.info(
@@ -301,6 +300,7 @@ def get_slack_channel_name_by_id(slack_channel_id):
       )
     else:
       log.error(f'Slack error: {e}')
+  log.debug(f'Slack channel name for {slack_channel_id} is {slack_channel_name}')      
   return slack_channel_name
 
 
@@ -1058,7 +1058,7 @@ def process_repo_product(**product):
   p_slack_channel_name = product['attributes']['slack_channel_name']
   if p_slack_channel_id != '':
     slack_channel_name = get_slack_channel_name_by_id(p_slack_channel_id)
-    if p_slack_channel_name and p_slack_channel_name != slack_channel_name:
+    if slack_channel_name and p_slack_channel_name != slack_channel_name:
       data.update({'slack_channel_name': slack_channel_name})
 
   if data:
@@ -1161,8 +1161,10 @@ if __name__ == '__main__':
 
   # Test auth and connection to Slack
   try:
+    log.debug(f'Connecting to Slack with token ending {SLACK_BOT_TOKEN[:-4]}')
     slack_client = WebClient(token=SLACK_BOT_TOKEN)
     test_api = slack_client.api_test()
+    log.info('Successfully conected to Slack.')
   except Exception as e:
     log.critical('Unable to connect to Slack.')
     raise SystemExit(e) from e

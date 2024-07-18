@@ -249,6 +249,7 @@ def is_ipallowList_enabled(yaml_data):
 
 
 def get_trivy_scan_json_data(project_name):
+  log.debug(f'Getting trivy scan data for {project_name}')
   circleci_headers = {
     'Circle-Token': CIRCLECI_TOKEN,
     'Content-Type': 'application/json',
@@ -266,7 +267,9 @@ def get_trivy_scan_json_data(project_name):
         latest_build_num = build_info['build_num']
         artifacts_url = f'{project_url}/{latest_build_num}/artifacts'
         break
+    log.debug(f'Getting artifact URLs from CircleCI')
     response = requests.get(artifacts_url, headers=circleci_headers, timeout=30)
+
     artifact_urls = response.json()
     output_json_url = next(
       (
@@ -277,11 +280,16 @@ def get_trivy_scan_json_data(project_name):
       None,
     )
     if output_json_url:
+      log.debug(f'Fetching artifacts from CircleCI data')
+      # do not use DEBUG logging for this request
+      logging.getLogger("urllib3").setLevel(logging.INFO)     
       response = requests.get(
         output_json_url, headers=circleci_headers, timeout=30
       )
+      logging.getLogger("urllib3").setLevel(LOG_LEVEL)     
       output_json_content = response.json()
     return output_json_content
+
   except Exception as e:
     log.debug(f'Error: {e}')
 
@@ -1121,11 +1129,12 @@ def process_products(data):
 
 
 if __name__ == '__main__':
+  
   logging.basicConfig(
     format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=LOG_LEVEL
   )
   log = logging.getLogger(__name__)
-
+  
   sc_api_headers = {
     'Authorization': f'Bearer {SC_API_TOKEN}',
     'Content-Type': 'application/json',

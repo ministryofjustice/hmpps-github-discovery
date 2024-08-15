@@ -733,11 +733,11 @@ def process_repo(**component):
         else:
           env_type = env_name
 
-        e.update({'type': env_type, 'name': env_type})
+        e.update({'type': env_type, 'name': env_name})
 
         if env_name in helm_envs:
           env_url = f'https://{helm_envs[env_name]["host"]}'
-          e.update({'name': env_name, 'url': env_url})
+          e.update({'url': env_url})
           try:
             ip_allow_list_env = ip_allow_list_data[
               f'values-{env_name}.yaml'

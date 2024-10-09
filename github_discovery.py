@@ -182,6 +182,9 @@ def test_subject_access_request_endpoint(url):
       except KeyError:
         log.debug('No SAR endpoint found.')
         return False
+  except TimeoutError:
+    log.debug(f"Timed out connecting to: {url}/v3/api-docs")
+    return False
   except Exception:
     log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
     return False

@@ -765,7 +765,7 @@ def process_repo(**component):
         if 'namespace' in c:
           env_namespace = c['namespace']
           e.update({'namespace': env_namespace})
-        
+
         ns_id = get_sc_id('namespaces', 'name', env_namespace)
         if ns_id:
           e.update({'ns': ns_id})

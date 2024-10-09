@@ -182,6 +182,9 @@ def test_subject_access_request_endpoint(url):
       except KeyError:
         log.debug('No SAR endpoint found.')
         return False
+  except TimeoutError:
+    log.debug(f"Timed out connecting to: {url}/v3/api-docs")
+    return False
   except Exception:
     log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
     return False
@@ -759,147 +762,13 @@ def process_repo(**component):
           except KeyError:
             pass
 
-        elif 'development' in helm_envs:
-          env_url = f'https://{helm_envs["development"]["host"]}'
-          e.update({'type': 'dev', 'name': 'development', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data[
-              f'values-{env_name}.yaml'
-            ]
-            allow_list_values.update(
-              {
-                f'values-{env_name}.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-
-        elif 'test' in helm_envs:
-          env_url = f'https://{helm_envs["test"]["host"]}'
-          e.update({'type': 'test', 'name': 'test', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data['values-test.yaml']
-            allow_list_values.update(
-              {
-                'values-test.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-
-        elif 'testing' in helm_envs:
-          env_url = f'https://{helm_envs["testing"]["host"]}'
-          e.update({'type': 'test', 'name': 'testing', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data['values-testing.yaml']
-            allow_list_values.update(
-              {
-                'values-testing.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-
-        elif 'staging' in helm_envs:
-          env_url = f'https://{helm_envs["staging"]["host"]}'
-          e.update({'type': 'stage', 'name': 'staging', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data['values-staging.yaml']
-            allow_list_values.update(
-              {
-                'values-staging.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-
-        elif 'qa' in helm_envs:
-          env_url = f'https://{helm_envs["qa"]["host"]}'
-          e.update({'type': 'preprod', 'name': 'qa', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data['values-qa.yaml']
-            allow_list_values.update(
-              {
-                'values-qa.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-        elif 'production' in helm_envs:
-          env_url = f'https://{helm_envs["production"]["host"]}'
-          e.update({'type': 'prod', 'name': 'production', 'url': env_url})
-          try:
-            ip_allow_list_env = ip_allow_list_data['values-production.yaml']
-            allow_list_values.update(
-              {
-                'values-production.yaml': ip_allow_list_env,
-                'values.yaml': ip_allow_list_default,
-              }
-            )
-            e.update(
-              {
-                'ip_allow_list': allow_list_values,
-                'ip_allow_list_enabled': is_ipallowList_enabled(
-                  allow_list_values
-                ),
-              }
-            )
-          except KeyError:
-            pass
-
         else:
           env_url = False
 
         if 'namespace' in c:
           env_namespace = c['namespace']
-        else:
-          env_namespace = f'{repo.name}-{env_name}'
-        e.update({'namespace': env_namespace})
+          e.update({'namespace': env_namespace})
+
         ns_id = get_sc_id('namespaces', 'name', env_namespace)
         if ns_id:
           e.update({'ns': ns_id})

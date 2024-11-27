@@ -352,7 +352,7 @@ def process_repo(**component):
   data.update({'github_repo': repo.name})
   data.update({'latest_commit': {
     'sha': default_branch.commit.sha,
-    'date_time': default_branch.commit.commit.committer.date,
+    'date_time': default_branch.commit.commit.committer.date.isoformat(),
   }})
 
   # GitHub teams access, branch protection etc.

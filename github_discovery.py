@@ -350,6 +350,10 @@ def process_repo(**component):
   data.update({'description': repo.description})
   data.update({'github_project_visibility': repo.visibility})
   data.update({'github_repo': repo.name})
+  data.update({'latest_commit': {
+    'sha': default_branch.commit.sha,
+    'date_time': default_branch.commit.commit.committer.date,
+  }})
 
   # GitHub teams access, branch protection etc.
   branch_protection_restricted_teams = []

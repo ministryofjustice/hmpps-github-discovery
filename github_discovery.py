@@ -546,6 +546,7 @@ def process_repo(**component):
 
   # helm env values files, extract useful values
   helm_envs = {}
+  alert_severity_label_envs = {}
   for env in helm_environments:
     values = get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
     if values:
@@ -614,6 +615,14 @@ def process_repo(**component):
       except KeyError:
         pass
 
+      # Alert severity label
+      alert_severity_label = None
+      try:
+        alert_severity_label = values['generic-prometheus-alerts']['alertSeverity']
+        alert_severity_label_envs.update({env: {'alert_everity_label': alert_severity_label}})
+      except KeyError:
+        pass
+
   environments = []
   if repo.name in bootstrap_projects:
     p = bootstrap_projects[repo.name]
@@ -655,6 +664,10 @@ def process_repo(**component):
         dev_url = f'https://{helm_envs["dev"]["host"]}'
         e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
 
+        if 'dev' in  alert_severity_label_envs:
+          label = alert_severity_label_envs["dev"]["alert_everity_label"]
+          e.update({'alert_severity_label': label})
+
         try:
           ip_allow_list_env = ip_allow_list_data['values-dev.yaml']
           allow_list_values_for_prj_ns.update(
@@ -677,6 +690,10 @@ def process_repo(**component):
       elif 'development' in helm_envs:
         dev_url = f'https://{helm_envs["development"]["host"]}'
         e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
+
+        if 'development' in  alert_severity_label_envs:
+          label = alert_severity_label_envs["developement"]["alert_everity_label"]
+          e.update({'alert_severity_label': label})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-development.yaml']
@@ -768,6 +785,10 @@ def process_repo(**component):
 
         else:
           env_url = False
+
+        if env_name in  alert_severity_label_envs:
+          label = alert_severity_label_envs[env_name]["alert_everity_label"]
+          e.update({'alert_severity_label': label})
 
         if 'namespace' in c:
           env_namespace = c['namespace']

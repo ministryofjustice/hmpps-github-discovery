@@ -614,6 +614,12 @@ def process_repo(**component):
       except KeyError:
         pass
 
+      # Alert severity label
+      try:
+        alert_severity_label = values['generic-prometheus-alerts']['alertSeverity']
+      except KeyError:
+        pass
+
   environments = []
   if repo.name in bootstrap_projects:
     p = bootstrap_projects[repo.name]
@@ -649,6 +655,9 @@ def process_repo(**component):
         e.update({'modsecurity_snippet': modsecurity_snippet_env})
       else:
         e.update({'modsecurity_snippet': None})
+
+      if alert_severity_label:
+        e.update({'alert_severity_label': alert_severity_label})
 
       allow_list_values_for_prj_ns = {}
       if 'dev' in helm_envs:
@@ -800,6 +809,9 @@ def process_repo(**component):
           e.update({'modsecurity_snippet': modsecurity_snippet_env})
         else:
           e.update({'modsecurity_snippet': None})
+
+        if alert_severity_label:
+          e.update({'alert_severity_label': alert_severity_label})
 
         if env_url:
           health_path = '/health'

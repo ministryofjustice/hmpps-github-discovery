@@ -330,7 +330,7 @@ def find_channel_by_severity_label(alert_severity_label):
                 if route['match'].get('severity') == alert_severity_label:
                     receiver_name = route['receiver']
                     break
-
+            
             # Find the channel for the receiver name
             if receiver_name:
                 for receiver in json_config_data['receivers']:
@@ -348,7 +348,6 @@ def find_channel_by_severity_label(alert_severity_label):
         print(f"Request Error: {e}")
     except json.JSONDecodeError as e:
         log.error(f"JSON Decode Error: {e}")
-    return ''
 
 def process_repo(**component):
 
@@ -659,17 +658,14 @@ def process_repo(**component):
         pass
 
   # Update alerts_prod_slack_channel and alerts_non_prod_slack_channel
-  try:
-    if 'preprod' in  alert_severity_label_envs:
-      alert_severity_label = alert_severity_label_envs["preprod"]["alert_severity_label"]
-      channel = find_channel_by_severity_label(alert_severity_label)
-      data.update({'alerts_non_prod_slack_channel': channel})
-    if 'prod' in  alert_severity_label_envs:
-      alert_severity_label = alert_severity_label_envs["prod"]["alert_severity_label"]
-      channel = find_channel_by_severity_label(alert_severity_label)
-      data.update({'alerts_prod_slack_channel': channel})
-  except KeyError:
-    pass
+  if 'preprod' in  alert_severity_label_envs:
+    alert_severity_label = alert_severity_label_envs["preprod"]["alert_severity_label"]
+    channel = find_channel_by_severity_label(alert_severity_label)
+    data.update({'alerts_nonprod_slack_channel': channel})
+  if 'prod' in  alert_severity_label_envs:
+    alert_severity_label = alert_severity_label_envs["prod"]["alert_severity_label"]
+    channel = find_channel_by_severity_label(alert_severity_label)
+    data.update({'alerts_prod_slack_channel': channel})
 
   environments = []
   if repo.name in bootstrap_projects:

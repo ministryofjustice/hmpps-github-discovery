@@ -1117,13 +1117,15 @@ if __name__ == '__main__':
     log.critical('Unable to connect to Slack.')
     raise SystemExit(e) from e
 
-  alertmanager_json_data = get_alertmanager_data()
   # Main loop
   while True:
     # Start health endpoint.
     httpHealth = threading.Thread(target=startHttpServer, daemon=True)
     httpHealth.start()
 
+    # Get alertmanager data
+    alertmanager_json_data = get_alertmanager_data()
+    
     # Get projects.json from bootstrap repo for namespaces data
     bootstrap_repo = gh.get_repo('ministryofjustice/hmpps-project-bootstrap')
     bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')

@@ -51,7 +51,8 @@ SC_PRODUCT_FILTER = os.getenv(
 )
 SC_PRODUCT_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products?populate=environments{SC_PRODUCT_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
 SC_PRODUCT_UPDATE_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products'
-ALERTMANAGER_URL = 'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status'
+ALERTMANAGER_ENDPOINT = 'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status'
+alertmanager_json_data = ''
 
 class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
   def do_GET(self):
@@ -314,43 +315,43 @@ def get_slack_channel_name_by_id(slack_channel_id):
   log.debug(f'Slack channel name for {slack_channel_id} is {slack_channel_name}')      
   return slack_channel_name
 
-def find_channel_by_severity_label(alert_severity_label):
-    try:
-        response = requests.get(ALERTMANAGER_URL, verify=False)
-        if response.status_code == 200:
-            alertmanager_data = response.json()
-            config_data = alertmanager_data['config']
-            formatted_config_data = config_data["original"].replace('\\n', '\n')
-            yaml_config_data = yaml.safe_load(formatted_config_data)
-            json_config_data = json.loads(json.dumps(yaml_config_data))
+def get_alertmanager_data():
+  try:
+    response = requests.get(ALERTMANAGER_ENDPOINT, verify=False)
+    if response.status_code == 200:
+      alertmanager_data = response.json()
+      config_data = alertmanager_data['config']
+      formatted_config_data = config_data["original"].replace('\\n', '\n')
+      yaml_config_data = yaml.safe_load(formatted_config_data)
+      json_config_data = json.loads(json.dumps(yaml_config_data))
+      return json_config_data
+    else:
+      log.error(f"Error: {response.status_code}")
+  except requests.exceptions.SSLError as e:
+    log.error(f"SSL Error: {e}")
+  except requests.exceptions.RequestException as e:
+    log.error(f"Request Error: {e}")
+  except json.JSONDecodeError as e:
+    log.error(f"JSON Decode Error: {e}")
 
-            # Find the receiver name for the given severity
-            receiver_name = ''
-            for route in json_config_data['route']['routes']:
-                if route['match'].get('severity') == alert_severity_label:
-                    receiver_name = route['receiver']
-                    break
-            
-            # Find the channel for the receiver name
-            if receiver_name:
-                for receiver in json_config_data['receivers']:
-                    if receiver['name'] == receiver_name:
-                        slack_configs = receiver.get('slack_configs', [])
-                        if slack_configs:
-                            return slack_configs[0].get('channel')
-                        else :
-                            return ''
-        else:
-            print(f"Error: {response.status_code}")
-    except requests.exceptions.SSLError as e:
-        print(f"SSL Error: {e}")
-    except requests.exceptions.RequestException as e:
-        print(f"Request Error: {e}")
-    except json.JSONDecodeError as e:
-        log.error(f"JSON Decode Error: {e}")
+def find_channel_by_severity_label(alert_severity_label):
+  # Find the receiver name for the given severity
+  receiver_name = ''
+  for route in alertmanager_json_data['route']['routes']:
+    if route['match'].get('severity') == alert_severity_label:
+      receiver_name = route['receiver']
+      break         
+  # Find the channel for the receiver name
+  if receiver_name:
+    for receiver in alertmanager_json_data['receivers']:
+      if receiver['name'] == receiver_name:
+        slack_configs = receiver.get('slack_configs', [])
+        if slack_configs:
+          return slack_configs[0].get('channel')
+        else :
+          return ''
 
 def process_repo(**component):
-
   allow_list_key = 'allowlist'
   c_name = component['attributes']['name']
   c_id = component['id']
@@ -1116,6 +1117,7 @@ if __name__ == '__main__':
     log.critical('Unable to connect to Slack.')
     raise SystemExit(e) from e
 
+  alertmanager_json_data = get_alertmanager_data()
   # Main loop
   while True:
     # Start health endpoint.

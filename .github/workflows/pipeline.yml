@@ -1,9 +1,9 @@
 name: Pipeline
 
 on:
-  pull_request:
-    types: [closed]
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
   workflow_dispatch:
     inputs:
@@ -28,7 +28,6 @@ jobs:
     secrets: inherit
   
   deploy_to_dev:
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     name: Deploy to dev
     uses: ./.github/workflows/deploy.yml
     needs: build
@@ -38,7 +37,6 @@ jobs:
     secrets: inherit
 
   deploy_to_prod:
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     name: Deploy to prod
     uses: ./.github/workflows/deploy.yml
     needs:

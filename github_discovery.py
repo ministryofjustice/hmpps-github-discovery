@@ -51,7 +51,8 @@ SC_PRODUCT_FILTER = os.getenv(
 )
 SC_PRODUCT_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products?populate=environments{SC_PRODUCT_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
 SC_PRODUCT_UPDATE_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products'
-
+ALERTMANAGER_ENDPOINT = 'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status'
+alertmanager_json_data = ''
 
 class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
   def do_GET(self):
@@ -314,9 +315,43 @@ def get_slack_channel_name_by_id(slack_channel_id):
   log.debug(f'Slack channel name for {slack_channel_id} is {slack_channel_name}')      
   return slack_channel_name
 
+def get_alertmanager_data():
+  try:
+    response = requests.get(ALERTMANAGER_ENDPOINT, verify=False)
+    if response.status_code == 200:
+      alertmanager_data = response.json()
+      config_data = alertmanager_data['config']
+      formatted_config_data = config_data["original"].replace('\\n', '\n')
+      yaml_config_data = yaml.safe_load(formatted_config_data)
+      json_config_data = json.loads(json.dumps(yaml_config_data))
+      return json_config_data
+    else:
+      log.error(f"Error: {response.status_code}")
+  except requests.exceptions.SSLError as e:
+    log.error(f"SSL Error: {e}")
+  except requests.exceptions.RequestException as e:
+    log.error(f"Request Error: {e}")
+  except json.JSONDecodeError as e:
+    log.error(f"JSON Decode Error: {e}")
+
+def find_channel_by_severity_label(alert_severity_label):
+  # Find the receiver name for the given severity
+  receiver_name = ''
+  for route in alertmanager_json_data['route']['routes']:
+    if route['match'].get('severity') == alert_severity_label:
+      receiver_name = route['receiver']
+      break         
+  # Find the channel for the receiver name
+  if receiver_name:
+    for receiver in alertmanager_json_data['receivers']:
+      if receiver['name'] == receiver_name:
+        slack_configs = receiver.get('slack_configs', [])
+        if slack_configs:
+          return slack_configs[0].get('channel')
+        else :
+          return ''
 
 def process_repo(**component):
-
   allow_list_key = 'allowlist'
   c_name = component['attributes']['name']
   c_id = component['id']
@@ -619,9 +654,19 @@ def process_repo(**component):
       alert_severity_label = None
       try:
         alert_severity_label = values['generic-prometheus-alerts']['alertSeverity']
-        alert_severity_label_envs.update({env: {'alert_everity_label': alert_severity_label}})
+        alert_severity_label_envs.update({env: {'alert_severity_label': alert_severity_label}})
       except KeyError:
         pass
+
+  # Update alerts_prod_slack_channel and alerts_non_prod_slack_channel
+  if 'preprod' in  alert_severity_label_envs:
+    alert_severity_label = alert_severity_label_envs["preprod"]["alert_severity_label"]
+    channel = find_channel_by_severity_label(alert_severity_label)
+    data.update({'alerts_nonprod_slack_channel': channel})
+  if 'prod' in  alert_severity_label_envs:
+    alert_severity_label = alert_severity_label_envs["prod"]["alert_severity_label"]
+    channel = find_channel_by_severity_label(alert_severity_label)
+    data.update({'alerts_prod_slack_channel': channel})
 
   environments = []
   if repo.name in bootstrap_projects:
@@ -665,7 +710,7 @@ def process_repo(**component):
         e.update({'name': 'dev', 'type': 'dev', 'url': dev_url})
 
         if 'dev' in  alert_severity_label_envs:
-          label = alert_severity_label_envs["dev"]["alert_everity_label"]
+          label = alert_severity_label_envs["dev"]["alert_severity_label"]
           e.update({'alert_severity_label': label})
 
         try:
@@ -692,7 +737,7 @@ def process_repo(**component):
         e.update({'name': 'development', 'type': 'dev', 'url': dev_url})
 
         if 'development' in  alert_severity_label_envs:
-          label = alert_severity_label_envs["developement"]["alert_everity_label"]
+          label = alert_severity_label_envs["developement"]["alert_severity_label"]
           e.update({'alert_severity_label': label})
 
         try:
@@ -787,7 +832,7 @@ def process_repo(**component):
           env_url = False
 
         if env_name in  alert_severity_label_envs:
-          label = alert_severity_label_envs[env_name]["alert_everity_label"]
+          label = alert_severity_label_envs[env_name]["alert_severity_label"]
           e.update({'alert_severity_label': label})
 
         if 'namespace' in c:
@@ -1078,6 +1123,9 @@ if __name__ == '__main__':
     httpHealth = threading.Thread(target=startHttpServer, daemon=True)
     httpHealth.start()
 
+    # Get alertmanager data
+    alertmanager_json_data = get_alertmanager_data()
+    
     # Get projects.json from bootstrap repo for namespaces data
     bootstrap_repo = gh.get_repo('ministryofjustice/hmpps-project-bootstrap')
     bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')

@@ -662,10 +662,12 @@ def process_repo(**component):
   if 'preprod' in  alert_severity_label_envs:
     alert_severity_label = alert_severity_label_envs["preprod"]["alert_severity_label"]
     channel = find_channel_by_severity_label(alert_severity_label)
+    log.info(f'Alerts channel for preprod {alert_severity_label}: {channel}')
     data.update({'alerts_nonprod_slack_channel': channel})
   if 'prod' in  alert_severity_label_envs:
     alert_severity_label = alert_severity_label_envs["prod"]["alert_severity_label"]
     channel = find_channel_by_severity_label(alert_severity_label)
+    log.info(f'Alerts channel for prod {alert_severity_label}: {channel}')
     data.update({'alerts_prod_slack_channel': channel})
 
   environments = []

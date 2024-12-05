@@ -41,3 +41,35 @@ The following secrets are required:
  - **`SLACK_BOT_TOKEN`** - this uses the [`hmpps-sre-app`](https://api.slack.com/apps/A07BZTDHRNK/general) Slack app
  - **`SERVICE_CATALOGUE_API_ENDPOINT`** / **`SERVICE_CATALOGUE_API_KEY`** - Service Catalogue API token
  - **`SC_FILTER`** (eg. `&filters[name][$contains]=-`) - Service Catalogue filter - **required for dev**
+
+### Port forward to redis hosted in Cloud-platform
+
+This is useful to do so you can test changes with real alertmanager data containing slack channel information. 
+
+Create a port forward pod:
+
+```bash
+kubectl \
+  -n hmpps-portfolio-management-dev \
+  run port-forward-pod-alertmanager \
+  --image=ministryofjustice/port-forward \
+  --port=6379 \
+  --env="REMOTE_HOST=[Alertmanager host]" \
+  --env="LOCAL_PORT=6547" \
+  --env="REMOTE_PORT=8080"
+```
+
+Use kubectl to port-forward to it:
+
+```bash
+kubectl \
+  -n hmpps-portfolio-management-dev \
+  port-forward \
+  port-forward-pod-alertmanager 6574:6574
+```
+
+Ensure following redis environment variables are set:
+
+```bash
+export ALERTMANAGER_ENDPOINT='http://localhost:6574/alertmanager/status'
+```

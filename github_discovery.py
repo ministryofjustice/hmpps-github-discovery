@@ -51,7 +51,7 @@ SC_PRODUCT_FILTER = os.getenv(
 )
 SC_PRODUCT_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products?populate=environments{SC_PRODUCT_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
 SC_PRODUCT_UPDATE_ENDPOINT = f'{SC_API_ENDPOINT}/v1/products'
-ALERTMANAGER_ENDPOINT = 'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status'
+ALERTMANAGER_ENDPOINT = os.getenv('ALERTMANAGER_ENDPOINT','http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status')
 alertmanager_json_data = ''
 
 class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -443,6 +443,11 @@ def process_repo(**component):
     f'branch_protection_restricted_teams: {branch_protection_restricted_teams}'
   )
 
+  # Get enforce_admin details from branch protection
+  enforce_admins = branch_protection.enforce_admins
+  data.update({'github_enforce_admins_enabled': enforce_admins})
+  log.debug(f'github_enforce_admins_enabled: {enforce_admins}')
+  
   # Github topics
   topics = repo.get_topics()
   data.update({'github_topics': topics})

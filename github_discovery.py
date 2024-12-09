@@ -663,19 +663,6 @@ def process_repo(**component):
       except KeyError:
         pass
 
-  # Update alerts_prod_slack_channel and alerts_non_prod_slack_channel
-  log.info(f'{c_name} Alerts severity labels: {alert_severity_label_envs}')
-  if 'preprod' in  alert_severity_label_envs:
-    alert_severity_label = alert_severity_label_envs["preprod"]["alert_severity_label"]
-    channel = find_channel_by_severity_label(alert_severity_label)
-    log.info(f'{c_name} Alerts channel for preprod {alert_severity_label}: {channel}')
-    data.update({'alerts_nonprod_slack_channel': channel})
-  if 'prod' in  alert_severity_label_envs:
-    alert_severity_label = alert_severity_label_envs["prod"]["alert_severity_label"]
-    channel = find_channel_by_severity_label(alert_severity_label)
-    log.info(f'{c_name} Alerts channel for prod {alert_severity_label}: {channel}')
-    data.update({'alerts_prod_slack_channel': channel})
-
   environments = []
   if repo.name in bootstrap_projects:
     p = bootstrap_projects[repo.name]
@@ -720,6 +707,9 @@ def process_repo(**component):
         if 'dev' in  alert_severity_label_envs:
           label = alert_severity_label_envs["dev"]["alert_severity_label"]
           e.update({'alert_severity_label': label})
+          channel = find_channel_by_severity_label(label)
+          log.info(f'{c_name} Alerts channel for dev {label}: {channel}')
+          e.update({'alerts_slack_channel': channel})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-dev.yaml']
@@ -747,6 +737,9 @@ def process_repo(**component):
         if 'development' in  alert_severity_label_envs:
           label = alert_severity_label_envs["developement"]["alert_severity_label"]
           e.update({'alert_severity_label': label})
+          channel = find_channel_by_severity_label(label)
+          log.info(f'{c_name} Alerts channel for developement {label}: {channel}')
+          e.update({'alerts_slack_channel': channel})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-development.yaml']
@@ -842,6 +835,9 @@ def process_repo(**component):
         if env_name in  alert_severity_label_envs:
           label = alert_severity_label_envs[env_name]["alert_severity_label"]
           e.update({'alert_severity_label': label})
+          channel = find_channel_by_severity_label(label)
+          log.info(f'{c_name} Alerts channel for {env_name} {label}: {channel}')
+          e.update({'alerts_slack_channel': channel})
 
         if 'namespace' in c:
           env_namespace = c['namespace']

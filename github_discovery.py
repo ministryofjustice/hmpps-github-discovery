@@ -327,16 +327,23 @@ def get_alertmanager_data():
       return json_config_data
     else:
       log.error(f"Error: {response.status_code}")
+      return None
   except requests.exceptions.SSLError as e:
     log.error(f"SSL Error: {e}")
+    return None
   except requests.exceptions.RequestException as e:
     log.error(f"Request Error: {e}")
+    return None
   except json.JSONDecodeError as e:
     log.error(f"JSON Decode Error: {e}")
+    return None
 
 def find_channel_by_severity_label(alert_severity_label):
   # Find the receiver name for the given severity
   receiver_name = ''
+  if alertmanager_json_data is None:
+    return ''
+  
   for route in alertmanager_json_data['route']['routes']:
     if route['match'].get('severity') == alert_severity_label:
       receiver_name = route['receiver']
@@ -709,7 +716,8 @@ def process_repo(**component):
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for dev {label}: {channel}')
-          e.update({'alerts_slack_channel': channel})
+          if channel != '':
+            e.update({'alerts_slack_channel': channel})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-dev.yaml']
@@ -739,7 +747,8 @@ def process_repo(**component):
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for developement {label}: {channel}')
-          e.update({'alerts_slack_channel': channel})
+          if channel != '':
+            e.update({'alerts_slack_channel': channel})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-development.yaml']
@@ -837,7 +846,8 @@ def process_repo(**component):
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for {env_name} {label}: {channel}')
-          e.update({'alerts_slack_channel': channel})
+          if channel != '':
+            e.update({'alerts_slack_channel': channel})
 
         if 'namespace' in c:
           env_namespace = c['namespace']

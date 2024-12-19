@@ -713,6 +713,13 @@ def process_repo(**component):
 
         if 'dev' in  alert_severity_label_envs:
           label = alert_severity_label_envs["dev"]["alert_severity_label"]
+        else:
+          try:
+            label = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+            print(f'Alert severity label not found for dev environment in {c_name}, getting default value {label}')
+          except KeyError:
+            pass
+        if label:
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for dev {label}: {channel}')
@@ -744,6 +751,13 @@ def process_repo(**component):
 
         if 'development' in  alert_severity_label_envs:
           label = alert_severity_label_envs["developement"]["alert_severity_label"]
+        else:
+          try:
+            label = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+            print(f'Alert severity label not found for development environment in {c_name}, getting default value {label}')
+          except KeyError:
+            pass
+        if label:
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for developement {label}: {channel}')
@@ -843,12 +857,19 @@ def process_repo(**component):
 
         if env_name in  alert_severity_label_envs:
           label = alert_severity_label_envs[env_name]["alert_severity_label"]
+        else:
+          try:
+            label = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+            print(f'Alert severity label not found for {env_name} environment in {c_name}, getting default value {label}')
+          except KeyError:
+            pass
+        if label:
           e.update({'alert_severity_label': label})
           channel = find_channel_by_severity_label(label)
           log.info(f'{c_name} Alerts channel for {env_name} {label}: {channel}')
           if channel != '':
             e.update({'alerts_slack_channel': channel})
-
+          
         if 'namespace' in c:
           env_namespace = c['namespace']
           e.update({'namespace': env_namespace})

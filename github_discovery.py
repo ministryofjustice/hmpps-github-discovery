@@ -718,7 +718,11 @@ def process_repo(**component):
           log.info(f'{c_name} Alerts channel for dev {label}: {channel}')
           if channel != '':
             e.update({'alerts_slack_channel': channel})
-
+        else:
+          alert_severity_label_default_value = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+          print(f'Alert severity label not found for {env_name} environment in {c_name}, getting default value {alert_severity_label_default_value}')
+          e.update({'alert_severity_label': alert_severity_label_default_value})
+          
         try:
           ip_allow_list_env = ip_allow_list_data['values-dev.yaml']
           allow_list_values_for_prj_ns.update(
@@ -749,6 +753,10 @@ def process_repo(**component):
           log.info(f'{c_name} Alerts channel for developement {label}: {channel}')
           if channel != '':
             e.update({'alerts_slack_channel': channel})
+        else:
+          alert_severity_label_default_value = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+          print(f'Alert severity label not found for {env_name} environment in {c_name}, getting default value {alert_severity_label_default_value}')
+          e.update({'alert_severity_label': alert_severity_label_default_value})
 
         try:
           ip_allow_list_env = ip_allow_list_data['values-development.yaml']
@@ -848,7 +856,11 @@ def process_repo(**component):
           log.info(f'{c_name} Alerts channel for {env_name} {label}: {channel}')
           if channel != '':
             e.update({'alerts_slack_channel': channel})
-
+        else:
+          alert_severity_label_default_value = helm_default_values['generic-prometheus-alerts']['alertSeverity']
+          print(f'Alert severity label not found for {env_name} environment in {c_name}, getting default value {alert_severity_label_default_value}')
+          e.update({'alert_severity_label': alert_severity_label_default_value})
+          
         if 'namespace' in c:
           env_namespace = c['namespace']
           e.update({'namespace': env_namespace})

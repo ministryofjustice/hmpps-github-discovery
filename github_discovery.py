@@ -17,6 +17,7 @@ import requests
 from dockerfile_parse import DockerfileParser
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+import base64
 
 SC_API_ENDPOINT = os.getenv('SERVICE_CATALOGUE_API_ENDPOINT')
 SC_API_TOKEN = os.getenv('SERVICE_CATALOGUE_API_KEY')
@@ -45,6 +46,8 @@ SC_PAGINATION_PAGE_SIZE = f'&pagination[pageSize]={SC_PAGE_SIZE}'
 # SC_SORT='&sort=updatedAt:asc'
 SC_SORT = ''
 SC_ENDPOINT = f'{SC_API_ENDPOINT}/v1/components?populate=environments{SC_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
+SC_ENDPOINT_TEAMS = f'{SC_API_ENDPOINT}/v1/github-teams'
+SC_ENDPOINT_USERS = f'{SC_API_ENDPOINT}/v1/github-users'
 SC_PRODUCT_FILTER = os.getenv(
   'SC_PRODUCT_FILTER',
   '&fields[0]=slack_channel_id&fields[1]=slack_channel_name&fields[2]=p_id&fields[3]=name',
@@ -1080,6 +1083,173 @@ def process_components(data):
     component_name = component['attributes']['name']
     log.info(f'Started thread for {component_name}')
 
+def extract_teams(terraform_content):
+    parent_teams_pattern = re.compile(r'parent_teams\s*=\s*\[(.*?)\]', re.DOTALL)
+    sub_teams_pattern = re.compile(r'sub_teams\s*=\s*\[(.*?)\]', re.DOTALL)
+    team_pattern = re.compile(r'\{\s*name\s*=\s*"([^"]+)"\s*parent\s*=\s*"([^"]+)"\s*description\s*=\s*"([^"]+)"\s*\}')
+
+    parent_teams_match = parent_teams_pattern.search(terraform_content)
+    sub_teams_match = sub_teams_pattern.search(terraform_content)
+
+    parent_teams = []
+    sub_teams = []
+
+    if parent_teams_match:
+        parent_teams_content = parent_teams_match.group(1)
+        parent_teams = team_pattern.findall(parent_teams_content)
+
+    if sub_teams_match:
+        sub_teams_content = sub_teams_match.group(1)
+        sub_teams = team_pattern.findall(sub_teams_content)
+
+    combined_teams = parent_teams + sub_teams
+    return combined_teams
+
+def find_github_team(json_data, team_name):
+    for item in json_data.get('data', []):
+        if item['attributes'].get('team_name') == team_name:
+            return item
+    return None
+
+def process_teams():
+  log.info(f'Processing teams in function...')
+  teamrepo = gh.get_repo('ministryofjustice/hmpps-github-teams')
+  team_contents = teamrepo.get_contents('terraform/teams.tf')
+  team_file = base64.b64decode(team_contents.content).decode('utf-8')
+  tf_data = extract_teams(team_file)
+  log.info(f'Found {len(tf_data)} teams in the terraform file')
+  org = gh.get_organization('ministryofjustice')
+  teams = org.get_teams()
+  team_id_map = {team.name: team.id for team in teams}
+
+  try:
+      r = requests.get(SC_ENDPOINT_TEAMS, headers=sc_api_headers, timeout=10)
+      log.debug(r)
+  except Exception as e:
+      log.error(f'Error getting team in the SC: {e}')
+      return False
+
+  for team in tf_data:
+    team_name = team[0]
+    team_parent = team[1]
+    team_description = team[2]
+    team_id = team_id_map.get(team_name, "Unknown ID")
+    team_data = {
+      'github_team_id': team_id,
+      'team_name': team_name,
+      'parent_team_name': team_parent,
+      'team_desc': team_description
+    }
+    c_team = find_github_team(r.json(), team_name)
+    check_team = c_team.get('attributes', {}) if c_team else {}
+    c_team_id = c_team.get('id', None) if c_team else None
+    if c_team_id:
+      if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != team_parent:
+        # Update the team in SC
+        x = requests.put(
+          f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
+          headers=sc_api_headers,
+          json={'data': team_data},
+          timeout=10,
+        )
+        if x.status_code == 200:
+          log.info(f'Successfully updated team {team_name}: {x.status_code}')
+        else:
+          log.info(
+            f'Received non-200 response from service catalogue for updating team {team_name}: {x.status_code} {x.content}'
+          )
+    else:
+      # Create the team in SC
+      x = requests.post(
+        f'{SC_API_ENDPOINT}/v1/github-teams',
+        headers=sc_api_headers,
+        json={'data': team_data},
+        timeout=10,
+      )
+      if x.status_code == 200:
+        log.info(f'Successfully added team {team_name}: {x.status_code}')
+      else:
+        log.info(
+          f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}'
+        )
+
+
+def extract_users(terraform_content):
+    pattern = re.compile(
+        r'full_name\s*=\s*"([^"]+)"\s*.*?\s*email\s*=\s*"([^"]+)"\s*.*?\s*github_username\s*=\s*"([^"]+)"\s*.*?\s*github_teams\s*=\s*\[([^\]]+)\]'
+    )
+    matches = pattern.findall(terraform_content)
+    return matches
+
+def find_github_user(json_data, github_username):
+    for item in json_data.get('data', []):
+        if item['attributes'].get('github_username') == github_username:
+            return item
+    return None
+
+def process_users():
+  log.info('Processing users in function...')
+  teamrepo = gh.get_repo('ministryofjustice/hmpps-github-teams')
+  user_contents = teamrepo.get_contents('terraform/users.tf')
+  user_file = user_contents.decoded_content.decode('utf-8')
+  tf_data = extract_users(user_file)
+  log.info(f'Found {len(tf_data)} users in the terraform file')
+  org = gh.get_organization('ministryofjustice')
+  users = org.get_members()
+
+  userid_map = {user.login: user.id for user in users}
+
+  try:
+      r = requests.get(SC_ENDPOINT_USERS, headers=sc_api_headers, timeout=10)
+      log.debug(r)
+  except Exception as e:
+      log.error(f'Error getting team in the SC: {e}')
+      return False
+
+  for user in tf_data:
+    full_name = user[0]
+    user_email = user[1]
+    github_username = user[2]
+    github_teams = [team.strip().strip('"') for team in user[3].split(',')]
+    user_id = userid_map.get(github_username, "Unknown ID")
+    user_data = {
+      'full_name': full_name,
+      'user_email': user_email,
+      'github_username': github_username,
+      'github_teams': github_teams
+    }
+    c_user = find_github_user(r.json(), github_username)
+    check_user= c_user.get('attributes', {}) if c_user else {}
+    c_user_id = c_user.get('id', None) if c_user else None
+    if c_user_id:
+      if check_user['full_name'] != full_name or check_user['user_email'] != user_email or check_user['github_teams'] != github_teams:
+        # Update the user in SC
+        x = requests.put(
+          f'{SC_API_ENDPOINT}/v1/github-users/{c_user_id}',
+          headers=sc_api_headers,
+          json={'data': user_data},
+          timeout=10,
+        )
+        if x.status_code == 200:
+          log.info(f'Successfully updated user {github_username}: {x.status_code}')
+        else:
+          log.info(
+            f'Received non-200 response from service catalogue for updating team {github_username}: {x.status_code} {x.content}'
+          )
+    else:
+      # Create the user in SC
+      x = requests.post(
+        f'{SC_API_ENDPOINT}/v1/github-users',
+        headers=sc_api_headers,
+        json={'data': user_data},
+        timeout=10,
+      )
+      if x.status_code == 200:
+        log.info(f'Successfully added user {github_username}: {x.status_code}')
+      else:
+        log.info(
+          f'Received non-200 response from service catalogue for user {github_username}: {x.status_code} {x.content}'
+        )
 
 def process_products(data):
   log.info(f'Processing batch of {len(data)} products...')
@@ -1205,6 +1375,13 @@ if __name__ == '__main__':
       log.error(
         f'Problem with Service Catalogue API while processing components. {e}'
       )
+
+    # Process Teams
+    log.info('Processing teams...')
+    process_teams()
+
+    log.info('Processing users...')
+    process_users()
 
     # Process products
     log.info(SC_PRODUCT_ENDPOINT)

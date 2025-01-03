@@ -1172,6 +1172,7 @@ def process_teams():
         log.info(
           f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}'
         )
+  return None
 
 
 def extract_users(terraform_content):
@@ -1193,6 +1194,7 @@ def process_users():
   user_contents = teamrepo.get_contents('terraform/users.tf')
   user_file = user_contents.decoded_content.decode('utf-8')
   tf_data = extract_users(user_file)
+  tf_github_usernames = {user[2] for user in tf_data}
   log.info(f'Found {len(tf_data)} users in the terraform file')
   org = gh.get_organization('ministryofjustice')
   users = org.get_members()
@@ -1206,17 +1208,40 @@ def process_users():
       log.error(f'Error getting team in the SC: {e}')
       return False
 
+  github_users = r.json().get('data', [])
+
+  for user in github_users:
+    github_username = user['attributes'].get('github_username')
+    c_user_id = user.get('id', None)
+    if github_username not in tf_github_usernames:
+      log.info(f'Processing user {github_username}')
+      log.info(f'User ID: {c_user_id}')
+      user_data = {
+        'deleted': True
+      }
+      # Update the user with the deleted flag
+      x = requests.put(
+        f'{SC_API_ENDPOINT}/v1/github-users/{c_user_id}',
+        headers=sc_api_headers,
+        json={'data': user_data},
+        timeout=10,
+      )
+      if x.status_code == 200:
+        print(f"Marked {github_username} as deleted.")
+      else:
+        print(f"Failed to update {github_username}.")
+
   for user in tf_data:
     full_name = user[0]
     user_email = user[1]
     github_username = user[2]
     github_teams = [team.strip().strip('"') for team in user[3].split(',')]
-    user_id = userid_map.get(github_username, "Unknown ID")
     user_data = {
       'full_name': full_name,
       'user_email': user_email,
       'github_username': github_username,
-      'github_teams': github_teams
+      'github_teams': github_teams,
+      'deleted': False
     }
     c_user = find_github_user(r.json(), github_username)
     check_user= c_user.get('attributes', {}) if c_user else {}
@@ -1250,6 +1275,8 @@ def process_users():
         log.info(
           f'Received non-200 response from service catalogue for user {github_username}: {x.status_code} {x.content}'
         )
+    
+  return None
 
 def process_products(data):
   log.info(f'Processing batch of {len(data)} products...')

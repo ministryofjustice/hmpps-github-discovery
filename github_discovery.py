@@ -1135,7 +1135,6 @@ def process_teams():
     team_description = team[2]
     team_id = team_id_map.get(team_name, "Unknown ID")
     members = [member.login for member in org.get_team(team_id).get_members()]
-    print(f"Team: {team_name}, Parent: {team_parent}, Description: {team_description}, ID: {team_id}, Members: {members}")
     team_data = {
       'github_team_id': team_id,
       'team_name': team_name,

@@ -1134,17 +1134,19 @@ def process_teams():
     team_parent = team[1]
     team_description = team[2]
     team_id = team_id_map.get(team_name, "Unknown ID")
+    members = [member.login for member in org.get_team(team_id).get_members()]
     team_data = {
       'github_team_id': team_id,
       'team_name': team_name,
       'parent_team_name': team_parent,
-      'team_desc': team_description
+      'team_desc': team_description,
+      'members': members
     }
     c_team = find_github_team(r.json(), team_name)
     check_team = c_team.get('attributes', {}) if c_team else {}
     c_team_id = c_team.get('id', None) if c_team else None
     if c_team_id:
-      if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != team_parent:
+      if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != team_parent or check_team['members'] != members:
         # Update the team in SC
         x = requests.put(
           f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',

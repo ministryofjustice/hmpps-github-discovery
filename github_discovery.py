@@ -47,7 +47,6 @@ SC_PAGINATION_PAGE_SIZE = f'&pagination[pageSize]={SC_PAGE_SIZE}'
 SC_SORT = ''
 SC_ENDPOINT = f'{SC_API_ENDPOINT}/v1/components?populate=environments{SC_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
 SC_ENDPOINT_TEAMS = f'{SC_API_ENDPOINT}/v1/github-teams'
-SC_ENDPOINT_USERS = f'{SC_API_ENDPOINT}/v1/github-users'
 SC_PRODUCT_FILTER = os.getenv(
   'SC_PRODUCT_FILTER',
   '&fields[0]=slack_channel_id&fields[1]=slack_channel_name&fields[2]=p_id&fields[3]=name',
@@ -1176,110 +1175,6 @@ def process_teams():
         )
   return None
 
-
-def extract_users(terraform_content):
-    pattern = re.compile(
-        r'full_name\s*=\s*"([^"]+)"\s*.*?\s*email\s*=\s*"([^"]+)"\s*.*?\s*github_username\s*=\s*"([^"]+)"\s*.*?\s*github_teams\s*=\s*\[([^\]]+)\]'
-    )
-    matches = pattern.findall(terraform_content)
-    return matches
-
-def find_github_user(json_data, github_username):
-    for item in json_data.get('data', []):
-        if item['attributes'].get('github_username') == github_username:
-            return item
-    return None
-
-def process_users():
-  log.info('Processing users in function...')
-  teamrepo = gh.get_repo('ministryofjustice/hmpps-github-teams')
-  user_contents = teamrepo.get_contents('terraform/users.tf')
-  user_file = user_contents.decoded_content.decode('utf-8')
-  tf_data = extract_users(user_file)
-  tf_github_usernames = {user[2] for user in tf_data}
-  log.info(f'Found {len(tf_data)} users in the terraform file')
-  org = gh.get_organization('ministryofjustice')
-  users = org.get_members()
-
-  userid_map = {user.login: user.id for user in users}
-
-  try:
-      r = requests.get(SC_ENDPOINT_USERS, headers=sc_api_headers, timeout=10)
-      log.debug(r)
-  except Exception as e:
-      log.error(f'Error getting team in the SC: {e}')
-      return False
-
-  github_users = r.json().get('data', [])
-
-  for user in github_users:
-    github_username = user['attributes'].get('github_username')
-    c_user_id = user.get('id', None)
-    if github_username not in tf_github_usernames:
-      log.info(f'Processing user {github_username}')
-      log.info(f'User ID: {c_user_id}')
-      user_data = {
-        'deleted': True
-      }
-      # Update the user with the deleted flag
-      x = requests.put(
-        f'{SC_API_ENDPOINT}/v1/github-users/{c_user_id}',
-        headers=sc_api_headers,
-        json={'data': user_data},
-        timeout=10,
-      )
-      if x.status_code == 200:
-        print(f"Marked {github_username} as deleted.")
-      else:
-        print(f"Failed to update {github_username}.")
-
-  for user in tf_data:
-    full_name = user[0]
-    user_email = user[1]
-    github_username = user[2]
-    github_teams = [team.strip().strip('"') for team in user[3].split(',')]
-    user_data = {
-      'full_name': full_name,
-      'user_email': user_email,
-      'github_username': github_username,
-      'github_teams': github_teams,
-      'deleted': False
-    }
-    c_user = find_github_user(r.json(), github_username)
-    check_user= c_user.get('attributes', {}) if c_user else {}
-    c_user_id = c_user.get('id', None) if c_user else None
-    if c_user_id:
-      if check_user['full_name'] != full_name or check_user['user_email'] != user_email or check_user['github_teams'] != github_teams:
-        # Update the user in SC
-        x = requests.put(
-          f'{SC_API_ENDPOINT}/v1/github-users/{c_user_id}',
-          headers=sc_api_headers,
-          json={'data': user_data},
-          timeout=10,
-        )
-        if x.status_code == 200:
-          log.info(f'Successfully updated user {github_username}: {x.status_code}')
-        else:
-          log.info(
-            f'Received non-200 response from service catalogue for updating team {github_username}: {x.status_code} {x.content}'
-          )
-    else:
-      # Create the user in SC
-      x = requests.post(
-        f'{SC_API_ENDPOINT}/v1/github-users',
-        headers=sc_api_headers,
-        json={'data': user_data},
-        timeout=10,
-      )
-      if x.status_code == 200:
-        log.info(f'Successfully added user {github_username}: {x.status_code}')
-      else:
-        log.info(
-          f'Received non-200 response from service catalogue for user {github_username}: {x.status_code} {x.content}'
-        )
-    
-  return None
-
 def process_products(data):
   log.info(f'Processing batch of {len(data)} products...')
   for product in data:
@@ -1408,9 +1303,6 @@ if __name__ == '__main__':
     # Process Teams
     log.info('Processing teams...')
     process_teams()
-
-    log.info('Processing users...')
-    process_users()
 
     # Process products
     log.info(SC_PRODUCT_ENDPOINT)

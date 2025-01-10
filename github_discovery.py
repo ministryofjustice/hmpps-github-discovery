@@ -47,6 +47,7 @@ SC_PAGINATION_PAGE_SIZE = f'&pagination[pageSize]={SC_PAGE_SIZE}'
 SC_SORT = ''
 SC_ENDPOINT = f'{SC_API_ENDPOINT}/v1/components?populate=environments{SC_FILTER}{SC_PAGINATION_PAGE_SIZE}{SC_SORT}'
 SC_ENDPOINT_TEAMS = f'{SC_API_ENDPOINT}/v1/github-teams'
+SC_ENDPOINT_COMPONENTS = f'{SC_API_ENDPOINT}/v1/components'
 SC_PRODUCT_FILTER = os.getenv(
   'SC_PRODUCT_FILTER',
   '&fields[0]=slack_channel_id&fields[1]=slack_channel_name&fields[2]=p_id&fields[3]=name',
@@ -1104,48 +1105,26 @@ def extract_teams(terraform_content):
     combined_teams = parent_teams + sub_teams
     return combined_teams
 
-def find_github_team(json_data, team_name):
-    for item in json_data.get('data', []):
+def find_github_team(teams_json_data, team_name):
+    for item in teams_json_data.get('data', []):
         if item['attributes'].get('team_name') == team_name:
             return item
     return None
 
-def process_teams():
-  log.info(f'Processing teams in function...')
-  teamrepo = gh.get_repo('ministryofjustice/hmpps-github-teams')
-  team_contents = teamrepo.get_contents('terraform/teams.tf')
-  team_file = base64.b64decode(team_contents.content).decode('utf-8')
-  tf_data = extract_teams(team_file)
-  log.info(f'Found {len(tf_data)} teams in the terraform file')
-  org = gh.get_organization('ministryofjustice')
-  teams = org.get_teams()
-  team_id_map = {team.name: team.id for team in teams}
-
-  try:
-      r = requests.get(SC_ENDPOINT_TEAMS, headers=sc_api_headers, timeout=10)
-      log.debug(r)
-  except Exception as e:
-      log.error(f'Error getting team in the SC: {e}')
-      return False
-
-  for team in tf_data:
-    team_name = team[0]
-    team_parent = team[1]
-    team_description = team[2]
-    team_id = team_id_map.get(team_name, "Unknown ID")
-    members = [member.login for member in org.get_team(team_id).get_members()]
+def insert_github_team(teams_json_data, team_id, team_name, team_parent, team_description, members, terraform_managed):
+    c_team = find_github_team(teams_json_data, team_name)
+    check_team = c_team.get('attributes', {}) if c_team else {}
+    c_team_id = c_team.get('id', None) if c_team else None
     team_data = {
       'github_team_id': team_id,
       'team_name': team_name,
       'parent_team_name': team_parent,
       'team_desc': team_description,
-      'members': members
+      'members': members,
+      'terraform_managed': terraform_managed,
     }
-    c_team = find_github_team(r.json(), team_name)
-    check_team = c_team.get('attributes', {}) if c_team else {}
-    c_team_id = c_team.get('id', None) if c_team else None
     if c_team_id:
-      if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != team_parent or check_team['members'] != members:
+      if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != team_parent or check_team['members'] != members or check_team['terraform_managed'] != terraform_managed: 
         # Update the team in SC
         x = requests.put(
           f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
@@ -1173,6 +1152,71 @@ def process_teams():
         log.info(
           f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}'
         )
+
+def get_github_teams_data():
+  try:
+    r = requests.get(SC_ENDPOINT_TEAMS, headers=sc_api_headers, timeout=10)
+    log.debug(r.json())
+    return r.json()
+  except Exception as e:
+    log.error(f'Error getting team in the SC: {e}')
+    return False
+
+def process_terraform_managed_teams(teams_json_data):
+  log.info(f'Processing teams in function...')
+  teamrepo = gh.get_repo('ministryofjustice/hmpps-github-teams')
+  team_contents = teamrepo.get_contents('terraform/teams.tf')
+  team_file = base64.b64decode(team_contents.content).decode('utf-8')
+  tf_data = extract_teams(team_file)
+  log.info(f'Found {len(tf_data)} teams in the terraform file')
+  org = gh.get_organization('ministryofjustice')
+  teams = org.get_teams()
+  team_id_map = {team.name: team.id for team in teams}
+
+  for team in tf_data:
+    team_name = team[0]
+    team_parent = team[1]
+    team_description = team[2]
+    team_id = team_id_map.get(team_name, "Unknown ID")
+    members = [member.login for member in org.get_team(team_id).get_members()]
+    terraform_managed = True
+    insert_github_team(teams_json_data,team_id, team_name, team_parent, team_description, members, terraform_managed)
+  return None
+
+def process_non_terraform_managed_teams(teams_json_data):
+  log.info(f'Processing Teams not managed by terraform...')
+  try:
+    r = requests.get(SC_ENDPOINT_COMPONENTS, headers=sc_api_headers, timeout=10)
+    log.debug(r)
+  except Exception as e:
+    log.error(f'Error getting components from the SC: {e}')
+    return False
+  components = r.json().get('data', [])
+  combined_teams = set()
+  for component in components:
+    attributes = component.get('attributes', {})
+    combined_teams.update(attributes.get('github_project_teams_write', []) or [])
+    combined_teams.update(attributes.get('github_project_teams_admin', []) or [])
+    combined_teams.update(attributes.get('github_project_teams_maintain', []) or [])
+
+  print("Teams not in Terraform: ", combined_teams)
+  log.info(f'Found {len(combined_teams)} unique teams referenced in the SC for components')
+
+  existing_teams = {team['attributes']['team_name'] for team in teams_json_data.get('data', [])}
+  for team_name in combined_teams:
+    if team_name not in existing_teams:
+      try:
+        org = gh.get_organization("ministryofjustice")
+        team = org.get_team_by_slug(team_name)
+        team_id = team.id
+        team_parent = team.parent.name if team.parent else None
+        team_description = team.description
+        members = [member.login for member in org.get_team(team_id).get_members()]
+      except Exception as e:
+        log.error(f'Error getting team data from GitHub for {team_name}: {e}')
+        continue
+      terraform_managed = False
+      insert_github_team(teams_json_data,team_id, team_name, team_parent, team_description, members, terraform_managed)
   return None
 
 def process_products(data):
@@ -1302,7 +1346,9 @@ if __name__ == '__main__':
 
     # Process Teams
     log.info('Processing teams...')
-    process_teams()
+    teams_json_data = get_github_teams_data()
+    process_terraform_managed_teams(teams_json_data)
+    process_non_terraform_managed_teams(teams_json_data)
 
     # Process products
     log.info(SC_PRODUCT_ENDPOINT)

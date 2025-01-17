@@ -18,12 +18,15 @@ from dockerfile_parse import DockerfileParser
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import base64
+import jwt
+import time
+from github import Github, Auth
 
 SC_API_ENDPOINT = os.getenv('SERVICE_CATALOGUE_API_ENDPOINT')
 SC_API_TOKEN = os.getenv('SERVICE_CATALOGUE_API_KEY')
 GITHUB_APP_ID = int(os.getenv('GITHUB_APP_ID'))
 GITHUB_APP_INSTALLATION_ID = int(os.getenv('GITHUB_APP_INSTALLATION_ID'))
-GITHUB_APP_PRIVATE_KEY = os.getenv('GITHUB_APP_PRIVATE_KEY')
+GITHUB_APP_PRIVATE_KEY = base64.b64decode(os.getenv('GITHUB_APP_PRIVATE_KEY').encode('utf-8')).decode('ascii')
 REFRESH_INTERVAL_HOURS = int(os.getenv('REFRESH_INTERVAL_HOURS', '6'))
 CIRCLECI_TOKEN = os.getenv('CIRCLECI_TOKEN')
 CIRCLECI_API_ENDPOINT = os.getenv(
@@ -65,6 +68,25 @@ class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
     self.wfile.write(bytes('UP', 'utf8'))
     return
 
+def generate_jwt():
+    now = int(time.time())
+    payload = {
+        "iat": now,  # Issued at time
+        "exp": now + + (30 * 24 * 60 * 60) ,  # Expiration time for 30 days from now
+        "iss": GITHUB_APP_ID,  # GitHub App ID
+    }
+    return jwt.encode(payload, GITHUB_APP_PRIVATE_KEY, algorithm="RS256")
+
+def get_access_token(jwt_token):
+  #Retrieves an access token for the GitHub App installation.
+  headers = {
+      "Authorization": f"Bearer {jwt_token}",
+      "Accept": "application/vnd.github.v3+json",
+  }
+  url = f"https://api.github.com/app/installations/{GITHUB_APP_INSTALLATION_ID}/access_tokens"
+  response = requests.post(url, headers=headers)
+  response.raise_for_status()  # Raise an exception for bad status codes
+  return response.json()["token"]
 
 def update_sc_component(c_id, data):
   try:
@@ -1265,12 +1287,10 @@ if __name__ == '__main__':
 
   # Test auth and connection to github
   try:
-    private_key = b64decode(GITHUB_APP_PRIVATE_KEY).decode('ascii')
-    auth = github.Auth.AppAuth(GITHUB_APP_ID, private_key).get_installation_auth(
-      GITHUB_APP_INSTALLATION_ID
-    )
-    gh = github.Github(auth=auth, pool_size=50)
-
+    jwt = generate_jwt()
+    access_token = get_access_token(jwt)
+    auth = Auth.Token(access_token)
+    gh = Github(auth=auth)
     rate_limit = gh.get_rate_limit()
     core_rate_limit = rate_limit.core
     log.info(f'Github API: {rate_limit}')

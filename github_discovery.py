@@ -19,7 +19,6 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import base64
 import jwt
-import time
 from github import Github, Auth
 from datetime import datetime, timedelta
 from github.GithubException import UnknownObjectException
@@ -1284,15 +1283,25 @@ def get_github_kubernetes_environment_variables(repo_name):
         for env in repo.get_environments():
             repo_env_data = repo.get_environment(env.name)
             env_vars = repo_env_data.get_variables()
-            print(f"values: {env_vars}")
+            env_name = None
             for var in env_vars:
+                env_name = env.name
+                if env_name.lower() == 'staging': #added for hmpps-visit-allocation-api as it has staging environment
+                  env_name = 'stage'
+                elif env_name.lower() == 'production':
+                  env_name = 'prod'
+                elif env_name.lower() == 'development':
+                  env_name = 'dev'
+                elif env_name.lower() == 'preprod':
+                  env_name = 'preprod'
                 if var.name == 'KUBE_NAMESPACE':
                     if circleci_context_k8s_namespace is None:
                         circleci_context_k8s_namespace = var.value
                         result["circleci_context_k8s_namespace"] = var.value
+                    # adding list based on enum values in SC for environment type field 
                     circleci_context_k8s_namespaces.append({
-                        "env_name": env.name,
-                        "env_type": env.name,
+                        "env_name": env_name,
+                        "env_type": env_name,
                         "namespace": var.value
                     })
         result["circleci_context_k8s_namespaces"] = circleci_context_k8s_namespaces

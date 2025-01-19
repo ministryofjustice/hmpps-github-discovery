@@ -1414,47 +1414,47 @@ if __name__ == '__main__':
         f'Problem with Service Catalogue API while processing components. {e}'
       )
 
-    # # Process Teams
-    # log.info('Processing teams...')
-    # teams_json_data = get_github_teams_data()
-    # process_terraform_managed_teams(teams_json_data)
-    # process_non_terraform_managed_teams(teams_json_data)
+    # Process Teams
+    log.info('Processing teams...')
+    teams_json_data = get_github_teams_data()
+    process_terraform_managed_teams(teams_json_data)
+    process_non_terraform_managed_teams(teams_json_data)
 
-    # # Process products
-    # log.info(SC_PRODUCT_ENDPOINT)
-    # try:
-    #   r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
-    #   log.debug(r)
-    #   if r.status_code == 200:
-    #     j_meta = r.json()['meta']['pagination']
-    #     log.debug(f'Got result page: {j_meta["page"]} from SC')
-    #     j_data = r.json()['data']
-    #     process_products(j_data)
-    #   else:
-    #     raise Exception(
-    #       f'Received non-200 response from Service Catalogue: {r.status_code}'
-    #     )
+    # Process products
+    log.info(SC_PRODUCT_ENDPOINT)
+    try:
+      r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
+      log.debug(r)
+      if r.status_code == 200:
+        j_meta = r.json()['meta']['pagination']
+        log.debug(f'Got result page: {j_meta["page"]} from SC')
+        j_data = r.json()['data']
+        process_products(j_data)
+      else:
+        raise Exception(
+          f'Received non-200 response from Service Catalogue: {r.status_code}'
+        )
 
-    #   # Loop over the remaining pages and return one at a time
-    #   num_pages = j_meta['pageCount']
-    #   for p in range(2, num_pages + 1):
-    #     page = f'&pagination[page]={p}'
-    #     r = requests.get(
-    #       f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
-    #     )
-    #     if r.status_code == 200:
-    #       j_meta = r.json()['meta']['pagination']
-    #       log.debug(f'Got result page: {j_meta["page"]} from SC')
-    #       j_data = r.json()['data']
-    #       process_products(j_data)
-    #     else:
-    #       raise Exception(
-    #         f'Received non-200 response from Service Catalogue: {r.status_code}'
-    #       )
+      # Loop over the remaining pages and return one at a time
+      num_pages = j_meta['pageCount']
+      for p in range(2, num_pages + 1):
+        page = f'&pagination[page]={p}'
+        r = requests.get(
+          f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
+        )
+        if r.status_code == 200:
+          j_meta = r.json()['meta']['pagination']
+          log.debug(f'Got result page: {j_meta["page"]} from SC')
+          j_data = r.json()['data']
+          process_products(j_data)
+        else:
+          raise Exception(
+            f'Received non-200 response from Service Catalogue: {r.status_code}'
+          )
 
-    # except Exception as e:
-    #   log.error(
-    #     f'Problem with Service Catalogue API while processing products. {e}'
-    #   )
+    except Exception as e:
+      log.error(
+        f'Problem with Service Catalogue API while processing products. {e}'
+      )
     log.info(f'All done - sleeping for {REFRESH_INTERVAL_HOURS} hours')
     sleep((REFRESH_INTERVAL_HOURS * 60 * 60))

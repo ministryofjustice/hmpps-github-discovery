@@ -1374,8 +1374,6 @@ if __name__ == '__main__':
     bootstrap_projects = {}
     for p in bootstrap_projects_json:
       bootstrap_projects.update({p['github_repo_name']: p})
-    print(bootstrap_projects)
-    print(f'Found {len(bootstrap_projects)} projects in the bootstrap repo')
     # Process components
     log.info(SC_ENDPOINT)
     try:
@@ -1385,7 +1383,6 @@ if __name__ == '__main__':
         j_meta = r.json()['meta']['pagination']
         log.debug(f'Got result page: {j_meta["page"]} from SC')
         j_data = r.json()['data']
-        print(j_data)
         process_components(j_data)
       else:
         raise Exception(

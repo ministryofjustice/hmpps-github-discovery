@@ -1383,6 +1383,7 @@ if __name__ == '__main__':
     bootstrap_projects = {}
     for p in bootstrap_projects_json:
       bootstrap_projects.update({p['github_repo_name']: p})
+
     # Process components
     log.info(SC_ENDPOINT)
     try:

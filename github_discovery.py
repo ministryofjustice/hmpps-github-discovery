@@ -21,12 +21,14 @@ import base64
 import jwt
 import time
 from github import Github, Auth
+from datetime import datetime, timedelta
+from github.GithubException import UnknownObjectException
 
 SC_API_ENDPOINT = os.getenv('SERVICE_CATALOGUE_API_ENDPOINT')
 SC_API_TOKEN = os.getenv('SERVICE_CATALOGUE_API_KEY')
 GITHUB_APP_ID = int(os.getenv('GITHUB_APP_ID'))
 GITHUB_APP_INSTALLATION_ID = int(os.getenv('GITHUB_APP_INSTALLATION_ID'))
-GITHUB_APP_PRIVATE_KEY = base64.b64decode(os.getenv('GITHUB_APP_PRIVATE_KEY').encode('utf-8')).decode('ascii')
+GITHUB_APP_PRIVATE_KEY = os.getenv('GITHUB_APP_PRIVATE_KEY')
 REFRESH_INTERVAL_HOURS = int(os.getenv('REFRESH_INTERVAL_HOURS', '6'))
 CIRCLECI_TOKEN = os.getenv('CIRCLECI_TOKEN')
 CIRCLECI_API_ENDPOINT = os.getenv(
@@ -69,24 +71,27 @@ class HealthHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
     return
 
 def generate_jwt():
-    now = int(time.time())
-    payload = {
-        "iat": now,  # Issued at time
-        "exp": now + + (30 * 24 * 60 * 60) ,  # Expiration time for 30 days from now
-        "iss": GITHUB_APP_ID,  # GitHub App ID
-    }
-    return jwt.encode(payload, GITHUB_APP_PRIVATE_KEY, algorithm="RS256")
+  private_key = b64decode(GITHUB_APP_PRIVATE_KEY).decode('ascii')
+  now = datetime.utcnow()
+  payload = {
+    'iat': now,
+    'exp': now + timedelta(minutes=10),
+    'iss': GITHUB_APP_ID
+  }
+  token = jwt.encode(payload, private_key, algorithm='RS256')
+  return token
 
 def get_access_token(jwt_token):
-  #Retrieves an access token for the GitHub App installation.
   headers = {
-      "Authorization": f"Bearer {jwt_token}",
-      "Accept": "application/vnd.github.v3+json",
+    'Authorization': f'Bearer {jwt_token}',
+    'Accept': 'application/vnd.github.v3+json'
   }
-  url = f"https://api.github.com/app/installations/{GITHUB_APP_INSTALLATION_ID}/access_tokens"
-  response = requests.post(url, headers=headers)
-  response.raise_for_status()  # Raise an exception for bad status codes
-  return response.json()["token"]
+  response = requests.post(
+    f'https://api.github.com/app/installations/{GITHUB_APP_INSTALLATION_ID}/access_tokens',
+    headers=headers
+  )
+  response.raise_for_status()
+  return response.json()['token']
 
 def update_sc_component(c_id, data):
   try:
@@ -1261,6 +1266,40 @@ def process_products(data):
     p_id = product['attributes']['p_id']
     log.info(f'Started thread for {p_id} ({product_name})')
 
+def get_directory_json_files_list(repo, directory):
+  contents = repo.get_contents(directory)
+  return [file.path for file in contents if file.path.endswith('.json')]
+
+def get_github_kubernetes_environment_variables(repo_name):
+    result = {}
+    circleci_context_k8s_namespace = None
+    circleci_context_k8s_namespaces = []
+    try:
+        repo = gh.get_repo(f'ministryofjustice/{repo_name}')
+    except UnknownObjectException:
+        print(f'Repository {repo_name} does not exist.')
+        return
+    try:
+        result["github_repo_name"] = repo.name
+        for env in repo.get_environments():
+            repo_env_data = repo.get_environment(env.name)
+            env_vars = repo_env_data.get_variables()
+            print(f"values: {env_vars}")
+            for var in env_vars:
+                if var.name == 'KUBE_NAMESPACE':
+                    if circleci_context_k8s_namespace is None:
+                        circleci_context_k8s_namespace = var.value
+                        result["circleci_context_k8s_namespace"] = var.value
+                    circleci_context_k8s_namespaces.append({
+                        "env_name": env.name,
+                        "env_type": env.name,
+                        "namespace": var.value
+                    })
+        result["circleci_context_k8s_namespaces"] = circleci_context_k8s_namespaces
+        return result
+    except Exception as e:
+        print(f"Failed to get environment variables for {repo_name}: {e}")
+        return
 
 if __name__ == '__main__':
   
@@ -1287,10 +1326,10 @@ if __name__ == '__main__':
 
   # Test auth and connection to github
   try:
-    jwt = generate_jwt()
-    access_token = get_access_token(jwt)
+    jwt_token = generate_jwt()
+    access_token = get_access_token(jwt_token)
     auth = Auth.Token(access_token)
-    gh = Github(auth=auth)
+    gh = Github(auth=auth, pool_size=50)
     rate_limit = gh.get_rate_limit()
     core_rate_limit = rate_limit.core
     log.info(f'Github API: {rate_limit}')
@@ -1320,13 +1359,23 @@ if __name__ == '__main__':
     alertmanager_json_data = get_alertmanager_data()
     
     # Get projects.json from bootstrap repo for namespaces data
+    bootstrap_projects_json = []
     bootstrap_repo = gh.get_repo('ministryofjustice/hmpps-project-bootstrap')
-    bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
+    # bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
+    json_files = get_directory_json_files_list(bootstrap_repo, 'requests')
+    for file in json_files:
+        json_data = get_file_json(bootstrap_repo, file)
+        if 'github_repo' in json_data:
+            result_data = get_github_kubernetes_environment_variables(json_data['github_repo'])
+            if result_data:
+                bootstrap_projects_json.append(result_data)
+   
     # Convert dict for easier lookup
     bootstrap_projects = {}
     for p in bootstrap_projects_json:
       bootstrap_projects.update({p['github_repo_name']: p})
-
+    print(bootstrap_projects)
+    print(f'Found {len(bootstrap_projects)} projects in the bootstrap repo')
     # Process components
     log.info(SC_ENDPOINT)
     try:
@@ -1336,6 +1385,7 @@ if __name__ == '__main__':
         j_meta = r.json()['meta']['pagination']
         log.debug(f'Got result page: {j_meta["page"]} from SC')
         j_data = r.json()['data']
+        print(j_data)
         process_components(j_data)
       else:
         raise Exception(
@@ -1364,47 +1414,47 @@ if __name__ == '__main__':
         f'Problem with Service Catalogue API while processing components. {e}'
       )
 
-    # Process Teams
-    log.info('Processing teams...')
-    teams_json_data = get_github_teams_data()
-    process_terraform_managed_teams(teams_json_data)
-    process_non_terraform_managed_teams(teams_json_data)
+    # # Process Teams
+    # log.info('Processing teams...')
+    # teams_json_data = get_github_teams_data()
+    # process_terraform_managed_teams(teams_json_data)
+    # process_non_terraform_managed_teams(teams_json_data)
 
-    # Process products
-    log.info(SC_PRODUCT_ENDPOINT)
-    try:
-      r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
-      log.debug(r)
-      if r.status_code == 200:
-        j_meta = r.json()['meta']['pagination']
-        log.debug(f'Got result page: {j_meta["page"]} from SC')
-        j_data = r.json()['data']
-        process_products(j_data)
-      else:
-        raise Exception(
-          f'Received non-200 response from Service Catalogue: {r.status_code}'
-        )
+    # # Process products
+    # log.info(SC_PRODUCT_ENDPOINT)
+    # try:
+    #   r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
+    #   log.debug(r)
+    #   if r.status_code == 200:
+    #     j_meta = r.json()['meta']['pagination']
+    #     log.debug(f'Got result page: {j_meta["page"]} from SC')
+    #     j_data = r.json()['data']
+    #     process_products(j_data)
+    #   else:
+    #     raise Exception(
+    #       f'Received non-200 response from Service Catalogue: {r.status_code}'
+    #     )
 
-      # Loop over the remaining pages and return one at a time
-      num_pages = j_meta['pageCount']
-      for p in range(2, num_pages + 1):
-        page = f'&pagination[page]={p}'
-        r = requests.get(
-          f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
-        )
-        if r.status_code == 200:
-          j_meta = r.json()['meta']['pagination']
-          log.debug(f'Got result page: {j_meta["page"]} from SC')
-          j_data = r.json()['data']
-          process_products(j_data)
-        else:
-          raise Exception(
-            f'Received non-200 response from Service Catalogue: {r.status_code}'
-          )
+    #   # Loop over the remaining pages and return one at a time
+    #   num_pages = j_meta['pageCount']
+    #   for p in range(2, num_pages + 1):
+    #     page = f'&pagination[page]={p}'
+    #     r = requests.get(
+    #       f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
+    #     )
+    #     if r.status_code == 200:
+    #       j_meta = r.json()['meta']['pagination']
+    #       log.debug(f'Got result page: {j_meta["page"]} from SC')
+    #       j_data = r.json()['data']
+    #       process_products(j_data)
+    #     else:
+    #       raise Exception(
+    #         f'Received non-200 response from Service Catalogue: {r.status_code}'
+    #       )
 
-    except Exception as e:
-      log.error(
-        f'Problem with Service Catalogue API while processing products. {e}'
-      )
+    # except Exception as e:
+    #   log.error(
+    #     f'Problem with Service Catalogue API while processing products. {e}'
+    #   )
     log.info(f'All done - sleeping for {REFRESH_INTERVAL_HOURS} hours')
     sleep((REFRESH_INTERVAL_HOURS * 60 * 60))

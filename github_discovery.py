@@ -1370,7 +1370,7 @@ if __name__ == '__main__':
     # Get projects.json from bootstrap repo for namespaces data
     bootstrap_projects_json = []
     bootstrap_repo = gh.get_repo('ministryofjustice/hmpps-project-bootstrap')
-    # bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
+    bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
     json_files = get_directory_json_files_list(bootstrap_repo, 'requests')
     for file in json_files:
         json_data = get_file_json(bootstrap_repo, file)

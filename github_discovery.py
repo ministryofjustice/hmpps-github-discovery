@@ -430,7 +430,8 @@ def process_repo(**component):
   try:
     repo = gh.get_repo(f'ministryofjustice/{github_repo}')
   except Exception as e:
-    log.error(f'Error with ministryofjustice/{c_name}, check github app has permissions to see it. {e}')
+    log.error(f'ERROR - with ministryofjustice/{c_name}, check github app has permissions to see it or repo removed. {e}')
+    return
   
   default_branch = None
   try:

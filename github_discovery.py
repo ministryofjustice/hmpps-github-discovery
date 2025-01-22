@@ -616,7 +616,8 @@ def process_repo(**component):
               e.update({'name': env, 'type': env_type})
               try:
                 log.info(f'Creating new environment {env} for {c_name}')
-                if any(env_list == env or env_list == env_type for env_list in repo_env_list):
+                repo_env_set = {env.name for env in repo_env_list}
+                if env in repo_env_set or env_type in repo_env_set:
                   repo_env_data = repo.get_environment(env)
                   print(f"repo_env_data = ", repo_env_data)
                   env_vars = repo_env_data.get_variables()
@@ -1032,7 +1033,6 @@ def process_terraform_managed_teams(teams_json_data):
   team_file = base64.b64decode(team_contents.content).decode('utf-8')
   tf_data = extract_teams(team_file)
   log.info(f'Found {len(tf_data)} teams in the terraform file')
-  org = gh.get_organization('ministryofjustice')
   teams = org.get_teams()
   team_id_map = {team.name: team.id for team in teams}
 
@@ -1069,7 +1069,6 @@ def process_non_terraform_managed_teams(teams_json_data):
   for team_name in combined_teams:
     if team_name not in existing_teams:
       try:
-        org = gh.get_organization("ministryofjustice")
         team = org.get_team_by_slug(team_name)
         team_id = team.id
         team_parent = team.parent.name if team.parent else None
@@ -1195,49 +1194,49 @@ if __name__ == '__main__':
         f'Problem with Service Catalogue API while processing components. {e}'
       )
 
-  #   # Process Teams
-  #   log.info('Processing teams...')
-  #   teams_json_data = get_github_teams_data()
-  #   process_terraform_managed_teams(teams_json_data)
-  #   process_non_terraform_managed_teams(teams_json_data)
+    # Process Teams
+    log.info('Processing teams...')
+    teams_json_data = get_github_teams_data()
+    process_terraform_managed_teams(teams_json_data)
+    process_non_terraform_managed_teams(teams_json_data)
 
-  #   # Process products
-  #   log.info(SC_PRODUCT_ENDPOINT)
-  #   try:
-  #     r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
-  #     log.debug(r)
-  #     if r.status_code == 200:
-  #       j_meta = r.json()['meta']['pagination']
-  #       log.debug(f'Got result page: {j_meta["page"]} from SC')
-  #       j_data = r.json()['data']
-  #       process_products(j_data)
-  #     else:
-  #       raise Exception(
-  #         f'Received non-200 response from Service Catalogue: {r.status_code}'
-  #       )
+    # Process products
+    log.info(SC_PRODUCT_ENDPOINT)
+    try:
+      r = requests.get(SC_PRODUCT_ENDPOINT, headers=sc_api_headers, timeout=10)
+      log.debug(r)
+      if r.status_code == 200:
+        j_meta = r.json()['meta']['pagination']
+        log.debug(f'Got result page: {j_meta["page"]} from SC')
+        j_data = r.json()['data']
+        process_products(j_data)
+      else:
+        raise Exception(
+          f'Received non-200 response from Service Catalogue: {r.status_code}'
+        )
 
-  #     # Loop over the remaining pages and return one at a time
-  #     num_pages = j_meta['pageCount']
-  #     for p in range(2, num_pages + 1):
-  #       page = f'&pagination[page]={p}'
-  #       r = requests.get(
-  #         f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
-  #       )
-  #       if r.status_code == 200:
-  #         j_meta = r.json()['meta']['pagination']
-  #         log.debug(f'Got result page: {j_meta["page"]} from SC')
-  #         j_data = r.json()['data']
-  #         process_products(j_data)
-  #       else:
-  #         raise Exception(
-  #           f'Received non-200 response from Service Catalogue: {r.status_code}'
-  #         )
+      # Loop over the remaining pages and return one at a time
+      num_pages = j_meta['pageCount']
+      for p in range(2, num_pages + 1):
+        page = f'&pagination[page]={p}'
+        r = requests.get(
+          f'{SC_PRODUCT_ENDPOINT}{page}', headers=sc_api_headers, timeout=10
+        )
+        if r.status_code == 200:
+          j_meta = r.json()['meta']['pagination']
+          log.debug(f'Got result page: {j_meta["page"]} from SC')
+          j_data = r.json()['data']
+          process_products(j_data)
+        else:
+          raise Exception(
+            f'Received non-200 response from Service Catalogue: {r.status_code}'
+          )
 
-  #   except Exception as e:
-  #     log.error(
-  #       f'Problem with Service Catalogue API while processing products. {e}'
-  #     )
-  #   log.info(f'All done - sleeping for {REFRESH_INTERVAL_HOURS} hours')
+    except Exception as e:
+      log.error(
+        f'Problem with Service Catalogue API while processing products. {e}'
+      )
+    log.info(f'All done - sleeping for {REFRESH_INTERVAL_HOURS} hours')
     sleep((REFRESH_INTERVAL_HOURS * 60 * 60))
     log.info('Waking up...')
     try:

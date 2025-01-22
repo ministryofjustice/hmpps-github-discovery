@@ -201,7 +201,7 @@ def test_subject_access_request_endpoint(url):
     r = requests.get(
       f'{url}/v3/api-docs', headers=headers, allow_redirects=False, timeout=10
     )
-    if r.status_code == 200:
+    if r and r.status_code == 200:
       try:
         if r.json()['paths']['/subject-access-request']:
           log.debug(f'Found SAR endpoint at: {url}/v3/api-docs')
@@ -210,10 +210,10 @@ def test_subject_access_request_endpoint(url):
         log.debug('No SAR endpoint found.')
         return False
   except TimeoutError:
-    log.debug(f"Timed out connecting to: {url}/v3/api-docs")
+    log.debug(f"ERROR - Timed out connecting to: {url}/v3/api-docs")
     return False
   except Exception:
-    log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
+    log.debug(f"ERROR- Couldn't connect: {url}/v3/api-docs")
     return False
 
 
@@ -431,22 +431,29 @@ def process_repo(**component):
     repo = gh.get_repo(f'ministryofjustice/{github_repo}')
   except Exception as e:
     log.error(f'Error with ministryofjustice/{c_name}, check github app has permissions to see it. {e}')
-    
+  
+  default_branch = None
   try:
     default_branch = repo.get_branch(repo.default_branch)
   except Exception as e:
-    log.error(f'Error with ministryofjustice/{c_name}, unable to get default branch. {e}')
-  current_commit = {
-    'sha': default_branch.commit.sha,
-    'date_time': default_branch.commit.commit.committer.date.isoformat(),
-  }
+    log.error(f'ERROR - {c_name} unable to get default branch.')
+  if default_branch:
+    current_commit = {
+      'sha': default_branch.commit.sha,
+      'date_time': default_branch.commit.commit.committer.date.isoformat(),
+    }
 
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
   helm_envs = {}
   environments = []
   versions_data = {}
+  old_bootstrap_project = False
   trivy_scan_summary = {}
+  if c_name in bootstrap_projects:
+    project_bootstrap_data = bootstrap_projects[c_name]
+    old_bootstrap_project = True
+
   # CircleCI config
   cirlcleci_config = get_file_yaml(repo, '.circleci/config.yml')
   if cirlcleci_config:
@@ -487,16 +494,14 @@ def process_repo(**component):
     log.debug(f'helm_deploy folder: {e}')
   try:
     repo_env_list = repo.get_environments()
-    print(f"repo_env_list.totalCount = ", repo_env_list.totalCount)
   except Exception as e:
     log.debug(f'helm_deploy folder: {e}')
   existing_envs = component['attributes']['environments']
   stored_commit_data = component['attributes']['latest_commit']
 
   # Compare the current commit SHA with the stored SHA
-  if stored_commit_data.get('sha') != current_commit['sha'] or (not existing_envs and repo_env_list.totalCount > 0):
-    log.info(f'Repo {github_repo} has changed since last service catalogue update.')
-
+  if stored_commit_data and stored_commit_data.get('sha') != current_commit['sha'] or (not existing_envs and repo_env_list.totalCount > 0):
+    log.info(f'Repo {github_repo} has changed since last github discovery update.')
     # Helm charts
     if helm_deploy:
       helm_commits = repo.get_commits(path=helm_dir)
@@ -507,7 +512,7 @@ def process_repo(**component):
       if latest_helm_dir_commit:
         latest_helm_dir_commit_sha = latest_helm_dir_commit.sha  # Extracting the SHA value
         # Compare the current commit SHA with the stored SHA for the directory
-        if stored_commit_data.get('sha') != latest_helm_dir_commit_sha:
+        if stored_commit_data and stored_commit_data.get('sha') != latest_helm_dir_commit_sha:
           log.info(f'Directory {helm_dir} in repo {github_repo} has changed.')
           # Process the changed data
           helm_chart = (
@@ -570,6 +575,7 @@ def process_repo(**component):
             modsecurity_enabled_default = None
             modsecurity_audit_enabled_default = None
             modsecurity_snippet_default = None
+            default_alert_severity_label = None
             try:
               modsecurity_enabled_default = helm_default_values['generic-service']['ingress']['modsecurity_enabled']
             except KeyError:
@@ -608,165 +614,190 @@ def process_repo(**component):
             elif env.lower() == 'production' or env.lower() == 'prod':
               env_type = 'prod'
 
+            populate_env_data = False
             if env in env_lookup: # Update existing environment
               env_id = env_lookup[env]['id']
               e.update({'id': env_id})
+              populate_env_data = True
+            elif old_bootstrap_project:
+              pb_namespace = None
+              if env_type == 'dev':
+                if 'circleci_project_k8s_namespace' in project_bootstrap_data:
+                  pb_namespace = project_bootstrap_data['circleci_project_k8s_namespace']
+                  pb_env_name = 'dev'
+              else:
+                if 'circleci_project_k8s_namespaces' in project_bootstrap_data:
+                  for c in project_bootstrap_data['circleci_context_k8s_namespaces']:
+                    if 'env_type' in c:
+                      pb_namespace=c['namespace']
+                      pb_env_name=c['env_name']
+                      break
+              if pb_namespace:
+                e.update({'name': pb_env_name, 'type': env_type})
+                e.update({'namespace': pb_namespace})
+                ns_id = get_sc_id('namespaces', 'name', pb_namespace)
+                if ns_id:
+                  e.update({'ns': ns_id})
+                populate_env_data = True
             else:
-              print("env not in env_lookup")
               e.update({'name': env, 'type': env_type})
               try:
                 log.info(f'Creating new environment {env} for {c_name}')
                 repo_env_set = {env.name for env in repo_env_list}
                 if env in repo_env_set or env_type in repo_env_set:
                   repo_env_data = repo.get_environment(env)
-                  print(f"repo_env_data = ", repo_env_data)
                   env_vars = repo_env_data.get_variables()
-                  print(f"env_vars = ", env_vars)
                   for var in env_vars:
                     if var.name == 'KUBE_NAMESPACE':
                       kube_namespace = var.value
                       e.update({'namespace': kube_namespace})
+                      populate_env_data = True
                       ns_id = get_sc_id('namespaces', 'name', kube_namespace)
                       if ns_id:
                         e.update({'ns': ns_id})
               except Exception as e:
                 log.error(f'Error with ministryofjustice/{c_name}, unable to get environments variable KUBE_NAMESPACE. {e}')
+            if populate_env_data:
+              values = helm_values_data[env]
+              if values:
+                # Ingress hostname
+                try:
+                  host = values['generic-service']['ingress']['host']
+                  helm_envs.update({env: {'host': host}})
+                  log.debug(f'{env} ingress host: {host}')
+                except KeyError:
+                  pass
+                # Ingress alternative location
+                try:
+                  host = values['generic-service']['ingress']['hosts'][-1]
+                  helm_envs.update({env: {'host': host}})
+                  log.debug(f'{env} ingress host: {host}')
+                except KeyError:
+                  pass
+                # Ingress alternative location
+                try:
+                  host = values['ingress']['host']
+                  helm_envs.update({env: {'host': host}})
+                  log.debug(f'{env} ingress host: {host}')
+                except KeyError:
+                  pass
+                # Ingress alternative location
+                try:
+                  host = values['ingress']['hosts'][-1]['host']
+                  helm_envs.update({env: {'host': host}})
+                  log.debug(f'{env} ingress host: {host}')
+                except KeyError:
+                  pass
+                # Container image alternative location
+                try:
+                  container_image = values['image']['repository']
+                  data.update({'container_image': container_image})
+                except KeyError:
+                  pass
+                try:
+                  container_image = values['generic-service']['image']['repository']
+                  data.update({'container_image': container_image})
+                except KeyError:
+                  pass
 
-            values = helm_values_data[env]
-            if values:
-              # Ingress hostname
+              env_url = f'https://{helm_envs[env]["host"]}'
+              if env_url:
+                health_path = '/health'
+                info_path = '/info'
+                # Hack for hmpps-auth non standard endpoints
+                if 'sign-in' in env_url:
+                  health_path = '/auth/health'
+                  info_path = '/auth/info'
+                if test_endpoint(env_url, health_path):
+                  e.update({'health_path': health_path})
+                if test_endpoint(env_url, info_path):
+                  e.update({'info_path': info_path})
+                # Test for API docs - and if found also test for SAR endpoint.
+                if test_swagger_docs(env_url):
+                  e.update({'swagger_docs': '/swagger-ui.html'})
+                  data.update({'api': True, 'frontend': False})
+                  if test_subject_access_request_endpoint(env_url):
+                    e.update({'include_in_subject_access_requests': True})
+                  else:
+                    e.update({'include_in_subject_access_requests': False})
+
               try:
-                host = values['generic-service']['ingress']['host']
-                helm_envs.update({env: {'host': host}})
-                log.debug(f'{env} ingress host: {host}')
-              except KeyError:
-                pass
-              # Ingress alternative location
-              try:
-                host = values['generic-service']['ingress']['hosts'][-1]
-                helm_envs.update({env: {'host': host}})
-                log.debug(f'{env} ingress host: {host}')
-              except KeyError:
-                pass
-              # Ingress alternative location
-              try:
-                host = values['ingress']['host']
-                helm_envs.update({env: {'host': host}})
-                log.debug(f'{env} ingress host: {host}')
-              except KeyError:
-                pass
-              # Ingress alternative location
-              try:
-                host = values['ingress']['hosts'][-1]['host']
-                helm_envs.update({env: {'host': host}})
-                log.debug(f'{env} ingress host: {host}')
-              except KeyError:
-                pass
-              # Container image alternative location
-              try:
-                container_image = values['image']['repository']
-                data.update({'container_image': container_image})
-              except KeyError:
-                pass
-              try:
-                container_image = values['generic-service']['image']['repository']
-                data.update({'container_image': container_image})
+                ip_allow_list_env = ip_allow_list_data[f'values-{env}.yaml']
+                allow_list_values.update(
+                  {
+                    f'values-{env}.yaml': ip_allow_list_env,
+                    'values.yaml': ip_allow_list_default,
+                  }
+                )
+                e.update(
+                  {
+                    'ip_allow_list': allow_list_values,
+                    'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values),
+                  }
+                )
               except KeyError:
                 pass
 
-            env_url = f'https://{helm_envs[env]["host"]}'
-            if env_url:
-              health_path = '/health'
-              info_path = '/info'
-              # Hack for hmpps-auth non standard endpoints
-              if 'sign-in' in env_url:
-                health_path = '/auth/health'
-                info_path = '/auth/info'
-              if test_endpoint(env_url, health_path):
-                e.update({'health_path': health_path})
-              if test_endpoint(env_url, info_path):
-                e.update({'info_path': info_path})
-              # Test for API docs - and if found also test for SAR endpoint.
-              if test_swagger_docs(env_url):
-                e.update({'swagger_docs': '/swagger-ui.html'})
-                data.update({'api': True, 'frontend': False})
-                if test_subject_access_request_endpoint(env_url):
-                  e.update({'include_in_subject_access_requests': True})
-                else:
-                  e.update({'include_in_subject_access_requests': False})
+              # Get modsecurity data
+              modsecurity_enabled_env = None
+              modsecurity_audit_enabled_env = None
+              modsecurity_snippet_env = None
+              try:
+                modsecurity_enabled_env = values['generic-service']['ingress']['modsecurity_enabled']
+              except KeyError:
+                pass
+              try:
+                modsecurity_audit_enabled_env = values['generic-service']['ingress']['modsecurity_audit_enabled']
+              except KeyError:
+                pass
+              try:
+                modsecurity_snippet_env = values['generic-service']['ingress']['modsecurity_snippet']
+              except KeyError:
+                pass
+              if modsecurity_enabled_env is None and modsecurity_enabled_default:
+                e.update({'modsecurity_enabled': True})
+              elif modsecurity_enabled_env:
+                e.update({'modsecurity_enabled': True})
+              else:
+                e.update({'modsecurity_enabled': False})
 
-            try:
-              ip_allow_list_env = ip_allow_list_data[f'values-{env}.yaml']
-              allow_list_values.update(
-                {
-                  f'values-{env}.yaml': ip_allow_list_env,
-                  'values.yaml': ip_allow_list_default,
-                }
-              )
-              e.update(
-                {
-                  'ip_allow_list': allow_list_values,
-                  'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values),
-                }
-              )
-            except KeyError:
-              pass
+              if (
+                modsecurity_audit_enabled_env is None
+                and modsecurity_audit_enabled_default
+              ):
+                e.update({'modsecurity_audit_enabled': True})
+              elif modsecurity_enabled_env:
+                e.update({'modsecurity_audit_enabled': True})
+              else:
+                e.update({'modsecurity_audit_enabled': False})
 
-            # Get modsecurity data
-            modsecurity_enabled_env = None
-            modsecurity_audit_enabled_env = None
-            modsecurity_snippet_env = None
-            try:
-              print(values['generic-service']['ingress']['modsecurity_enabled'])
-              modsecurity_enabled_env = values['generic-service']['ingress']['modsecurity_enabled']
-            except KeyError:
-              pass
-            try:
-              print(values['generic-service']['ingress']['modsecurity_audit_enabled'])
-              modsecurity_audit_enabled_env = values['generic-service']['ingress']['modsecurity_audit_enabled']
-            except KeyError:
-              pass
-            try:
-              print(values['generic-service']['ingress']['modsecurity_snippet'])
-              modsecurity_snippet_env = values['generic-service']['ingress']['modsecurity_snippet']
-            except KeyError:
-              pass
-            if modsecurity_enabled_env is None and modsecurity_enabled_default:
-              e.update({'modsecurity_enabled': True})
-            elif modsecurity_enabled_env:
-              e.update({'modsecurity_enabled': True})
+              if modsecurity_snippet_env is None and modsecurity_snippet_default:
+                e.update({'modsecurity_snippet': modsecurity_snippet_default})
+              elif modsecurity_snippet_env:
+                e.update({'modsecurity_snippet': modsecurity_snippet_env})
+              else:
+                e.update({'modsecurity_snippet': None})
+              # build_image_tag in environment is populated by hmpps-health-ping
+
+              # Alert severity label
+              alert_severity_label = None
+              try:
+                alert_severity_label = values['generic-prometheus-alerts']['alertSeverity']
+              except KeyError:
+                pass
+              if not alert_severity_label and default_alert_severity_label:
+                alert_severity_label = default_alert_severity_label
+
+              if alert_severity_label:
+                channel = find_channel_by_severity_label(alert_severity_label)
+                e.update({'alert_severity_label': alert_severity_label})
+                e.update({'alerts_slack_channel': channel})
+              else:
+                log.info(f"ERROR - Alert severity label not found for {c_name} in {env}")
+
+              environments.append(e)
             else:
-              e.update({'modsecurity_enabled': False})
-
-            if (
-              modsecurity_audit_enabled_env is None
-              and modsecurity_audit_enabled_default
-            ):
-              e.update({'modsecurity_audit_enabled': True})
-            elif modsecurity_enabled_env:
-              e.update({'modsecurity_audit_enabled': True})
-            else:
-              e.update({'modsecurity_audit_enabled': False})
-
-            if modsecurity_snippet_env is None and modsecurity_snippet_default:
-              e.update({'modsecurity_snippet': modsecurity_snippet_default})
-            elif modsecurity_snippet_env:
-              e.update({'modsecurity_snippet': modsecurity_snippet_env})
-            else:
-              e.update({'modsecurity_snippet': None})
-            # build_image_tag in environment is populated by hmpps-health-ping
-
-            # Alert severity label
-            alert_severity_label = None
-            try:
-              alert_severity_label = values['generic-prometheus-alerts']['alertSeverity']
-            except KeyError:
-              alert_severity_label = default_alert_severity_label
-            if alert_severity_label:
-              channel = find_channel_by_severity_label(alert_severity_label)
-              e.update({'alert_severity_label': alert_severity_label})
-              e.update({'alerts_slack_channel': channel})
-            environments.append(e)
+              log.debug(f'Component {c_name} environment {env} not found in github or SC. Skipping.....')
       else:
         log.info(f'Directory {helm_dir} in repo {github_repo} has not changed.')
     else:
@@ -784,12 +815,16 @@ def process_repo(**component):
 
     if repo.language == 'JavaScript' or repo.language == 'TypeScript':
       package_json = get_file_json(repo, f'{project_dir}/package.json')
-      if package_json:
-        app_insights_cloud_role_name = package_json['name']
-        if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
-          data.update(
-            {'app_insights_cloud_role_name': app_insights_cloud_role_name}
-          )
+      try:
+        if package_json['name']:
+          app_insights_cloud_role_name = package_json['name']
+          if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
+            data.update(
+              {'app_insights_cloud_role_name': app_insights_cloud_role_name}
+            )
+      except KeyError:
+        log.info(f'ERROR - No app insights cloud role name found in package.json for {c_name}')
+        pass
 
     # Gradle config
     build_gradle_config_content = False
@@ -904,13 +939,20 @@ def process_repo(**component):
   log.debug(f'teams_maintain: {teams_maintain}')
   data.update({'github_project_teams_write': teams_write})
   log.debug(f'teams_write: {teams_write}')
-  data.update({'github_project_branch_protection_restricted_teams': branch_protection_restricted_teams})
-  log.debug(f'branch_protection_restricted_teams: {branch_protection_restricted_teams}')
+  if branch_protection_restricted_teams:
+    data.update({'github_project_branch_protection_restricted_teams': branch_protection_restricted_teams})
+    log.debug(f'ERROR - branch_protection_restricted_teams: {branch_protection_restricted_teams}')
+  else:
+    log.info(f'No branch protection restricted teams found for {github_repo}')
 
   # Get enforce_admin details from branch protection
-  enforce_admins = branch_protection.enforce_admins
-  data.update({'github_enforce_admins_enabled': enforce_admins})
-  log.debug(f'github_enforce_admins_enabled: {enforce_admins}')
+  enforce_admins = False
+  try:
+    enforce_admins = branch_protection.enforce_admins
+    data.update({'github_enforce_admins_enabled': enforce_admins})
+    log.debug(f'github_enforce_admins_enabled: {enforce_admins}')
+  except Exception as e:
+    log.error(f'ERROR - Unable to get enforce_admins {github_repo}.')
         
   # Github topics
   topics = repo.get_topics()
@@ -1062,7 +1104,6 @@ def process_non_terraform_managed_teams(teams_json_data):
     combined_teams.update(attributes.get('github_project_teams_admin', []) or [])
     combined_teams.update(attributes.get('github_project_teams_maintain', []) or [])
 
-  print("Teams not in Terraform: ", combined_teams)
   log.info(f'Found {len(combined_teams)} unique teams referenced in the SC for components')
 
   existing_teams = {team['attributes']['team_name'] for team in teams_json_data.get('data', [])}
@@ -1153,9 +1194,14 @@ if __name__ == '__main__':
     httpHealth = threading.Thread(target=startHttpServer, daemon=True)
     httpHealth.start()
 
+    # Get projects.json from bootstrap repo for namespaces data
+    bootstrap_repo = gh.get_repo('ministryofjustice/hmpps-project-bootstrap')
+    bootstrap_projects_json = get_file_json(bootstrap_repo, 'projects.json')
+    bootstrap_projects = {}
+    for p in bootstrap_projects_json:
+      bootstrap_projects.update({p['github_repo_name']: p})
     # Get alertmanager data
     alertmanager_json_data = get_alertmanager_data()
-    # print(alertmanager_json_data)
 
     # Process components
     log.info(SC_ENDPOINT)
@@ -1241,7 +1287,7 @@ if __name__ == '__main__':
     log.info('Waking up...')
     try:
       jwt_token = generate_jwt()
-      access_token = get_access_token(jwt_token) # Token is valid only for 30 mins so we need to re-authenticate every 30 mins
+      access_token = get_access_token(jwt_token) # Token is valid only for 10 mins so we need to re-authenticate every 10 mins
       auth = Auth.Token(access_token) 
       gh = Github(auth=auth, pool_size=50)
       org=gh.get_organization('ministryofjustice')

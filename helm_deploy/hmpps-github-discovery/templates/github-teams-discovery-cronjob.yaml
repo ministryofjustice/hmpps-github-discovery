@@ -1,0 +1,57 @@
+{{- if .Values.githubTeamsDiscovery.enabled -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: github-teams-discovery-script
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+data:
+  entrypoint.sh: |-
+{{ .Files.Get "github_teams_discovery.py" | indent 4 }}
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sc-github-teams-discovery
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  schedule: "{{ .Values.cron.github_teams_discovery_schedule }}"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      # Tidy up all jobs after 4 days
+      ttlSecondsAfterFinished: 345600
+      template:
+        spec:
+          containers:
+            - name: github-teams-discovery
+              image: ghcr.io/ministryofjustice/hmpps-python-deps
+              command:
+                - /bin/entrypoint.sh
+              volumeMounts:
+                - name: github-teams-discovery-script
+                  mountPath: /bin/entrypoint.sh
+                  readOnly: true
+                  subPath: entrypoint.sh
+              securityContext:
+                capabilities:
+                  drop:
+                  - ALL
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+      {{- include "githubTeamsDiscovery.envs" .Values | nindent 14 }}
+          restartPolicy: "Never"
+          volumes:
+            - name: github-teams-discovery-script
+              configMap:
+                name: github-teams-discovery-script
+                defaultMode: 0755
+{{- end }}

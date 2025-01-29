@@ -214,38 +214,38 @@ def insert_github_team(team_name, tf_team_names):
     'terraform_managed': terraform_managed,
   }
   if c_team_id:
-    if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != parent_team_name or check_team['members'] != members or check_team['terraform_managed'] != terraform_managed: 
-      # Update the team in SC
-      try:
-        x = requests.put(
-          f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
-            headers=sc_api_headers,
-            json={'data': team_data},
-            timeout=10,
-          )
-        if x.status_code == 200:
-          log.info(f'Successfully updated team {team_name}: {x.status_code}')
-        else:
-          log.info(f'Received non-200 response from service catalogue for updating team {team_name}: {x.status_code} {x.content}')
-      except requests.exceptions.Timeout as timeout_error:
-        log.error(f"Timeout error occurred: {timeout_error}")
-      except SSLError as ssl_error:
-        log.error(f"SSL error occurred: {ssl_error}")
-      except requests.exceptions.RequestException as req_error:
-        log.error(f"Request error occurred: {req_error}")
-
+    # Update the team in SC
+    try:
+      x = requests.put(
+        f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
+          headers=sc_api_headers,
+          json={'data': team_data},
+          timeout=10,
+        )
+      log.info(f'Successfully updated team {team_name}: {x.status_code}')
+    except requests.exceptions.Timeout as timeout_error:
+      log.error(f"Timeout error occurred: {timeout_error}")
+    except SSLError as ssl_error:
+      log.error(f"SSL error occurred: {ssl_error}")
+    except requests.exceptions.RequestException as req_error:
+      log.error(f"Request error occurred: {req_error}")
   else:
     # Create the team in SC
-    x = requests.post(
-      f'{SC_API_ENDPOINT}/v1/github-teams',
-        headers=sc_api_headers,
-        json={'data': team_data},
-        timeout=10,
-      )
-    if x.status_code == 200:
+    try:
+      x = requests.post(
+        f'{SC_API_ENDPOINT}/v1/github-teams',
+          headers=sc_api_headers,
+          json={'data': team_data},
+          timeout=10,
+        )
       log.info(f'Successfully added team {team_name}: {x.status_code}')
-    else:
-      log.info(f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}')
+    except requests.exceptions.Timeout as timeout_error:
+      log.error(f"Timeout error occurred: {timeout_error}")
+    except SSLError as ssl_error:
+      log.error(f"SSL error occurred: {ssl_error}")
+    except requests.exceptions.RequestException as req_error:
+      log.error(f"Request error occurred: {req_error}")
+  return None
 
 if __name__ == '__main__':
   

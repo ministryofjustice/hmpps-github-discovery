@@ -6,7 +6,6 @@ import socketserver
 import threading
 import logging
 import re
-# import json
 from time import sleep
 from base64 import b64decode
 import base64
@@ -14,7 +13,7 @@ from datetime import datetime, timedelta
 import requests
 from github import Github, Auth
 import jwt
-import json
+from requests.exceptions import SSLError
 
 SC_API_ENDPOINT = os.getenv('SERVICE_CATALOGUE_API_ENDPOINT')
 SC_API_TOKEN = os.getenv('SERVICE_CATALOGUE_API_KEY')
@@ -186,50 +185,67 @@ def process_teams():
   tf_team_names = [team["name"] for team in tf_teams_json_data]
   combined_team_names = set(tf_team_names).union(all_repo_ref_gh_teams)
   for team in combined_team_names:
-    insert_github_team(team)
+    insert_github_team(team, tf_team_names)
   return None
 
-def insert_github_team(team_name):
-  gh_team = org.get_team_by_slug(team_name)
+def insert_github_team(team_name, tf_team_names):
+  try:
+    gh_team = org.get_team_by_slug(team_name)
+  except Exception as e:
+    log.error(f"Error getting team {team_name} from github: {e}")
+    return None
   c_team = find_github_team(team_name)
   check_team = c_team.get('attributes', {}) if c_team else {}
   c_team_id = c_team.get('id', None) if c_team else None
   team_id = gh_team.id
+  team_description = gh_team.description
+  parent_team_name= gh_team.parent.name if gh_team.parent else None
   members = [member.login for member in org.get_team(team_id).get_members()]
-  terraform_managed =  True if team_name in tf_teams_json_data else False,
+  if any(team_name == tf_team for tf_team in tf_team_names):
+    terraform_managed =  True
+  else:
+     terraform_managed =  False
   team_data = {
     'github_team_id': team_id,
     'team_name': team_name,
-    'team_description': gh_team.description,
-    "terraform_managed": terraform_managed,
+    'parent_team_name': parent_team_name,
+    'team_desc': gh_team.description.replace('• This team is managed by Terraform, see https://github.com/ministryofjustice/hmpps-github-teams - DO NOT UPDATE MANUALLY!', '') if gh_team.description else '',
     'members': members,
+    'terraform_managed': terraform_managed,
   }
-
   if c_team_id:
-    if check_team.get('github_team_id') != team_id or check_team.get('terraform_managed') != terraform_managed:
+    if check_team['github_team_id'] != team_id or check_team['team_desc'] != team_description or check_team['parent_team_name'] != parent_team_name or check_team['members'] != members or check_team['terraform_managed'] != terraform_managed: 
       # Update the team in SC
-      x = requests.put(
-        f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
-          headers=sc_api_headers,
-          json={'data': team_data},
-          timeout=10,
-        )
-      if x.status_code == 200:
-        log.info(f'Successfully updated team {team_name}: {x.status_code}')
-      else:
-        log.info(f'Received non-200 response from service catalogue for updating team {team_name}: {x.status_code} {x.content}')
+      try:
+        x = requests.put(
+          f'{SC_API_ENDPOINT}/v1/github-teams/{c_team_id}',
+            headers=sc_api_headers,
+            json={'data': team_data},
+            timeout=10,
+          )
+        if x.status_code == 200:
+          log.info(f'Successfully updated team {team_name}: {x.status_code}')
+        else:
+          log.info(f'Received non-200 response from service catalogue for updating team {team_name}: {x.status_code} {x.content}')
+      except requests.exceptions.Timeout as timeout_error:
+        log.error(f"Timeout error occurred: {timeout_error}")
+      except SSLError as ssl_error:
+        log.error(f"SSL error occurred: {ssl_error}")
+      except requests.exceptions.RequestException as req_error:
+        log.error(f"Request error occurred: {req_error}")
+
+  else:
+    # Create the team in SC
+    x = requests.post(
+      f'{SC_API_ENDPOINT}/v1/github-teams',
+        headers=sc_api_headers,
+        json={'data': team_data},
+        timeout=10,
+      )
+    if x.status_code == 200:
+      log.info(f'Successfully added team {team_name}: {x.status_code}')
     else:
-      # Create the team in SC
-      x = requests.post(
-        f'{SC_API_ENDPOINT}/v1/github-teams',
-          headers=sc_api_headers,
-          json={'data': team_data},
-          timeout=10,
-        )
-      if x.status_code == 200:
-        log.info(f'Successfully added team {team_name}: {x.status_code}')
-      else:
-        log.info(f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}')
+      log.info(f'Received non-200 response from service catalogue for team {team_name}: {x.status_code} {x.content}')
 
 if __name__ == '__main__':
   

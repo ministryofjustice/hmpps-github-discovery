@@ -2,16 +2,11 @@
 {{ if .Values.generic-service.namespace_secrets }}
 env:
 {{ range $namespace, $secrets := .Values.generic-service.namespace_secrets }}
-  {{ if eq $namespace "hmpps-github-discovery" }}
-    {{ range $key, $val := $secrets }}
-    - name: {{ $key }}
-      valueFrom:
-        secretKeyRef:
-          key: {{ trimSuffix "?" $val }}
-          name: {{ $namespace }}{{ if hasSuffix "?" $val }}
-          optional: true{{ end }}
-    {{ end }}
-  {{ end }}
+  - name: example
+    valueFrom:
+      secretKeyRef:
+        key: example-key
+        name: {{ $namespace }}
 {{ end }}
 {{ end }}
 {{ end }}

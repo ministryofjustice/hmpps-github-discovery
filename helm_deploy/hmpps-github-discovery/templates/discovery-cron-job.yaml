@@ -1,31 +1,20 @@
-{{- if .Values.discoveryCronJob.enabled -}}
+{{- if .Values.postgresDatabaseRestore.enabled -}}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: github-discovery-script
+  name: github-teams-discovery-script
   labels:
     {{- include "app.labels" . | nindent 4 }}
 data:
-  entrypoint.sh: |-
+  entrypoint.py: |-
 {{ .Files.Get "github_teams_discovery.py" | indent 4 }}
-
-# ---
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: github-discovery-script
-#   labels:
-#     {{- include "app.labels" . | nindent 4 }}
-# data:
-#   entrypoint.sh: |-
-# {{ .Files.Get "github_discovery.py" | indent 4 }}
 
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: sc-github-teams-discovery
+  name: github-teams-discovery-crontab-jobs
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
@@ -44,12 +33,12 @@ spec:
             - name: github-teams-discovery
               image: ghcr.io/ministryofjustice/hmpps-python-deps
               command:
-                - /bin/entrypoint.sh
+                - /bin/entrypoint.py
               volumeMounts:
                 - name: github-teams-discovery-script
-                  mountPath: /bin/entrypoint.sh
+                  mountPath: /bin/entrypoint.py
                   readOnly: true
-                  subPath: entrypoint.sh
+                  subPath: entrypoint.py
               securityContext:
                 capabilities:
                   drop:
@@ -58,7 +47,7 @@ spec:
                 allowPrivilegeEscalation: false
                 seccompProfile:
                   type: RuntimeDefault
-      {{- include "discoveryCronJob.envs" . | nindent 14 }}
+      {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
           restartPolicy: "Never"
           volumes:
             - name: github-teams-discovery-script

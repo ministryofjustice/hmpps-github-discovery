@@ -7,7 +7,7 @@ metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
 data:
-  entrypoint.py: |-
+  github_teams_discovery.py: |-
 {{ .Files.Get "github_teams_discovery.py" | indent 4 }}
 
 ---
@@ -31,14 +31,14 @@ spec:
         spec:
           containers:
             - name: github-teams-discovery
-              image: ghcr.io/ministryofjustice/hmpps-python-deps
+              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
               command:
-                - /bin/entrypoint.py
+                - /bin/github_teams_discovery.py
               volumeMounts:
                 - name: github-teams-discovery-script
-                  mountPath: /bin/entrypoint.py
+                  mountPath: /bin/github_teams_discovery.py
                   readOnly: true
-                  subPath: entrypoint.py
+                  subPath: github_teams_discovery.py
               securityContext:
                 capabilities:
                   drop:

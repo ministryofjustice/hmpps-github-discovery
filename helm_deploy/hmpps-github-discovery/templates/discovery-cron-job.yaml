@@ -11,7 +11,7 @@ spec:
           containers:
             - name: github-teams-discovery
               image: python:3.10-slim
-              command: ["python", "-u", "/app/github_teams_discovery.py"]
+              command: ["python3", "-u", "/app/github_teams_discovery.py"]
               env:
                 - name: PATH
                   value: "/home/appuser/.local:$PATH"

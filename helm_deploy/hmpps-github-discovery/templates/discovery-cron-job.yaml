@@ -1,59 +1,64 @@
-{{- if .Values.discoveryCronJob.enabled -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: github-teams-discovery
+spec:
+  schedule: "20 */6 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: github-teams-discovery
+              image: python:3.10-slim
+              command: ["python", "-u", "/app/github_discovery.py"]
+              env:
+                - name: PATH
+                  value: "/home/appuser/.local:$PATH"
+              volumeMounts:
+                - name: script-volume
+                  mountPath: /app/github_discovery.py
+                  subPath: github_discovery.py
+                - name: requirements-volume
+                  mountPath: /app/requirements.txt
+                  subPath: requirements.txt
+              securityContext:
+                runAsUser: 2000
+                runAsGroup: 2000
+                fsGroup: 2000
+          restartPolicy: OnFailure
+          initContainers:
+            - name: install-dependencies
+              image: python:3.10
+              command: ["sh", "-c", "pip install --user -r /app/requirements.txt"]
+              volumeMounts:
+                - name: requirements-volume
+                  mountPath: /app/requirements.txt
+                  subPath: requirements.txt
+                - name: local-pip-cache
+                  mountPath: /home/appuser/.local
+          volumes:
+            - name: script-volume
+              configMap:
+                name: github-teams-discovery-script
+            - name: requirements-volume
+              configMap:
+                name: github-teams-discovery-requirements
+            - name: local-pip-cache
+              emptyDir: {}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: github-teams-discovery-script
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
 data:
-  github_teams_discovery.py: |-
-{{ .Files.Get "github_teams_discovery.py" | indent 4 }}
-
+  github_discovery.py: |-
+    {{ .Files.Get "github_discovery.py" | indent 4 }}
 ---
-apiVersion: batch/v1
-kind: CronJob
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: github-teams-discovery-job
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-spec:
-  schedule: "{{ .Values.cron.github_teams_discovery_schedule }}"
-  concurrencyPolicy: Forbid
-  failedJobsHistoryLimit: 5
-  startingDeadlineSeconds: 600
-  successfulJobsHistoryLimit: 5
-  jobTemplate:
-    spec:
-      # Tidy up all jobs after 4 days
-      ttlSecondsAfterFinished: 345600
-      template:
-        spec:
-          containers:
-            - name: github-teams-discovery
-              image: {{ .Values.discoveryCronJob.image.repository }}:latest
-              command:
-                - /bin/github_teams_discovery.py
-              ports:
-                - containerPort: {{ .Values.discoveryCronJob.image.port }}
-              volumeMounts:
-                - name: github-teams-discovery-script
-                  mountPath: /bin/github_teams_discovery.py
-                  readOnly: true
-                  subPath: github_teams_discovery.py
-              securityContext:
-                capabilities:
-                  drop:
-                  - ALL
-                runAsNonRoot: true
-                allowPrivilegeEscalation: false
-                seccompProfile:
-                  type: RuntimeDefault
-      {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
-          restartPolicy: "Never"
-          volumes:
-            - name: github-teams-discovery-script
-              configMap:
-                name: github-teams-discovery-script
-                defaultMode: 0755
-{{- end }}
+  name: github-teams-discovery-requirements
+data:
+  requirements.txt: |-
+    {{ .Files.Get "../requirements.txt" | indent 4 }}

@@ -30,7 +30,7 @@ spec:
           initContainers:
             - name: install-dependencies
               image: python:3.10
-              command: ["sh", "-c", "pip install --user -r /app/requirements.txt"]
+              command: ["sh", "-c", "pip install --user -r /app/requirements.txt  > /app/pip_install.log 2>&1 && cat /app/pip_install.log"]
               volumeMounts:
                 - name: requirements-volume
                   mountPath: /app/requirements.txt

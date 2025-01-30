@@ -1,55 +1,4 @@
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: github-teams-discovery
-spec:
-  schedule: "20 */6 * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-            - name: github-teams-discovery
-              image: python:3.10-slim
-              command: ["python3", "-u", "/app/github_teams_discovery.py"]
-              env:
-                - name: PATH
-                  value: "/home/appuser/.local:$PATH"
-              volumeMounts:
-                - name: script-volume
-                  mountPath: /app/github_teams_discovery.py
-                  subPath: github_teams_discovery.py
-                - name: requirements-volume
-                  mountPath: /app/requirements.txt
-                  subPath: requirements.txt
-              securityContext:
-                runAsUser: 2000
-                runAsGroup: 2000
-                fsGroup: 2000
-          restartPolicy: OnFailure
-          initContainers:
-            - name: install-dependencies
-              image: python:3.10
-              command: ["sh", "-c", "pip install --user -r /app/requirements.txt  > /app/pip_install.log 2>&1 && cat /app/pip_install.log"]
-              volumeMounts:
-                - name: requirements-volume
-                  mountPath: /app/requirements.txt
-                  subPath: requirements.txt
-                - name: local-pip-cache
-                  mountPath: /home/appuser/.local
-              securityContext:
-                runAsUser: 2000
-                runAsGroup: 2000
-                fsGroup: 2000
-          volumes:
-            - name: script-volume
-              configMap:
-                name: github-teams-discovery-script
-            - name: requirements-volume
-              configMap:
-                name: github-teams-discovery-requirements
-            - name: local-pip-cache
-              emptyDir: {}
+{{- if .Values.discoveryCronJob.enabled -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -58,11 +7,47 @@ metadata:
 data:
   github_teams_discovery.py: |-
     {{ .Files.Get "github_teams_discovery.py" | indent 4 }}
+
 ---
-apiVersion: v1
-kind: ConfigMap
+apiVersion: batch/v1
+kind: CronJob
 metadata:
-  name: github-teams-discovery-requirements
-data:
-  requirements.txt: |-
-    {{ .Files.Get "../requirements.txt" | indent 4 }}
+  name: github-teams-discovery
+spec:
+  schedule: "20 */6 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 345600
+      template:
+        spec:
+          containers:
+            - name: github-teams-discovery
+              image: ghcr.io/ministryofjustice/hmpps-github-discovery
+              command: ["python", "-u", "/app/github_teams_discovery.py"]
+              env:
+                - name: PATH
+                  value: "/home/appuser/.local:/usr/local/bin:$PATH"
+              volumeMounts:
+                - name: script-volume
+                  mountPath: /app/github_teams_discovery.py
+                  subPath: github_teams_discovery.py
+              securityContext:
+                capabilities:
+                  drop:
+                  - ALL
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+      {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
+          restartPolicy: Never
+          volumes:
+            - name: script-volume
+              configMap:
+                name: github-teams-discovery-script
+                defaultMode: 0755
+{{- end }}

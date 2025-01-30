@@ -25,4 +25,4 @@ ENV PATH=/home/appuser/.local:$PATH
 
 USER 2000
 
-# CMD [ "python", "-u", "github_discovery.py" ]
+ENTRYPOINT ["python", "-u"]

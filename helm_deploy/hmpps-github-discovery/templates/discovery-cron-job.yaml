@@ -31,7 +31,7 @@ spec:
         spec:
           containers:
             - name: github-teams-discovery
-              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+              image: {{ .Values.image.repository }}:latest
               command:
                 - /bin/github_teams_discovery.py
               volumeMounts:

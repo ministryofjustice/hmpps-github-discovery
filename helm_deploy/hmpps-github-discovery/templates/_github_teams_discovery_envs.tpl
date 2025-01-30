@@ -1,9 +1,9 @@
-{{- define "githubTeamsDiscovery.envs" -}}
-{{- if .Values.generic-service.namespace_secrets -}}
+{{ define "githubTeamsDiscovery.envs" }}
+{{ if .Values.discoveryCronJob.namespace_secrets }}
 env:
-{{- range $namespace, $secrets := .Values.generic-service.namespace_secrets }}
-  {{- if eq $namespace "hmpps-github-discovery" }}
-    {{- range $key, $val := $secrets }}
+{{ range $namespace, $secrets := .Values.discoveryCronJob.namespace_secrets }}
+  {{ if eq $namespace "hmpps-github-discovery" }}
+    {{ range $key, $val := $secrets }}
     - name: {{ $key }}
       valueFrom:
         secretKeyRef:

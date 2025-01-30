@@ -8,3 +8,16 @@ generic-service:
 
 generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts
+
+discoveryCronJob:
+  enabled: true
+  namespace_secrets:
+    hmpps-github-discovery:
+      SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"
+      SERVICE_CATALOGUE_API_KEY: "SERVICE_CATALOGUE_API_KEY"
+      GITHUB_APP_ID: "GITHUB_APP_ID"
+      GITHUB_APP_INSTALLATION_ID: "GITHUB_APP_INSTALLATION_ID"
+      GITHUB_APP_PRIVATE_KEY: "GITHUB_APP_PRIVATE_KEY"
+      CIRCLECI_TOKEN: "CIRCLECI_TOKEN"
+      CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
+      SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"

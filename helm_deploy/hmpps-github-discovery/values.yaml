@@ -72,6 +72,6 @@ discoveryCronJob:
       CIRCLECI_TOKEN: "CIRCLECI_TOKEN"
       CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
       SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
-
+      
 cron:
   github_teams_discovery_schedule: "0 */6 * * *"

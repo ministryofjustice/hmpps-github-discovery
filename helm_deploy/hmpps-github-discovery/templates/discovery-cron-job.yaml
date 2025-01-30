@@ -31,10 +31,6 @@ spec:
               env:
                 - name: PATH
                   value: "/home/appuser/.local:/usr/local/bin:$PATH"
-              volumeMounts:
-                - name: script-volume
-                  mountPath: /app/github_teams_discovery.py
-                  subPath: github_teams_discovery.py
               securityContext:
                 capabilities:
                   drop:
@@ -45,9 +41,4 @@ spec:
                   type: RuntimeDefault
       {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
           restartPolicy: Never
-          volumes:
-            - name: script-volume
-              configMap:
-                name: github-teams-discovery-script
-                defaultMode: 0755
 {{- end }}

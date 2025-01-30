@@ -74,4 +74,4 @@ discoveryCronJob:
       SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
       
 cron:
-  github_teams_discovery_schedule: "0 */6 * * *"
+  github_teams_discovery_schedule: "20 */6 * * *"

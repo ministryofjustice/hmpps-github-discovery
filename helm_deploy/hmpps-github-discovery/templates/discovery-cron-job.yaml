@@ -11,14 +11,14 @@ spec:
           containers:
             - name: github-teams-discovery
               image: python:3.10-slim
-              command: ["python", "-u", "/app/github_discovery.py"]
+              command: ["python", "-u", "/app/github_teams_discovery.py"]
               env:
                 - name: PATH
                   value: "/home/appuser/.local:$PATH"
               volumeMounts:
                 - name: script-volume
-                  mountPath: /app/github_discovery.py
-                  subPath: github_discovery.py
+                  mountPath: /app/github_teams_discovery.py
+                  subPath: github_teams_discovery.py
                 - name: requirements-volume
                   mountPath: /app/requirements.txt
                   subPath: requirements.txt
@@ -37,6 +37,10 @@ spec:
                   subPath: requirements.txt
                 - name: local-pip-cache
                   mountPath: /home/appuser/.local
+              securityContext:
+                runAsUser: 2000
+                runAsGroup: 2000
+                fsGroup: 2000
           volumes:
             - name: script-volume
               configMap:
@@ -52,8 +56,8 @@ kind: ConfigMap
 metadata:
   name: github-teams-discovery-script
 data:
-  github_discovery.py: |-
-    {{ .Files.Get "github_discovery.py" | indent 4 }}
+  github_teams_discovery.py: |-
+    {{ .Files.Get "github_teams_discovery.py" | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -31,11 +31,11 @@ spec:
         spec:
           containers:
             - name: github-teams-discovery
-              image: {{ .Values.image.repository }}:latest
+              image: {{ .Values.discoveryCronJob.image.repository }}:latest
               command:
                 - /bin/github_teams_discovery.py
               ports:
-                - containerPort: {{ .Values.image.port }}
+                - containerPort: {{ .Values.discoveryCronJob.image.port }}
               volumeMounts:
                 - name: github-teams-discovery-script
                   mountPath: /bin/github_teams_discovery.py

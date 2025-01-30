@@ -1,12 +1,17 @@
-{{ define "githubTeamsDiscovery.envs" }}
-{{ if .Values.generic-service.namespace_secrets }}
-# Debug output
-{{ .Values.generic-service.namespace_secrets | toYaml }}
+{{- define "githubTeamsDiscovery.envs" -}}
+{{- if .Values.generic-service.namespace_secrets -}}
 env:
-- name: example
-  valueFrom:
-    secretKeyRef:
-      key: example-key
-      name: example-namespace
-{{ end }}
-{{ end }}
+{{- range $namespace, $secrets := .Values.generic-service.namespace_secrets }}
+  {{- if eq $namespace "hmpps-github-discovery" }}
+    {{- range $key, $val := $secrets }}
+    - name: {{ $key }}
+      valueFrom:
+        secretKeyRef:
+          key: {{ trimSuffix "?" $val }}
+          name: {{ $namespace }}{{ if hasSuffix "?" $val }}
+          optional: true{{ end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}

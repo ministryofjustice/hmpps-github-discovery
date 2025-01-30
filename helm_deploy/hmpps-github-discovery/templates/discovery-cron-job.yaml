@@ -14,7 +14,7 @@ data:
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: github-teams-discovery-crontab-jobs
+  name: github-teams-discovery-job
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:

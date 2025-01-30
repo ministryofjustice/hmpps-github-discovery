@@ -62,6 +62,9 @@ generic-prometheus-alerts:
 
 discoveryCronJob:
   enabled: true
+  image:
+    repository: ghcr.io/ministryofjustice/hmpps-github-discovery
+    port: 8080
   namespace_secrets:
     hmpps-github-discovery:
       SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"

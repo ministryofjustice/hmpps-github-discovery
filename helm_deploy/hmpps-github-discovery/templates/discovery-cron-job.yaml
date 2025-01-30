@@ -34,6 +34,8 @@ spec:
               image: {{ .Values.image.repository }}:latest
               command:
                 - /bin/github_teams_discovery.py
+              ports:
+                - containerPort: {{ .Values.image.port }}
               volumeMounts:
                 - name: github-teams-discovery-script
                   mountPath: /bin/github_teams_discovery.py

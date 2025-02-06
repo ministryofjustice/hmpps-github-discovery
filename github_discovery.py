@@ -703,6 +703,7 @@ def process_repo(**component):
 
               env_url = f'https://{helm_envs[env]["host"]}'
               if env_url:
+                e.update({'url': env_url})
                 health_path = '/health'
                 info_path = '/info'
                 # Hack for hmpps-auth non standard endpoints

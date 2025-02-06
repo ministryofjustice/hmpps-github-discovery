@@ -4,6 +4,10 @@ import json
 import logging
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+  format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
+)
+log = logging.getLogger(__name__)
 
 # service catalogue parameters
 sc_in_params = {
@@ -24,7 +28,6 @@ sc_in = ServiceCatalogue(sc_in_params)
 sc_out = ServiceCatalogue(sc_out_params)
 
 # github_teams = sc_in.get_all_records('github-teams')
-# print(f'{github_teams[0]}')
 
 tables = [
   'service-areas',
@@ -70,24 +73,27 @@ for table in tables:
   records = sc_in.get_all_records(query)
 
   for record in records:
-    # print(f'Dealing with {in_table} record: {json.dumps(record, indent=2)}')
+    log.debug(f'Dealing with {in_table} record: {json.dumps(record, indent=2)}')
     # Subtables
     for subtable in subtables:
-      # print(f'Looking for links in {subtable}')
+      log.debug(f'Looking for links in {subtable}')
       subtable_link = subtable[0]
       subtable_name = subtable[1]
       # replace the subtable with just the ID
       subtable_record_id = None
       if subtable_data := record['attributes'].get(subtable_link):
-        # print(f'Found subtable data: {subtable_data}')
-        if subtable_record_name := subtable_data['data']['attributes'].get('name'):
-          if subtable_record_id := sc_out.get_id(
-            f'{subtable_name}', 'name', subtable_record_name
-          ):
-            # print(
-            #   f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
-            # )
-            record['attributes'][subtable_link] = subtable_record_id
+        log.debug(f'Found subtable data in {subtable_link}: {subtable_data}')
+        if subtable_data.get('data'):
+          if subtable_attributes := subtable_data['data'].get('attributes'):
+            if subtable_record_name := subtable_attributes.get('name'):
+              subtable_record_id = sc_out.get_id(
+                f'{subtable_name}', 'name', subtable_record_name
+              )
+              log.debug(
+                f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
+              )
+        else:
+          log.info(f'No attributes found in {subtable_link}: {subtable_data}')
       record['attributes'][subtable_link] = subtable_record_id
     # Subcomponents
     for subcomponent in subcomponents:
@@ -99,14 +105,14 @@ for table in tables:
           if subcomponent_id := sc_out.get_id(
             f'{in_table}', 'name', subcomponent_data['attributes']['name']
           ):
-            # print(
-            #   f'Record ID found in {in_table} for {subcomponent_name}: {subcomponent_id}'
-            # )
+            log.debug(
+              f'Record ID found in {in_table} for {subcomponent_name}: {subcomponent_id}'
+            )
             record['attributes'][subcomponent_link] = subcomponent_id
       else:
         updated_subcomponent = []  # need to do something tricky here
-        # print(f'Subcomponent time - {subcomponent_name}')
-        # print(f'Attributes: {record["attributes"]}')
+        log.debug(f'Subcomponent time - {subcomponent_name}')
+        log.debug(f'Attributes: {record["attributes"]}')
         for each_element in record['attributes'][subcomponent]:
           each_element.pop('id')
           if subcomponent == 'environments':  # add the namespace ID if possible
@@ -115,9 +121,9 @@ for table in tables:
                 each_element['ns'] = namespace_id
           updated_subcomponent.append(each_element)
         record['attributes'][subcomponent] = updated_subcomponent
-        # print(f'Updated {subcomponent} is {updated_subcomponent}')
+        log.debug(f'Updated {subcomponent} is {updated_subcomponent}')
     # Update the record
-    # print(f'{in_table}:\n{json.dumps(record, indent=2)}')
+    log.debug(f'{in_table}:\n{json.dumps(record, indent=2)}')
     if existing_id := sc_out.get_id(in_table, 'name', record['attributes']['name']):
       sc_out.update(in_table, existing_id, record['attributes'])
     else:

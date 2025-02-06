@@ -37,7 +37,7 @@ class ServiceCatalogue:
     self.products_get = f'{self.products}?populate[0]=parent&populate[1]=children&populate[2]=product_set&populate[3]=service_area&populate[4]=team{self.product_filter}{pagination_page_size}{sort_filter}'
 
     self.github_teams = 'github-teams'
-
+    self.environments = 'environments'
     self.connection_ok = self.test_connection()
 
   """
@@ -48,7 +48,9 @@ class ServiceCatalogue:
     # Test connection to Service Catalogue
     try:
       r = requests.head(f'{self.url}', headers=self.api_headers, timeout=10)
-      self.log.info(f'Successfully connected to the Service Catalogue. {r.status_code}')
+      self.log.info(
+        f'Successfully connected to the Service Catalogue - {self.url}. {r.status_code}'
+      )
       return True
     except Exception as e:
       self.log.critical('Unable to connect to the Service Catalogue.')

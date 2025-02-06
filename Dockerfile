@@ -18,7 +18,6 @@ RUN addgroup --gid 2000 --system appgroup && \
 # copy the dependencies from builder stage
 COPY --chown=appuser:appgroup --from=builder /home/appuser/.local /home/appuser/.local
 COPY ./github_discovery.py .
-COPY ./github_teams_discovery.py .
 
 # update PATH environment variable
 ENV PATH=/home/appuser/.local:$PATH

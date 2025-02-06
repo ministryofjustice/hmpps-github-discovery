@@ -1,0 +1,576 @@
+import logging
+import threading
+import tempfile
+import os
+import re
+import json
+from time import sleep
+from datetime import datetime
+from base64 import b64decode
+from dockerfile_parse import DockerfileParser
+
+from classes.service_catalogue import ServiceCatalogue
+from classes.github import GithubSession
+from classes.circleci import CircleCI
+from classes.alertmanager import AlertmanagerData
+from classes.slack import Slack
+
+# Standalone functions
+import includes.helm as helm
+from includes.utils import update_dict, env_mapping
+import includes.environments as environments
+
+
+log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+max_threads = 10
+
+
+class Services:
+  def __init__(self, sc_params, gh_params, am_params, cc_params, slack_params, log):
+    self.sc = ServiceCatalogue(sc_params, log)
+    self.gh = GithubSession(gh_params, log)
+    self.am = AlertmanagerData(am_params, log)
+    self.cc = CircleCI(cc_params, log)
+    self.slack = Slack(slack_params, log)
+    self.log = log
+
+
+# This is the main function that processes each component in turn
+# 1. Get Github repo data that may change without a commit
+# 2. For all components that have a different commit to the SC, get Github repo data that may have changed
+#    2a. Then get ancillary stuff like Helm data, alertmanager data, security scan results etc
+
+
+def branch_independent_components(component, services):
+  # shortcuts for ease of reference
+  gh = services.gh
+  log = services.log
+  component_name = component['attributes']['name']
+  github_repo = component['attributes']['github_repo']
+
+  data = {}
+  component_flags = {
+    'app_disabled': False,
+    'branch_protection_disabled': False,
+  }  # default to False
+
+  # branch protection
+  try:
+    repo = gh.get_org_repo(f'{github_repo}')
+    default_branch = repo.get_branch(repo.default_branch)
+    branch_protection = default_branch.get_protection()
+  except Exception as e:
+    log.error(
+      f'Error with ministryofjustice/{component_name}, check github app has permissions to see it. {e}'
+    )
+    if 'Branch not protected' in f'{e}':
+      component_flags['branch_protection_disabled'] = True
+    else:  # Any other error, the app probalby doesn't have permission
+      component_flags['app_disabled'] = True
+
+  # Standard github repo properties
+  data['language'] = repo.language
+  data['description'] = repo.description
+  data['github_project_visibility'] = repo.visibility
+  data['github_repo'] = repo.name
+  data['latest_commit'] = {
+    'sha': default_branch.commit.sha,
+    'date_time': default_branch.commit.commit.committer.date.isoformat(),
+  }
+
+  # GitHub teams access, branch protection etc.
+  branch_protection_restricted_teams = []
+  teams_write = []
+  teams_admin = []
+  teams_maintain = []
+
+  if not component_flags['app_disabled']:
+    if not component_flags['branch_protection_disabled']:
+      try:
+        branch_protection_teams = branch_protection.get_team_push_restrictions() or []
+        for team in branch_protection_teams:
+          branch_protection_restricted_teams.append(team.slug)
+      except Exception as e:
+        log.error(f'Unable to get branch protection {repo.name}: {e}')
+        component_flags['app_disabled'] = True
+
+    try:
+      teams = repo.get_teams()
+      for team in teams:
+        team_permissions = team.get_repo_permission(repo)
+        if team_permissions.admin:
+          teams_admin.append(team.slug)
+        elif team_permissions.maintain:
+          teams_maintain.append(team.slug)
+        elif team_permissions.push:
+          teams_write.append(team.slug)
+
+      data['github_project_teams_admin'] = teams_admin
+      log.debug(f'teams_admin: {teams_admin}')
+
+      data['github_project_teams_maintain'] = teams_maintain
+      log.debug(f'teams_maintain: {teams_maintain}')
+
+      data['github_project_teams_write'] = teams_write
+      log.debug(f'teams_write: {teams_write}')
+
+      data['github_project_branch_protection_restricted_teams'] = (
+        branch_protection_restricted_teams
+      )
+      log.debug(
+        f'branch_protection_restricted_teams: {branch_protection_restricted_teams}'
+      )
+
+      # Get enforce_admin details from branch protection
+      enforce_admins = branch_protection.enforce_admins
+      data['github_enforce_admins_enabled'] = enforce_admins
+      log.debug(f'github_enforce_admins_enabled: {enforce_admins}')
+
+    except Exception as e:
+      log.error(f'Unable to get teams/admin information {repo.name}: {e}')
+      component_flags['app_disabled'] = True
+
+  # Github topics
+  try:
+    topics = repo.get_topics()
+    data['github_topics'] = topics
+  except Exception as e:
+    log.warning(f'Unable to get topics for {repo.name}: {e}')
+
+  # Try to detect frontends or UIs
+  if re.search(
+    r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
+    f'{component_name} {repo.description}',
+  ):
+    log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
+    data['frontend'] = True
+
+  log.debug(
+    f'Processed main branch independent components for {component_name}\ndata: {data}'
+  )
+  return data, component_flags
+
+
+def branch_changed_components(component, repo, bootstrap_projects, services):
+  sc = services.sc
+  gh = services.gh
+  cc = services.cc
+  log = services.log
+
+  # Shortcuts to make it easier to read
+  component_name = component['attributes']['name']
+  component_project_dir = (
+    (component['attributes']['path_to_project'] or component_name)
+    if component['attributes']['part_of_monorepo']
+    else '.'
+  )
+
+  # Reset the data ready for updating
+  data = {
+    'environments': {},
+    'versions': {},
+  }  # dictionary to hold all the updated data for the component
+
+  # Information from Helm config
+  ################################
+
+  # This will return information about:
+  # - Helm environments
+  # - Helm chart version
+  # - Environment configurations
+  # - Alertmanager configuration
+  # -
+  log.debug(f'Getting information for {component_name} from Helm config')
+  if helm_data := helm.get_info_from_helm(component, repo, services):
+    log.debug(f'Found Helm data for record id {component_name} - {helm_data}')
+    data.update(helm_data)
+
+  log.debug(
+    f'Finished getting information from helm for {component_name}\ndata: {data}'
+  )
+  # Other environment information
+  # #############################
+
+  # Populate other component environment data (not from helm)
+  # This can come from two places:
+  # - the bootstrap projects list (old-style CircleCI)
+  # - the repository (new-style Github Actions)
+  #
+  # Fields within environments that are updated in this section:
+  # - namespace
+  # - ns_id
+
+  envs = {}  # using a dictionary to avoid duplicates
+  log.debug(f'Getting environments for {component_name} from bootstrap/Github')
+  # Check bootstrap first
+  if project := bootstrap_projects.get(component['attributes']['github_repo']):
+    log.debug(f'Found bootstrap project data for {component_name} - {project}')
+    if 'circleci_project_k8s_namespace' in project:
+      log.debug(f'Found CircleCI dev namespace for{component_name}')
+      update_dict(
+        envs,
+        'dev',
+        {
+          'type': 'dev',
+          'namespace': project['circleci_project_k8s_namespace'],
+          'ns_id': sc.get_id(
+            'namespaces', 'name', project['circleci_project_k8s_namespace']
+          ),
+        },
+      )
+    if 'circleci_context_k8s_namespaces' in project:
+      for circleci_env in project['circleci_context_k8s_namespaces']:
+        log.debug(
+          f'Found CircleCI environment {circleci_env["env_name"]} and namespace {circleci_env["namespace"]} for {component_name}'
+        )
+        update_dict(
+          envs,
+          circleci_env['env_name'],
+          {
+            'type': circleci_env['env_type'],
+            'namespace': circleci_env['namespace'],
+            'ns_id': sc.get_id('namespaces', 'name', circleci_env['namespace']),
+          },
+        )
+
+  # Then check Github - these environments take precedence since they're newer
+  for repo_env in repo.get_environments():
+    log.debug(
+      f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
+    )
+    env_vars = None
+    try:
+      env_vars = repo_env.get_variables()
+    except Exception as e:
+      log.warning(f'Unable to get environment variables for {repo_env.name}: {e}')
+
+    # there are some non-standard environments in some of the repos
+    if env_vars:
+      if env_type := env_mapping.get(repo_env.name):
+        namespace = None
+        ns_id = None
+        for (
+          var
+        ) in env_vars:  # We should populate these for all namespaces where possible
+          if var.name == 'KUBE_NAMESPACE':
+            namespace = var.value
+            ns_id = sc.get_id('namespaces', 'name', var.value)
+
+        update_dict(
+          envs,
+          repo_env.name,
+          {
+            'type': env_type,
+            'namespace': namespace,
+            'ns_id': ns_id,
+          },
+        )
+    if envs:
+      log.debug(f'Combined environments for {component_name} - {envs}')
+      log.debug(f'Data up to this point is: {data}')
+      for keys in envs.keys():
+        update_dict(data['environments'], keys, envs[keys])
+
+    else:
+      log.warning(f'No environments found in bootstrap/Github for {component_name}')
+
+    log.debug(
+      f'Finished getting environment information from bootstrap/Github for {component_name}\ndata: {data}'
+    )
+  # Information from CircleCI data
+  ################################
+
+  # Trivy Scan summary
+  if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
+    try:
+      if trivy_scan_json := cc.get_trivy_scan_json_data(component_name):
+        # Add trivy scan result to final data dictionary
+        data['trivy_scan_summary'] = trivy_scan_json
+        data['trivy_last_completed_scan_date'] = trivy_scan_json.get('CreatedAt')
+    except Exception:
+      log.debug('Unable to get trivy scan results')
+
+    # CircleCI Orb version
+    update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
+
+  else:
+    # Placeholder for GH Trivy scan business
+    log.debug('No CircleCI config found')
+
+  # App insights cloud_RoleName
+  if repo.language == 'Kotlin' or repo.language == 'Java':
+    app_insights_config = gh.get_file_json(
+      repo, f'{component_project_dir}/applicationinsights.json'
+    )
+    if app_insights_config:
+      app_insights_cloud_role_name = app_insights_config['role']['name']
+      data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+
+  if repo.language == 'JavaScript' or repo.language == 'TypeScript':
+    package_json = gh.get_file_json(repo, f'{component_project_dir}/package.json')
+    if package_json:
+      app_insights_cloud_role_name = package_json['name']
+      if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
+        data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+
+  # Gradle config
+  build_gradle_config_content = False
+  if repo.language == 'Kotlin' or repo.language == 'Java':
+    build_gradle_kts_config = gh.get_file_plain(repo, 'build.gradle.kts')
+    build_gradle_config_content = build_gradle_kts_config
+  # Try alternative location for java projects
+  if not build_gradle_config_content:
+    build_gradle_java_config = gh.get_file_plain(repo, 'build.gradle')
+    build_gradle_config_content = build_gradle_java_config
+
+  if build_gradle_config_content:
+    try:
+      regex = "id\\(\\'uk.gov.justice.hmpps.gradle-spring-boot\\'\\) version \\'(.*)\\'( apply false)?$"
+      hmpps_gradle_spring_boot_version = re.search(
+        regex, build_gradle_config_content, re.MULTILINE
+      )[1]
+      log.debug(
+        f'Found hmpps gradle-spring-boot version: {hmpps_gradle_spring_boot_version}'
+      )
+      update_dict(
+        data,
+        'versions',
+        {'gradle': {'hmpps_gradle_spring_boot': hmpps_gradle_spring_boot_version}},
+      )
+    except TypeError:
+      pass
+
+  # Parse Dockerfile
+  if file_contents := gh.get_file_plain(repo, f'{component_project_dir}/Dockerfile'):
+    dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
+    dockerfile.content = file_contents
+
+    docker_data = {}
+    if re.search(r'rsds-ca-2019-root\.pem', dockerfile.content, re.MULTILINE):
+      docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+    if re.search(r'global-bundle\.pem', dockerfile.content, re.MULTILINE):
+      docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+
+    try:
+      # Get list of parent images, and strip out references to 'base'
+      parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
+      # Get the last element in the array, which should be the base image of the final stage.
+      base_image = parent_images[-1]
+      docker_data['base_image'] = base_image
+      log.debug(f'Found Dockerfile base image: {base_image}')
+    except Exception as e:
+      log.error(f'Error parent/base image from Dockerfile: {e}')
+
+    if docker_data:
+      update_dict(data, 'versions', {'dockerfile': docker_data})
+  # All done with the branch dependent components
+
+  log.debug(
+    f'Finished getting other repo information for {component_name}\ndata: {data}'
+  )
+  return data
+
+
+def process_sc_component(component, bootstrap_projects, services):
+  sc = services.sc
+  gh = services.gh
+  log = services.log
+
+  # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
+  data = {}
+  component_flags = {}
+  component_name = component['attributes']['name']
+  log.info(f'Processing component: {component_name}')
+
+  # Get the latest commit from the SC
+  log.debug(f'Getting latest commit from SC for {component_name}')
+  if latest_commit := component['attributes'].get('latest_commit'):
+    if sha := latest_commit.get('sha'):
+      sc_latest_commit = sha
+  else:
+    sc_latest_commit = None
+  log.debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
+  repo = gh.get_org_repo(f'{component["attributes"]["github_repo"]}')
+  if repo:
+    gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
+    log.debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
+
+    log.info(f'Processing main branch independent components for: {component_name}')
+    # Get the fields that aren't updated by a commit to main
+    independent_components, component_flags = branch_independent_components(
+      component, services
+    )
+
+    data.update(independent_components)
+
+    # Logic to check if the branch specific components need to be processed
+
+    # Check bootstrap projects for CircleCI senvironments
+    current_envs = []
+    if project := bootstrap_projects.get(component['attributes']['github_repo']):
+      log.debug(f'Found bootstrap project data for {component_name} - {project}')
+      if 'circleci_project_k8s_namespace' in project:
+        current_envs.append('dev')
+      if 'circleci_context_k8s_namespaces' in project:
+        for circleci_env in project['circleci_context_k8s_namespaces']:
+          current_envs.append(circleci_env['env_name'])
+
+    # Then check Github
+    for repo_env in repo.get_environments():
+      if repo_env.name not in current_envs:
+        current_envs.append(repo_env.name)
+
+    log.debug(f'Current environments for {component_name}: {current_envs}')
+    # Get the environments from the service catalogue
+    sc_envs = component['attributes']['environments']
+    log.debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
+
+    # Check if the environments have changed
+    if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
+      component_flags['env_changed'] = True
+
+    # Check if the commit has changed:
+    if sc_latest_commit and sc_latest_commit != gh_latest_commit:
+      component_flags['main_changed'] = True
+
+    #########################################################################################################
+    # Anything after this point is only processed if the repo has been updated (component_flags will have data)
+    if not component_flags:
+      log.info(f'No main branch or environment changes for {component_name}')
+    else:
+      # branch_changed_components function returns a dictionary of further changed fields
+      log.info(f'Processing changed components for: {component_name}')
+      data.update(
+        branch_changed_components(component, repo, bootstrap_projects, services)
+      )
+
+    # Convert the environments dictionary to a list for the Service Catalogue
+    component_env_data = []
+    if 'environments' in data:
+      component_env_data = environments.process_environments(
+        component_name, data['environments'], services
+      )
+    data['environments'] = component_env_data
+    log.debug(
+      f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
+    )
+
+    # Update component with all results in data dictionary
+    if not sc.update(sc.components, component['id'], data):
+      log.error(f'Error updating component {component_name}')
+      component_flags['update_error'] = True
+
+  else:  # if the repo doesn't exist
+    component_flags['not_found'] = True
+
+  return component_flags
+
+
+def batch_process_sc_components(services, max_threads):
+  log = services.log
+  sc = services.sc
+  gh = services.gh
+
+  processed_components = []
+
+  # Get projects.json from bootstrap repo for namespaces data
+  bootstrap_repo = gh.get_org_repo('hmpps-project-bootstrap')
+  print(f'Getting projects.json from {bootstrap_repo.name}')
+  bootstrap_projects_json = services.gh.get_file_json(bootstrap_repo, 'projects.json')
+  # Convert the project lists to a dictionary for easier lookup
+  bootstrap_projects = {}
+  for p in bootstrap_projects_json:
+    bootstrap_projects.update({p['github_repo_name']: p})
+
+  components = sc.get_all_records(sc.components_get)
+
+  log.info(f'Processing batch of {len(components)} components...')
+
+  threads = []
+  for component in components:
+    # Wait until the API limit is reset if we are close to the limit
+    while services.gh.core_rate_limit.remaining < 100:
+      time_delta = datetime.now() - services.gh.core_rate_limit.reset
+      time_to_reset = time_delta.total_seconds()
+      log.info(f'Github API rate limit {services.gh.core_rate_limit}')
+      log.info(f'Backing off for {time_to_reset} second, to avoid github API limits.')
+      sleep(time_to_reset)
+
+    # Mini function to process the component and store the result
+    # Because the threading needs to target a function
+    def process_component_and_store_result(component, bootstrap_projects, services):
+      result = process_sc_component(component, bootstrap_projects, services)
+      processed_components.append((component['attributes']['name'], result))
+
+    t_repo = threading.Thread(
+      target=process_component_and_store_result,
+      args=(component, bootstrap_projects, services),
+      daemon=True,
+    )
+    threads.append(t_repo)
+
+    # Apply limit on total active threads, avoid github secondary API rate limit
+    while threading.active_count() > (max_threads - 1):
+      log.debug(f'Active Threads={threading.active_count()}, Max Threads={max_threads}')
+      sleep(10)
+
+    t_repo.start()
+    log.info(f'Started thread for component {component["attributes"]["name"]}')
+
+  # wait until all the threads are finished
+  for t in threads:
+    t.join()
+
+  return processed_components
+
+
+def main():
+  logging.basicConfig(
+    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
+  )
+  log = logging.getLogger(__name__)
+  # service catalogue parameters
+  sc_params = {
+    'sc_api_endpoint': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
+    'sc_api_token': os.getenv('SERVICE_CATALOGUE_API_KEY'),
+    'sc_filter': os.getenv('SC_FILTER', ''),
+  }
+
+  # Github parameters
+  gh_params = {
+    'app_id': int(os.getenv('GITHUB_APP_ID')),
+    'installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
+    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
+  }
+
+  circle_ci_params = {
+    'url': os.getenv(
+      'CIRCLECI_API_ENDPOINT',
+      'https://circleci.com/api/v1.1/project/gh/ministryofjustice/',
+    ),
+    'token': os.getenv('CIRCLECI_TOKEN'),
+  }
+  am_params = {
+    'alertmanager_endpoint': os.getenv(
+      'ALERTMANAGER_ENDPOINT',
+      'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status',
+    )
+  }
+
+  slack_params = {
+    'token': os.getenv('SLACK_BOT_TOKEN'),
+    'notification_channel': os.getenv('SLACK_NOTIFICATION_CHANNEL', ''),
+    'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
+  }
+
+  services = Services(
+    sc_params, gh_params, circle_ci_params, am_params, slack_params, log
+  )
+
+  log.info('Processing components...')
+  processed_components = batch_process_sc_components(services, max_threads)
+  return processed_components
+
+
+if __name__ == '__main__':
+  main()

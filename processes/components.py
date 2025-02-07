@@ -366,8 +366,8 @@ def process_sc_component(component, bootstrap_projects, services):
       # It will need to be combined with environments found in bootstrap/Github
       # Then updated in components (once it's been turned into a list)
       if helm_environments := data.get('environments'):
-        log.info(
-          f'Existing environment data for {component_name}: {json.dumps(helm_environments, indent=2)}'
+        log.debug(
+          f'Helm environment data for {component_name}: {json.dumps(helm_environments, indent=2)}'
         )
       else:
         helm_environments = {}
@@ -405,7 +405,7 @@ def batch_process_sc_components(services, max_threads):
 
   # Get projects.json from bootstrap repo for namespaces data
   bootstrap_repo = gh.get_org_repo('hmpps-project-bootstrap')
-  print(f'Getting projects.json from {bootstrap_repo.name}')
+  log.info(f'Getting projects.json from {bootstrap_repo.name}')
   bootstrap_projects_json = services.gh.get_file_json(bootstrap_repo, 'projects.json')
   # Convert the project lists to a dictionary for easier lookup
   bootstrap_projects = {}

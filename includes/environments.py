@@ -95,7 +95,7 @@ def process_environments(
   log = services.log
 
   component_name = component['attributes']['name']
-  print(f'Processing environments for {component_name}')
+  log.debug(f'Processing environments for {component_name}')
   env_flags = {}
 
   # This is the final result that will be returned - it's a dictionary
@@ -127,37 +127,41 @@ def process_environments(
           helm_environments[helm_env].update(v)
           break
 
-  # Time to rocess the environment table first so we can get the env_id:
+  # Time to process the environment table first so we can get the env_id:
   for env in helm_environments:
-    # Prepare the environment record with the basic data
-    environment_record = helm_environments[env]
-    # Link the environment record with the component record
-    component_id = sc.get_id('components', 'name', component_name)
-    environment_record['component'] = component_id
-    # Add the environment name to the environment record
-    environment_record['name'] = f'{component_name}-{env}'
-    # Check to see if the environment record exists in the environment table
-    # With the name formatted as 'component_name-environment_name'
-    if env_id := sc.get_id('environments', 'name', f'{component_name}-{env}'):
-      # Update the environment in the environment table if anything has changed
-      log.info(f'Updating environment {env} in the environment table')
-      log.info(f'Environment_record: {environment_record}')
-      if sc.update(sc.environments, env_id, environment_record):
-        env_flags['env_updated'] = True
-      else:
-        env_flags['env_failure'] = True
+    # only process the environments that have a valid type
+    if not helm_environments[env].get('type'):
+      log.info(f'Skipping environment {env} as it has no type')
     else:
-      # Create the environment in the environment table
-      log.info(f'Environment not found - adding {env} to the environment table')
-      log.info(f'Environment data: {environment_record}')
-      if sc.add(sc.environments, environment_record):
-        env_flags['env_added'] = True
+      # Prepare the environment record with the basic data
+      environment_record = helm_environments[env]
+      # Link the environment record with the component record
+      component_id = sc.get_id('components', 'name', component_name)
+      environment_record['component'] = component_id
+      # Add the environment name to the environment record
+      environment_record['name'] = f'{component_name}-{env}'
+      # Check to see if the environment record exists in the environment table
+      # With the name formatted as 'component_name-environment_name'
+      if env_id := sc.get_id('environments', 'name', f'{component_name}-{env}'):
+        # Update the environment in the environment table if anything has changed
+        log.info(f'Updating environment {env} in the environment table')
+        log.info(f'Environment_record: {environment_record}')
+        if sc.update(sc.environments, env_id, environment_record):
+          env_flags['env_updated'] = True
+        else:
+          env_flags['env_error'] = True
       else:
-        env_flags['env_failure'] = True
+        # Create the environment in the environment table
+        log.info(f'Environment not found - adding {env} to the environment table')
+        log.info(f'Environment data: {environment_record}')
+        if sc.add(sc.environments, environment_record):
+          env_flags['env_added'] = True
+        else:
+          env_flags['env_error'] = True
 
-    # Then prepare the environment for the components table to be returned and added
-    helm_environments[env]['name'] = env
-    component_env_data.append(helm_environments[env])
+      # Then prepare the environment for the components table to be returned and added
+      helm_environments[env]['name'] = env
+      component_env_data.append(helm_environments[env])
 
   log.debug(f'Component environment data to be added: {component_env_data}')
   return component_env_data, env_flags

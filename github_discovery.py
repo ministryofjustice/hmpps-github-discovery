@@ -34,15 +34,16 @@ class Services:
 
 def create_summary(services, processed_components, processed_products, processed_teams):
   qty_components = len(processed_components)
-  qty_components_env_updated = len(
+  qty_components_env_changed = len(
     [c for c in processed_components if c[1].get('env_changed')]
   )
-  qty_components_main_updated = len(
+  qty_components_main_changed = len(
     [c for c in processed_components if c[1].get('main_changed')]
   )
   components_update_error = [
     c for c in processed_components if c[1].get('update_error')
   ]
+
   components_not_found = [c for c in processed_components if c[1].get('not_found')]
   components_app_disabled = [
     c for c in processed_components if c[1].get('app_disabled')
@@ -51,10 +52,19 @@ def create_summary(services, processed_components, processed_products, processed
     c for c in processed_components if c[1].get('branch_protection_disabled')
   ]
 
+  qty_environments_added = len(
+    [c for c in processed_components if c[1].get('env_added')]
+  )
+  qty_environments_updated = len(
+    [c for c in processed_components if c[1].get('env_updated')]
+  )
+  environments_error = [c for c in processed_components if c[1].get('env_error')]
+  qty_environments_failed = len(environments_error)
+
   summary = 'COMPONENT SUMMARY\n=================\n'
   summary += f'{qty_components} components processed\n'
-  summary += f'- {qty_components_env_updated} had an environment configuration update\n'
-  summary += f'-  {qty_components_main_updated} had a main branch update\n\n'
+  summary += f'- {qty_components_env_changed} had an environment configuration update\n'
+  summary += f'-  {qty_components_main_changed} had a main branch update\n\n'
   if components_update_error:
     summary += '\nComponents with update errors:\n'
     for c in components_update_error:
@@ -72,6 +82,15 @@ def create_summary(services, processed_components, processed_products, processed
     for c in components_branch_protection_disabled:
       summary += f'- {c[0]}\n'
   summary += '\n'
+
+  summary = 'ENVIRONMENT SUMMARY\n==================\n'
+  summary += f'- {qty_environments_added} environment(s) added\n'
+  summary += f'-  {qty_environments_updated} environment(s) updated\n\n'
+  summary += f'-  {qty_environments_failed} environment(s) encountered issues\n\n'
+  if environments_error:
+    summary += '\nEnvironments with errors:\n'
+    for c in environments_error:
+      summary += f'  {c[0]}\n'
 
   summary += 'PRODUCT SUMMARY\n===============\n'
   summary += f'{processed_products} products processed\n\n'

@@ -17,7 +17,7 @@ from classes.slack import Slack
 
 # Standalone functions
 import includes.helm as helm
-from includes.utils import update_dict, env_mapping
+from includes.utils import update_dict
 import includes.environments as environments
 
 
@@ -185,97 +185,7 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
   log.debug(
     f'Finished getting information from helm for {component_name}\ndata: {data}'
   )
-  # Other environment information
-  # #############################
 
-  # Populate other component environment data (not from helm)
-  # This can come from two places:
-  # - the bootstrap projects list (old-style CircleCI)
-  # - the repository (new-style Github Actions)
-  #
-  # Fields within environments that are updated in this section:
-  # - namespace
-  # - ns_id
-
-  envs = {}  # using a dictionary to avoid duplicates
-  log.debug(f'Getting environments for {component_name} from bootstrap/Github')
-  # Check bootstrap first
-  if project := bootstrap_projects.get(component['attributes']['github_repo']):
-    log.debug(f'Found bootstrap project data for {component_name} - {project}')
-    if 'circleci_project_k8s_namespace' in project:
-      log.debug(f'Found CircleCI dev namespace for{component_name}')
-      update_dict(
-        envs,
-        'dev',
-        {
-          'type': 'dev',
-          'namespace': project['circleci_project_k8s_namespace'],
-          'ns_id': sc.get_id(
-            'namespaces', 'name', project['circleci_project_k8s_namespace']
-          ),
-        },
-      )
-    if 'circleci_context_k8s_namespaces' in project:
-      for circleci_env in project['circleci_context_k8s_namespaces']:
-        log.debug(
-          f'Found CircleCI environment {circleci_env["env_name"]} and namespace {circleci_env["namespace"]} for {component_name}'
-        )
-        update_dict(
-          envs,
-          circleci_env['env_name'],
-          {
-            'type': circleci_env['env_type'],
-            'namespace': circleci_env['namespace'],
-            'ns_id': sc.get_id('namespaces', 'name', circleci_env['namespace']),
-          },
-        )
-
-  # Then check Github - these environments take precedence since they're newer
-  repo_envs = repo.get_environments()
-  if repo_envs.totalCount < 10:  # workaround for many environments
-    for repo_env in repo.get_environments():
-      log.debug(
-        f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
-      )
-      env_vars = None
-      try:
-        env_vars = repo_env.get_variables()
-      except Exception as e:
-        log.debug(f'Unable to get environment variables for {repo_env.name}: {e}')
-
-      # there are some non-standard environments in some of the repos
-      if env_vars:
-        if env_type := env_mapping.get(repo_env.name):
-          namespace = None
-          ns_id = None
-          for (
-            var
-          ) in env_vars:  # We should populate these for all namespaces where possible
-            if var.name == 'KUBE_NAMESPACE':
-              namespace = var.value
-              ns_id = sc.get_id('namespaces', 'name', var.value)
-
-          update_dict(
-            envs,
-            repo_env.name,
-            {
-              'type': env_type,
-              'namespace': namespace,
-              'ns_id': ns_id,
-            },
-          )
-      if envs:
-        log.debug(f'Combined environments for {component_name} - {envs}')
-        log.debug(f'Data up to this point is: {data}')
-        for keys in envs.keys():
-          update_dict(data['environments'], keys, envs[keys])
-
-      log.info(
-        f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
-      )
-      log.debug(
-        f'Finished getting environment information from bootstrap/Github for {component_name}\ndata: {data}'
-      )
   # Information from CircleCI data
   ################################
 
@@ -415,21 +325,7 @@ def process_sc_component(component, bootstrap_projects, services):
     data.update(independent_components)
 
     # Logic to check if the branch specific components need to be processed
-
-    # Check bootstrap projects for CircleCI senvironments
-    current_envs = []
-    if project := bootstrap_projects.get(component['attributes']['github_repo']):
-      log.debug(f'Found bootstrap project data for {component_name} - {project}')
-      if 'circleci_project_k8s_namespace' in project:
-        current_envs.append('dev')
-      if 'circleci_context_k8s_namespaces' in project:
-        for circleci_env in project['circleci_context_k8s_namespaces']:
-          current_envs.append(circleci_env['env_name'])
-
-    # Then check Github
-    for repo_env in repo.get_environments():
-      if repo_env.name not in current_envs:
-        current_envs.append(repo_env.name)
+    current_envs = helm.get_envs_from_helm(component, repo, services)
 
     log.debug(f'Current environments for {component_name}: {current_envs}')
     # Get the environments from the service catalogue
@@ -439,15 +335,21 @@ def process_sc_component(component, bootstrap_projects, services):
     # Check if the environments have changed
     if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
       component_flags['env_changed'] = True
+      log.info('Environments have changed')
+    else:
+      component_flags['env_changed'] = False
 
     # Check if the commit has changed:
     if sc_latest_commit and sc_latest_commit != gh_latest_commit:
       component_flags['main_changed'] = True
+      log.info('Main commit has changed')
+    else:
+      component_flags['main_changed'] = False
 
     ###########################################################################################################
     # Anything after this point is only processed if the repo has been updated (component_flags will have data)
     ###########################################################################################################
-    if not component_flags:
+    if not (component_flags['main_changed'] or component_flags['env_changed']):
       log.info(f'No main branch or environment changes for {component_name}')
     else:
       # branch_changed_components function returns a dictionary of further changed fields
@@ -460,22 +362,28 @@ def process_sc_component(component, bootstrap_projects, services):
       # Processing the environment data - updating the Environments table with information from above
       ###########################################################################################################
       component_env_data = []
-      if data_environments := data.get('environments'):
-        log.debug(
-          f'Environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
+      # Some environment data may already have been populated from helm
+      # It will need to be combined with environments found in bootstrap/Github
+      # Then updated in components (once it's been turned into a list)
+      if helm_environments := data.get('environments'):
+        log.info(
+          f'Existing environment data for {component_name}: {json.dumps(helm_environments, indent=2)}'
         )
-        component_env_data, env_flags = environments.process_environments(
-          component_name, data_environments, services
-        )
-        # only update the environment if there is data in there
-        # since Service Catalogue doesn't like an empty list
+      else:
+        helm_environments = {}
+      component_env_data, env_flags = environments.process_environments(
+        component, repo, helm_environments, bootstrap_projects, services
+      )
+      # only update the environment if there is data in there
+      # since Service Catalogue doesn't like an empty list
+      if component_env_data:
         data['environments'] = component_env_data
         log.debug(
           f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
         )
-        # Add environment flags to the component flags, since they're related
-        for each_flag in env_flags:
-          component_flags[each_flag] = env_flags[each_flag]
+      # Add environment flags to the component flags, since they're related
+      for each_flag in env_flags:
+        component_flags[each_flag] = env_flags[each_flag]
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):
@@ -520,8 +428,8 @@ def batch_process_sc_components(services, max_threads):
     log.info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
-    while cur_rate_limit.remaining < 200:
-      time_delta = datetime.now() - cur_rate_limit.reset
+    while cur_rate_limit.remaining < 500:
+      time_delta = cur_rate_limit.reset - datetime.now()
       time_to_reset = time_delta.total_seconds()
 
       log.info(f'Backing off for {time_to_reset} second, to avoid github API limits.')

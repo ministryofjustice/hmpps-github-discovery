@@ -3,26 +3,14 @@ import includes.utils as utils
 from includes.utils import update_dict, env_mapping
 
 
-def get_info_from_helm(component, repo, services):
-  gh = services.gh
-  am = services.am
-  log = services.log
-  sc = services.sc
-
-  # Shortcuts to make it easier to read
+def get_helm_dirs(repo, component, log):
   component_name = component['attributes']['name']
 
-  # Get the project directory - use the root directory if it's not a monorepo
   component_project_dir = (
     component['attributes'].get('path_to_project', component_name)
     if component['attributes'].get('part_of_monorepo')
     else '.'
   )
-  log.debug(f'Getting helm data for {component_name} in {component_project_dir}')
-
-  helm_environments = []
-  data = {}  # environments is returned from helm as a dictionary
-
   helm_dir = (
     component['attributes'].get('path_to_helm_dir')
     or f'{component_project_dir}/helm_deploy'
@@ -36,7 +24,38 @@ def get_info_from_helm(component, repo, services):
   except Exception as e:
     helm_deploy_dir = None
     log.warning(f'Unable to load the helm_deploy folder for {component_name}: {e}')
+  return (helm_dir, helm_deploy_dir)
 
+
+def get_envs_from_helm(component, repo, services):
+  log = services.log
+  helm_environments = []
+  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dir, helm_deploy_dir = helm_dirs
+  if helm_deploy_dir:
+    for helm_file in helm_deploy_dir:
+      if helm_file.name.startswith('values-'):
+        env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name)[1]
+        helm_environments.append(env)
+  return helm_environments
+
+
+def get_info_from_helm(component, repo, services):
+  gh = services.gh
+  am = services.am
+  log = services.log
+  sc = services.sc
+
+  # Shortcuts to make it easier to read
+  component_name = component['attributes']['name']
+
+  data = {}
+
+  helm_environments = []
+  # environments is returned from helm as a dictionary
+
+  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dir, helm_deploy_dir = helm_dirs
   if helm_deploy_dir:
     # variables used for implementation of findind IP allowlist in helm values files
     allow_list_key = 'allowlist'
@@ -44,6 +63,7 @@ def get_info_from_helm(component, repo, services):
     ip_allow_list = {}
 
     # Read in the environments from the helm deployment directory
+
     for helm_file in helm_deploy_dir:
       if helm_file.name.startswith('values-'):
         env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name)[1]

@@ -34,8 +34,8 @@ def test_endpoint(url, endpoint, log):
     if r.json() and r.status_code != 404:
       log.debug(f'Found endpoint: {url}{endpoint} ')
       return True
-  except Exception:
-    log.debug(f'Could not connect to endpoint: {url}{endpoint} ')
+  except Exception as e:
+    log.debug(f'Could not connect to endpoint {url}{endpoint} - {e}')
     return False
 
 
@@ -52,8 +52,8 @@ def test_swagger_docs(url, log):
     ):
       log.debug(f'Found swagger docs: {url}/swagger-ui.html')
       return True
-  except Exception:
-    log.debug(f"Couldn't connect: {url}/swagger-ui.html")
+  except Exception as e:
+    log.debug(f"Couldn't connect to {url}/swagger-ui.html - {e}")
     return False
 
 
@@ -74,8 +74,8 @@ def test_subject_access_request_endpoint(url, log):
   except TimeoutError:
     log.debug(f'Timed out connecting to: {url}/v3/api-docs')
     return False
-  except Exception:
-    log.debug(f"Couldn't connect: {url}/v3/api-docs {r.status_code}")
+  except Exception as e:
+    log.debug(f"Couldn't connect to {url}/v3/api-docs: {e}")
     return False
 
 

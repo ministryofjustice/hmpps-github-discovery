@@ -29,6 +29,7 @@ def process_github_teams(services):
   log.info('Retrieving Github teams data ...')
   sc_teams = sc.get_all_records(sc.github_teams)
   # Get the github teams refenered in admin, manintain and write teams from SC
+  log.info('Getting Github teams references in components')
   all_repo_ref_gh_teams = sc.find_all_teams_ref_in_sc()
 
   # Get the data from GH for teams from terraform files

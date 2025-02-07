@@ -47,13 +47,14 @@ class ServiceCatalogue:
   def test_connection(self):
     # Test connection to Service Catalogue
     try:
+      self.log.info(f'Testing connection to the Service Catalogue - {self.url}')
       r = requests.head(f'{self.url}', headers=self.api_headers, timeout=10)
       self.log.info(
         f'Successfully connected to the Service Catalogue - {self.url}. {r.status_code}'
       )
       return True
     except Exception as e:
-      self.log.critical('Unable to connect to the Service Catalogue.')
+      self.log.critical(f'Unable to connect to the Service Catalogue - {e}')
       return False
 
   """

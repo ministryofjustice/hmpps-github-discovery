@@ -166,10 +166,7 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
   )
 
   # Reset the data ready for updating
-  data = {
-    'environments': {},
-    'versions': {},
-  }  # dictionary to hold all the updated data for the component
+  data = {}  # dictionary to hold all the updated data for the component
 
   # Information from Helm config
   ################################
@@ -234,49 +231,51 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
         )
 
   # Then check Github - these environments take precedence since they're newer
-  for repo_env in repo.get_environments():
-    log.debug(
-      f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
-    )
-    env_vars = None
-    try:
-      env_vars = repo_env.get_variables()
-    except Exception as e:
-      log.warning(f'Unable to get environment variables for {repo_env.name}: {e}')
+  repo_envs = repo.get_environments()
+  if repo_envs.totalCount < 10:  # workaround for many environments
+    for repo_env in repo.get_environments():
+      log.debug(
+        f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
+      )
+      env_vars = None
+      try:
+        env_vars = repo_env.get_variables()
+      except Exception as e:
+        log.debug(f'Unable to get environment variables for {repo_env.name}: {e}')
 
-    # there are some non-standard environments in some of the repos
-    if env_vars:
-      if env_type := env_mapping.get(repo_env.name):
-        namespace = None
-        ns_id = None
-        for (
-          var
-        ) in env_vars:  # We should populate these for all namespaces where possible
-          if var.name == 'KUBE_NAMESPACE':
-            namespace = var.value
-            ns_id = sc.get_id('namespaces', 'name', var.value)
+      # there are some non-standard environments in some of the repos
+      if env_vars:
+        if env_type := env_mapping.get(repo_env.name):
+          namespace = None
+          ns_id = None
+          for (
+            var
+          ) in env_vars:  # We should populate these for all namespaces where possible
+            if var.name == 'KUBE_NAMESPACE':
+              namespace = var.value
+              ns_id = sc.get_id('namespaces', 'name', var.value)
 
-        update_dict(
-          envs,
-          repo_env.name,
-          {
-            'type': env_type,
-            'namespace': namespace,
-            'ns_id': ns_id,
-          },
-        )
-    if envs:
-      log.debug(f'Combined environments for {component_name} - {envs}')
-      log.debug(f'Data up to this point is: {data}')
-      for keys in envs.keys():
-        update_dict(data['environments'], keys, envs[keys])
+          update_dict(
+            envs,
+            repo_env.name,
+            {
+              'type': env_type,
+              'namespace': namespace,
+              'ns_id': ns_id,
+            },
+          )
+      if envs:
+        log.debug(f'Combined environments for {component_name} - {envs}')
+        log.debug(f'Data up to this point is: {data}')
+        for keys in envs.keys():
+          update_dict(data['environments'], keys, envs[keys])
 
-    else:
-      log.warning(f'No environments found in bootstrap/Github for {component_name}')
-
-    log.debug(
-      f'Finished getting environment information from bootstrap/Github for {component_name}\ndata: {data}'
-    )
+      log.info(
+        f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
+      )
+      log.debug(
+        f'Finished getting environment information from bootstrap/Github for {component_name}\ndata: {data}'
+      )
   # Information from CircleCI data
   ################################
 
@@ -309,9 +308,9 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
     package_json = gh.get_file_json(repo, f'{component_project_dir}/package.json')
     if package_json:
-      app_insights_cloud_role_name = package_json['name']
-      if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
-        data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      if app_insights_cloud_role_name := package_json.get('name'):
+        if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
+          data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
 
   # Gradle config
   build_gradle_config_content = False
@@ -369,6 +368,18 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
     f'Finished getting other repo information for {component_name}\ndata: {data}'
   )
   return data
+
+
+# This is the core process that will be run in a thread for each component
+# It will:
+# - Get the latest commit from the SC
+# - Run the branch_independent_components function to get the data that can change
+#   without a commit/environment change
+# - Compare the latest commit with the latest Github commit
+# - If they are different, run the branch_changed_components function
+# - Update the SC with the new data
+# - If there are any errors, set flags to indicate what went wrong
+# - Return the flags for the component
 
 
 def process_sc_component(component, bootstrap_projects, services):
@@ -433,8 +444,9 @@ def process_sc_component(component, bootstrap_projects, services):
     if sc_latest_commit and sc_latest_commit != gh_latest_commit:
       component_flags['main_changed'] = True
 
-    #########################################################################################################
+    ###########################################################################################################
     # Anything after this point is only processed if the repo has been updated (component_flags will have data)
+    ###########################################################################################################
     if not component_flags:
       log.info(f'No main branch or environment changes for {component_name}')
     else:
@@ -444,16 +456,26 @@ def process_sc_component(component, bootstrap_projects, services):
         branch_changed_components(component, repo, bootstrap_projects, services)
       )
 
-    # Convert the environments dictionary to a list for the Service Catalogue
-    component_env_data = []
-    if 'environments' in data:
-      component_env_data = environments.process_environments(
-        component_name, data['environments'], services
-      )
-    data['environments'] = component_env_data
-    log.debug(
-      f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
-    )
+      ###########################################################################################################
+      # Processing the environment data - updating the Environments table with information from above
+      ###########################################################################################################
+      component_env_data = []
+      if data_environments := data.get('environments'):
+        log.debug(
+          f'Environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
+        )
+        component_env_data, env_flags = environments.process_environments(
+          component_name, data_environments, services
+        )
+        # only update the environment if there is data in there
+        # since Service Catalogue doesn't like an empty list
+        data['environments'] = component_env_data
+        log.debug(
+          f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
+        )
+        # Add environment flags to the component flags, since they're related
+        for each_flag in env_flags:
+          component_flags[each_flag] = env_flags[each_flag]
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):

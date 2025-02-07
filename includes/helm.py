@@ -72,6 +72,9 @@ def get_info_from_helm(component, repo, services):
 
     # DEFAULT VALUES SECTION
     # ----------------------
+    # Default values for modsecurity and alert_severity_label - clear these out in case theres's nothing set
+    mod_security_defaults = {}
+    alert_severity_label_default = None
 
     # Get the default values chart filename
     helm_default_values = (
@@ -83,6 +86,7 @@ def get_info_from_helm(component, repo, services):
     )
 
     # Get the default values from the helm chart - and only proceed if there is one
+
     if helm_default_values:
       ip_allow_list_default = utils.fetch_yaml_values_for_key(
         helm_default_values, allow_list_key
@@ -118,7 +122,6 @@ def get_info_from_helm(component, repo, services):
         pass
 
       # Get modsecurity data defaults, if enabled.
-      mod_security_defaults = {}
       for mod_security_type in [
         'modsecurity_enabled',
         'modsecurity_audit_enabled',
@@ -185,7 +188,7 @@ def get_info_from_helm(component, repo, services):
                 env,
                 {mod_security_type[0]: mod_security_env_enabled},
               )
-            elif mod_security_defaults[mod_security_type[0]]:
+            elif mod_security_defaults.get(mod_security_type[0]):
               log.debug(
                 f'Updating {mod_security_type[0]} to default value: {mod_security_defaults[mod_security_type[0]]}'
               )

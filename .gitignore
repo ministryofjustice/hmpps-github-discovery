@@ -1,5 +1,6 @@
 # dotenv environment variables file
 .env*
+.venv
 
 .python-version
 .idea
@@ -7,3 +8,4 @@
 **/Chart.lock
 __pycache__/
 **/.DS_Store
+github_discovery.log

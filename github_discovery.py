@@ -35,10 +35,10 @@ class Services:
 def create_summary(services, processed_components, processed_products, processed_teams):
   qty_components = len(processed_components)
   qty_components_env_updated = len(
-    [c for c in processed_components if c[1].get('env_updated')]
+    [c for c in processed_components if c[1].get('env_changed')]
   )
   qty_components_main_updated = len(
-    [c for c in processed_components if c[1].get('main_updated')]
+    [c for c in processed_components if c[1].get('main_changed')]
   )
   components_update_error = [
     c for c in processed_components if c[1].get('update_error')
@@ -53,9 +53,7 @@ def create_summary(services, processed_components, processed_products, processed
 
   summary = 'COMPONENT SUMMARY\n=================\n'
   summary += f'{qty_components} components processed\n'
-  summary += (
-    f' - {qty_components_env_updated} had an environment configuration update\n'
-  )
+  summary += f'- {qty_components_env_updated} had an environment configuration update\n'
   summary += f'-  {qty_components_main_updated} had a main branch update\n\n'
   if components_update_error:
     summary += '\nComponents with update errors:\n'

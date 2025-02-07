@@ -66,6 +66,9 @@ class GithubSession:
       raise SystemExit(e) from e
       return None
 
+  def get_rate_limit(self):
+    return self.session.get_rate_limit().core
+
   def get_org_repo(self, repo_name):
     repo = None
     try:

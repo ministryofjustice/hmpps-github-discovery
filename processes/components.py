@@ -509,12 +509,21 @@ def batch_process_sc_components(services, max_threads):
   log.info(f'Processing batch of {len(components)} components...')
 
   threads = []
+  component_count = 0
   for component in components:
+    component_count += 1
     # Wait until the API limit is reset if we are close to the limit
-    while services.gh.core_rate_limit.remaining < 100:
-      time_delta = datetime.now() - services.gh.core_rate_limit.reset
+    cur_rate_limit = services.gh.get_rate_limit()
+    log.info(
+      f'{component_count}/{len(components)} - preparing to process {component["attributes"]["name"]} ({int(component_count / len(components) * 100)}% complete)'
+    )
+    log.info(
+      f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
+    )
+    while cur_rate_limit.remaining < 200:
+      time_delta = datetime.now() - cur_rate_limit.reset
       time_to_reset = time_delta.total_seconds()
-      log.info(f'Github API rate limit {services.gh.core_rate_limit}')
+
       log.info(f'Backing off for {time_to_reset} second, to avoid github API limits.')
       sleep(time_to_reset)
 

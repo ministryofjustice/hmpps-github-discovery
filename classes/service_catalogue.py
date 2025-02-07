@@ -62,8 +62,8 @@ class ServiceCatalogue:
 
   def get_all_records(self, table):
     json_data = []
-    self.log.debug(
-      f'Getting all records from Service Catalogue using URL: {self.url}/v1/{table}'
+    self.log.info(
+      f'Getting all records from table {table} in Service Catalogue using URL: {self.url}/v1/{table}'
     )
     try:
       r = requests.get(f'{self.url}/v1/{table}', headers=self.api_headers, timeout=10)
@@ -79,7 +79,10 @@ class ServiceCatalogue:
       # Loop over the remaining pages and return one at a time
       num_pages = j_meta['pageCount']
       for p in range(2, num_pages + 1):
-        page = f'&pagination[page]={p}'
+        if '?' in table:  # add an extra parameter if there are already parameters
+          page = f'&pagination[page]={p}'
+        else:  # otherwise use ? to denote the first parameter
+          page = f'?pagination[page]={p}'
         r = requests.get(
           f'{self.url}/v1/{table}{page}', headers=self.api_headers, timeout=10
         )

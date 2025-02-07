@@ -80,7 +80,7 @@ def create_summary(services, processed_components, processed_products, processed
 
   qty_teams = len(processed_teams)
   qty_teams_terraform_managed = len(
-    [c for c in processed_teams if c.get('terraform_managed')]
+    [c for c in processed_teams if c[1].get('terraform_managed')]
   )
   qty_teams_updated = len([c for c in processed_teams if c[1].get('team_updated')])
   qty_teams_added = len([c for c in processed_teams if c[1].get('team_added')])

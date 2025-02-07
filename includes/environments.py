@@ -4,10 +4,14 @@
 from includes.utils import update_dict, env_mapping
 
 
+################################################################################################
+# get_environments
+# This function will get the environments associated with a component
+# from the bootstrap projects json file and Github repo environments
+################################################################################################
 def get_environments(component, repo, bootstrap_projects, services):
   log = services.log
   sc = services.sc
-  gh = services.gh
 
   component_name = component['attributes']['name']  # for short
   envs = {}  # using a dictionary to avoid duplicates
@@ -47,7 +51,9 @@ def get_environments(component, repo, bootstrap_projects, services):
 
   # Then check Github - these environments take precedence since they're newer
   repo_envs = repo.get_environments()
-  if repo_envs.totalCount < 10:  # workaround for many environments
+  if (
+    repo_envs.totalCount < 10
+  ):  # workaround for a repo that has hundreds of environments
     for repo_env in repo_envs:
       log.debug(
         f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
@@ -88,6 +94,13 @@ def get_environments(component, repo, bootstrap_projects, services):
   return envs
 
 
+###################################################################################################
+# process_environments
+# This is the main function to process environments based on data from the helm chart
+# combined with bootstrap projects json file and Github repo environments
+# It returns the environment as a list of dictionaries to be added to the component table
+# It also updates the environment table with the environment data, associating it with a component.
+###################################################################################################
 def process_environments(
   component, repo, helm_environments, bootstrap_projects, services
 ):
@@ -98,12 +111,12 @@ def process_environments(
   log.debug(f'Processing environments for {component_name}')
   env_flags = {}
 
-  # This is the final result that will be returned - it's a dictionary
+  # This is the final result that will be returned - it's a list of dictionaries
   # since that's how Service Catalogue expects it.
   component_env_data = []
 
-  # Other environment information
-  # #############################
+  # Other environment information - get_environments
+  # ################################################
 
   # Populate other component environment data (not from helm)
   # This can come from two places:

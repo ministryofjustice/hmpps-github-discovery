@@ -6,7 +6,6 @@ import re
 import json
 from time import sleep
 from datetime import datetime
-from base64 import b64decode
 from dockerfile_parse import DockerfileParser
 
 from classes.service_catalogue import ServiceCatalogue
@@ -151,8 +150,7 @@ def branch_independent_components(component, services):
   return data, component_flags
 
 
-def branch_changed_components(component, repo, bootstrap_projects, services):
-  sc = services.sc
+def branch_changed_components(component, repo, services):
   gh = services.gh
   cc = services.cc
   log = services.log
@@ -176,7 +174,8 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
   # - Helm chart version
   # - Environment configurations
   # - Alertmanager configuration
-  # -
+  # - Security scan results
+
   log.debug(f'Getting information for {component_name} from Helm config')
   if helm_data := helm.get_info_from_helm(component, repo, services):
     log.debug(f'Found Helm data for record id {component_name} - {helm_data}')
@@ -280,7 +279,10 @@ def branch_changed_components(component, repo, bootstrap_projects, services):
   return data
 
 
-# This is the core process that will be run in a thread for each component
+###########################################################################################################
+# Main component processing function
+###########################################################################################################
+# This is the core function that will be run in a thread for each component
 # It will:
 # - Get the latest commit from the SC
 # - Run the branch_independent_components function to get the data that can change
@@ -354,9 +356,7 @@ def process_sc_component(component, bootstrap_projects, services):
     else:
       # branch_changed_components function returns a dictionary of further changed fields
       log.info(f'Processing changed components for: {component_name}')
-      data.update(
-        branch_changed_components(component, repo, bootstrap_projects, services)
-      )
+      data.update(branch_changed_components(component, repo, services))
 
       ###########################################################################################################
       # Processing the environment data - updating the Environments table with information from above
@@ -396,6 +396,9 @@ def process_sc_component(component, bootstrap_projects, services):
   return component_flags
 
 
+###########################################################################################################
+# Main batch dispatcher - this is the process that's called by github_discovery
+###########################################################################################################
 def batch_process_sc_components(services, max_threads):
   log = services.log
   sc = services.sc
@@ -463,6 +466,9 @@ def batch_process_sc_components(services, max_threads):
   return processed_components
 
 
+###########################################################################################################
+# In case it's run as a standalone script
+###########################################################################################################
 def main():
   logging.basicConfig(
     format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
@@ -508,7 +514,7 @@ def main():
 
   log.info('Processing components...')
   processed_components = batch_process_sc_components(services, max_threads)
-  return processed_components
+  log.info(f'Processed components: {processed_components}')
 
 
 if __name__ == '__main__':

@@ -335,14 +335,14 @@ def process_sc_component(component, bootstrap_projects, services):
     # Check if the environments have changed
     if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
       component_flags['env_changed'] = True
-      log.info('Environments have changed')
+      log.info(f'Environments have changed for {component_name}')
     else:
       component_flags['env_changed'] = False
 
     # Check if the commit has changed:
     if sc_latest_commit and sc_latest_commit != gh_latest_commit:
       component_flags['main_changed'] = True
-      log.info('Main commit has changed')
+      log.info(f'Main commit has changed for {component_name}')
     else:
       component_flags['main_changed'] = False
 

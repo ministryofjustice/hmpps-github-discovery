@@ -1,12 +1,4 @@
 {{- if .Values.discoveryCronJob.enabled -}}
-# ---
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: github-teams-discovery-script
-# data:
-#   github_teams_discovery.py: |-
-#     {{ .Files.Get "github_teams_discovery.py" | indent 4 }}
 
 ---
 apiVersion: batch/v1
@@ -21,6 +13,7 @@ spec:
   successfulJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      backoffLimit: 0 # Set to 0 to prevent retries after job failure - API Rate limit is 15000 per hour so reties will not solve the issue
       ttlSecondsAfterFinished: 345600
       template:
         spec:

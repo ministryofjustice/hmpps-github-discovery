@@ -294,7 +294,7 @@ def branch_changed_components(component, repo, services):
 # - Return the flags for the component
 
 
-def process_sc_component(component, bootstrap_projects, services):
+def process_sc_component(component, bootstrap_projects, services, force_update=False):
   sc = services.sc
   gh = services.gh
   log = services.log
@@ -348,6 +348,10 @@ def process_sc_component(component, bootstrap_projects, services):
     else:
       component_flags['main_changed'] = False
 
+    if force_update:
+      component_flags['main_changed'] = True
+      log.info(f'Forced update for {component_name}')
+
     ###########################################################################################################
     # Anything after this point is only processed if the repo has been updated (component_flags will have data)
     ###########################################################################################################
@@ -399,7 +403,7 @@ def process_sc_component(component, bootstrap_projects, services):
 ###########################################################################################################
 # Main batch dispatcher - this is the process that's called by github_discovery
 ###########################################################################################################
-def batch_process_sc_components(services, max_threads):
+def batch_process_sc_components(services, max_threads, force_update=False):
   log = services.log
   sc = services.sc
   gh = services.gh
@@ -439,14 +443,19 @@ def batch_process_sc_components(services, max_threads):
       sleep(time_to_reset)
 
     # Mini function to process the component and store the result
-    # Because the threading needs to target a function
-    def process_component_and_store_result(component, bootstrap_projects, services):
-      result = process_sc_component(component, bootstrap_projects, services)
+    # because the threading needs to target a function
+    def process_component_and_store_result(
+      component, bootstrap_projects, services, force_update
+    ):
+      result = process_sc_component(
+        component, bootstrap_projects, services, force_update
+      )
       processed_components.append((component['attributes']['name'], result))
 
+    # Create a thread for each component
     t_repo = threading.Thread(
       target=process_component_and_store_result,
-      args=(component, bootstrap_projects, services),
+      args=(component, bootstrap_projects, services, force_update),
       daemon=True,
     )
     threads.append(t_repo)

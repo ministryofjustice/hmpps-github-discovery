@@ -110,6 +110,11 @@ def main():
   )
   log = logging.getLogger(__name__)
 
+  #### Use the -f parameter to force an update regardless of environment / main branch changes
+  force_update = False
+  if '-f' in os.sys.argv:
+    force_update = True
+
   #### Create resources ####
 
   # service catalogue parameters
@@ -174,7 +179,9 @@ def main():
   # httpHealth.start()
 
   log.info('Batch processing components')
-  processed_components = components.batch_process_sc_components(services, max_threads)
+  processed_components = components.batch_process_sc_components(
+    services, max_threads, force_update
+  )
 
   # Process products
   log.info('Batch processing products...')

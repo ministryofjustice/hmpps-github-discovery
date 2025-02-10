@@ -59,7 +59,8 @@ class Services:
     self.log = log
 
 
-def create_summary(services, processed_components, processed_products, processed_teams):
+# def create_summary(services, processed_components, processed_products, processed_teams):
+def create_summary(services, processed_components, processed_products):
   def summarize_processed_items(items, item_type, attributes):
     summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
     summary += f'{len(items)} {item_type.lower()}(s) processed\n'
@@ -84,12 +85,12 @@ def create_summary(services, processed_components, processed_products, processed
     'env_error': 'environment(s) encountered errors',
   }
 
-  team_attributes = {
-    'terraform_managed': 'teams are terraform managed',
-    'team_updated': 'team(s) updated',
-    'team_added': 'team(s) added',
-    'team_failure': 'teams that encountered errors',
-  }
+  # team_attributes = {
+  #   'terraform_managed': 'teams are terraform managed',
+  #   'team_updated': 'team(s) updated',
+  #   'team_added': 'team(s) added',
+  #   'team_failure': 'teams that encountered errors',
+  # }
 
   summary = summarize_processed_items(
     processed_components, 'component', component_attributes
@@ -97,7 +98,7 @@ def create_summary(services, processed_components, processed_products, processed
   summary += summarize_processed_items(
     processed_products, 'product', {'': 'products processed'}
   )
-  summary += summarize_processed_items(processed_teams, 'team', team_attributes)
+  # summary += summarize_processed_items(processed_teams, 'team', team_attributes)
 
   services.slack.notify(summary)
   services.log.info(summary)
@@ -179,11 +180,12 @@ def main():
   log.info('Batch processing products...')
   processed_products = products.batch_process_sc_products(services, max_threads)
 
-  # Process Teams
-  log.info('Processing teams...')
-  processed_teams = github_teams.process_github_teams(services)
+  # # Process Teams - carried out in a separate script now
+  # log.info('Processing teams...')
+  # processed_teams = github_teams.process_github_teams(services)
 
-  create_summary(services, processed_components, processed_products, processed_teams)
+  # create_summary(services, processed_components, processed_products, processed_teams)
+  create_summary(services, processed_components, processed_products)
 
 
 if __name__ == '__main__':

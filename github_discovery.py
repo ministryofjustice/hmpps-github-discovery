@@ -1,5 +1,32 @@
 #!/usr/bin/env python
-"""Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue"""
+"""Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue
+
+Required environment variables
+------------------------------
+
+Alertmanager
+- ALERTMANAGER_ENDPOINT: Alertmanager API endpoint
+
+Github (Credentials for Discovery app that has access to the repositories)
+- GITHUB_APP_ID: Github App ID
+- GITHUB_APP_INSTALLATION_ID: Github App Installation ID
+- GITHUB_APP_PRIVATE_KEY: Github App Private Key
+
+Service Catalogue
+- SERVICE_CATALOGUE_API_ENDPOINT: Service Catalogue API endpoint
+- SERVICE_CATALOGUE_API_KEY: Service
+
+- SLACK_BOT_TOKEN: Slack Bot Token
+
+- CIRCLECI_API_ENDPOINT: CircleCI API endpoint
+- CIRCLECI_TOKEN: CircleCI API token
+
+Optional environment variables
+- SLACK_NOTIFICATION_CHANNEL: Slack channel for notifications
+- SLACK_ALERT_CHANNEL: Slack channel for alerts
+- LOG_LEVEL: Log level (default: INFO)
+
+"""
 
 import os
 import logging
@@ -33,85 +60,44 @@ class Services:
 
 
 def create_summary(services, processed_components, processed_products, processed_teams):
-  qty_components = len(processed_components)
-  qty_components_env_changed = len(
-    [c for c in processed_components if c[1].get('env_changed')]
+  def summarize_processed_items(items, item_type, attributes):
+    summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
+    summary += f'{len(items)} {item_type.lower()}(s) processed\n'
+    for attr, desc in attributes.items():
+      filtered_items = [item for item in items if item[1].get(attr)]
+      summary += f'- {len(filtered_items)} {desc}\n'
+      if filtered_items:
+        summary += f'{desc.capitalize()}:\n'
+        for item in filtered_items:
+          summary += f'  {item[0]}\n'
+    return summary
+
+  component_attributes = {
+    'env_changed': 'had an environment configuration update',
+    'main_changed': 'had a main branch update',
+    'update_error': 'with update errors',
+    'not_found': 'not found / not accessible in Github',
+    'app_disabled': 'requiring Github App to be enabled',
+    'branch_protection_disabled': 'with branch protection disabled',
+    'env_added': 'environment(s) added',
+    'env_updated': 'environment(s) updated',
+    'env_error': 'environment(s) encountered errors',
+  }
+
+  team_attributes = {
+    'terraform_managed': 'teams are terraform managed',
+    'team_updated': 'team(s) updated',
+    'team_added': 'team(s) added',
+    'team_failure': 'teams that encountered errors',
+  }
+
+  summary = summarize_processed_items(
+    processed_components, 'component', component_attributes
   )
-  qty_components_main_changed = len(
-    [c for c in processed_components if c[1].get('main_changed')]
+  summary += summarize_processed_items(
+    processed_products, 'product', {'': 'products processed'}
   )
-  components_update_error = [
-    c for c in processed_components if c[1].get('update_error')
-  ]
-
-  components_not_found = [c for c in processed_components if c[1].get('not_found')]
-  components_app_disabled = [
-    c for c in processed_components if c[1].get('app_disabled')
-  ]
-  components_branch_protection_disabled = [
-    c for c in processed_components if c[1].get('branch_protection_disabled')
-  ]
-
-  qty_environments_added = len(
-    [c for c in processed_components if c[1].get('env_added')]
-  )
-  qty_environments_updated = len(
-    [c for c in processed_components if c[1].get('env_updated')]
-  )
-  environments_error = [c for c in processed_components if c[1].get('env_error')]
-  qty_environments_error = len(environments_error)
-
-  summary = '\n\nCOMPONENT SUMMARY\n=================\n'
-  summary += f'{qty_components} components processed\n'
-  summary += f'- {qty_components_env_changed} had an environment configuration update\n'
-  summary += f'-  {qty_components_main_changed} had a main branch update\n\n'
-  if components_update_error:
-    summary += '\nComponents with update errors:\n'
-    for c in components_update_error:
-      summary += f'  {c[0]}\n'
-  if components_not_found:
-    summary += '\nComponents not found / not accessible in Github:\n'
-    for c in components_not_found:
-      summary += f'- {c[0]}\n'
-  if components_app_disabled:
-    summary += '\nComponents requiring Github App to be enabled:\n'
-    for c in components_app_disabled:
-      summary += f'- {c[0]}\n'
-  if components_branch_protection_disabled:
-    summary += '\nComponents with branch protection disabled:\n'
-    for c in components_branch_protection_disabled:
-      summary += f'- {c[0]}\n'
-  summary += '\n'
-
-  summary += 'ENVIRONMENT SUMMARY\n==================\n'
-  summary += f'- {qty_environments_added} environment(s) added\n'
-  summary += f'-  {qty_environments_updated} environment(s) updated\n'
-  summary += f'-  {qty_environments_error} environment(s) encountered errors\n\n'
-  if environments_error:
-    summary += '\nEnvironments with errors:\n'
-    for c in environments_error:
-      summary += f'  {c[0]}\n'
-
-  summary += 'PRODUCT SUMMARY\n===============\n'
-  summary += f'{processed_products} products processed\n\n'
-
-  qty_teams = len(processed_teams)
-  qty_teams_terraform_managed = len(
-    [c for c in processed_teams if c[1].get('terraform_managed')]
-  )
-  qty_teams_updated = len([c for c in processed_teams if c[1].get('team_updated')])
-  qty_teams_added = len([c for c in processed_teams if c[1].get('team_added')])
-  teams_failed = [c for c in processed_teams if c[1].get('team_failure')]
-
-  summary += 'TEAM SUMMARY\n===============\n'
-  summary += f'{qty_teams} teams processed\n\n'
-  summary += f'- {qty_teams_terraform_managed} teams are terraform managed\n'
-  summary += f'- {qty_teams_updated} team(s) updated\n'
-  summary += f'- {qty_teams_added} team(s) added\n'
-  if teams_failed:
-    summary += '\nTeams that encountered errors:\n'
-    for t in teams_failed:
-      summary += f'- {t[0]}\n'
+  summary += summarize_processed_items(processed_teams, 'team', team_attributes)
 
   services.slack.notify(summary)
   services.log.info(summary)

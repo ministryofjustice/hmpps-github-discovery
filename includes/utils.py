@@ -1,4 +1,7 @@
 import requests
+from dockerfile_parse import DockerfileParser
+import tempfile
+import re
 
 # Mapping of environment names to the values used in the service discovery URLs
 env_mapping = {
@@ -114,3 +117,25 @@ def is_ipallowList_enabled(yaml_data):
       if isinstance(value, dict) and value:
         ip_allow_list_enabled = True
   return ip_allow_list_enabled
+
+
+def get_dockerfile_data(dockerfile_contents, log):
+  dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
+  dockerfile.content = dockerfile_contents
+
+  docker_data = {}
+  if re.search(r'rsds-ca-2019-root\.pem', dockerfile.content, re.MULTILINE):
+    docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+  if re.search(r'global-bundle\.pem', dockerfile.content, re.MULTILINE):
+    docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+
+  try:
+    # Get list of parent images, and strip out references to 'base'
+    parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
+    # Get the last element in the array, which should be the base image of the final stage.
+    base_image = parent_images[-1]
+    docker_data['base_image'] = base_image
+    log.debug(f'Found Dockerfile base image: {base_image}')
+  except Exception as e:
+    log.error(f'Error parent/base image from Dockerfile: {e}')
+  return docker_data

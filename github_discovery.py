@@ -80,6 +80,7 @@ def create_summary(services, processed_components, processed_products):
     'not_found': 'not found / not accessible in Github',
     'app_disabled': 'requiring Github App to be enabled',
     'branch_protection_disabled': 'with branch protection disabled',
+    'archived': 'archived (monitoring disabled)',
     'env_added': 'environment(s) added',
     'env_updated': 'environment(s) updated',
     'env_error': 'environment(s) encountered errors',

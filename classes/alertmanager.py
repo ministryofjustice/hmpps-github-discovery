@@ -5,25 +5,26 @@ import logging
 
 
 class AlertmanagerData:
-  def __init__(self, alertmanager_endpoint, log_level=logging.INFO):
+  def __init__(self, am_params, log_level=logging.INFO):
     # Needs custom logging because of a bit of a mess later on
     logging.basicConfig(
       format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
     )
     self.log = logging.getLogger(__name__)
-    self.alertmanager_endpoint = alertmanager_endpoint
+    self.url = am_params['url']
     self.get_alertmanager_data()
 
   def get_alertmanager_data(self):
     self.json_config_data = None
     try:
-      response = requests.get(self.alertmanager_endpoint, verify=False)
+      response = requests.get(self.url, verify=False)
       if response.status_code == 200:
         alertmanager_data = response.json()
         config_data = alertmanager_data['config']
         formatted_config_data = config_data['original'].replace('\\n', '\n')
         yaml_config_data = yaml.safe_load(formatted_config_data)
         self.json_config_data = json.loads(json.dumps(yaml_config_data))
+        self.log.info('Successfully fetched Alertmanager data')
       else:
         self.log.error(f'Error: {response.status_code}')
 

@@ -67,7 +67,12 @@ class GithubSession:
       return None
 
   def get_rate_limit(self):
-    return self.session.get_rate_limit().core
+    try:
+      if self.session:
+        return self.session.get_rate_limit().core
+    except Exception as e:
+      self.log.error(f'Error getting rate limit: {e}')
+      return None
 
   def get_org_repo(self, repo_name):
     repo = None

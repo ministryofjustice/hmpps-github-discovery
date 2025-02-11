@@ -158,7 +158,7 @@ def process_environments(
       if env_id := sc.get_id('environments', 'name', f'{component_name}-{env}'):
         # Update the environment in the environment table if anything has changed
         log.info(f'Updating environment {env} in the environment table')
-        log.info(f'Environment_record: {environment_record}')
+        log.debug(f'Environment_record: {environment_record}')
         if sc.update(sc.environments, env_id, environment_record):
           env_flags['env_updated'] = True
         else:
@@ -166,7 +166,7 @@ def process_environments(
       else:
         # Create the environment in the environment table
         log.info(f'Environment not found - adding {env} to the environment table')
-        log.info(f'Environment data: {environment_record}')
+        log.debug(f'Environment data: {environment_record}')
         if sc.add(sc.environments, environment_record):
           env_flags['env_added'] = True
         else:

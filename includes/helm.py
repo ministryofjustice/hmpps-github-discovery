@@ -163,6 +163,11 @@ def get_info_from_helm(component, repo, services):
       # Environment type first of all:
       update_dict(helm_envs, env, {'type': env_mapping.get(env.lower(), None)})
 
+      # Monitor environment
+      if repo.archived:
+        # If the repo is archived, then monitoring should be automatically set to False
+        update_dict(helm_envs, env, {'monitor': False})
+
       # Get the values.yaml file for the environment
       values = gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
       if values:

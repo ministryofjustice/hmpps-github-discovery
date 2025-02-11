@@ -1,12 +1,10 @@
 import logging
 import threading
-import tempfile
 import os
 import re
 import json
 from time import sleep
 from datetime import datetime
-from dockerfile_parse import DockerfileParser
 
 from classes.service_catalogue import ServiceCatalogue
 from classes.github import GithubSession
@@ -16,7 +14,7 @@ from classes.slack import Slack
 
 # Standalone functions
 import includes.helm as helm
-from includes.utils import update_dict
+from includes.utils import update_dict, get_dockerfile_data
 import includes.environments as environments
 
 
@@ -34,50 +32,9 @@ class Services:
     self.log = log
 
 
-# This is the main function that processes each component in turn
-# 1. Get Github repo data that may change without a commit
-# 2. For all components that have a different commit to the SC, get Github repo data that may have changed
-#    2a. Then get ancillary stuff like Helm data, alertmanager data, security scan results etc
-
-
-def branch_independent_components(component, services):
-  # shortcuts for ease of reference
-  gh = services.gh
-  log = services.log
-  component_name = component['attributes']['name']
-  github_repo = component['attributes']['github_repo']
-
+# Repo functions - teams and branch protection
+def get_repo_teams_info(repo, branch_protection, component_flags, log):
   data = {}
-  component_flags = {
-    'app_disabled': False,
-    'branch_protection_disabled': False,
-  }  # default to False
-
-  # branch protection
-  try:
-    repo = gh.get_org_repo(f'{github_repo}')
-    default_branch = repo.get_branch(repo.default_branch)
-    branch_protection = default_branch.get_protection()
-  except Exception as e:
-    log.error(
-      f'Error with ministryofjustice/{component_name}, check github app has permissions to see it. {e}'
-    )
-    if 'Branch not protected' in f'{e}':
-      component_flags['branch_protection_disabled'] = True
-    else:  # Any other error, the app probalby doesn't have permission
-      component_flags['app_disabled'] = True
-
-  # Standard github repo properties
-  data['language'] = repo.language
-  data['description'] = repo.description
-  data['github_project_visibility'] = repo.visibility
-  data['github_repo'] = repo.name
-  data['latest_commit'] = {
-    'sha': default_branch.commit.sha,
-    'date_time': default_branch.commit.commit.committer.date.isoformat(),
-  }
-
-  # GitHub teams access, branch protection etc.
   branch_protection_restricted_teams = []
   teams_write = []
   teams_admin = []
@@ -105,44 +62,83 @@ def branch_independent_components(component, services):
           teams_write.append(team.slug)
 
       data['github_project_teams_admin'] = teams_admin
-      log.debug(f'teams_admin: {teams_admin}')
-
       data['github_project_teams_maintain'] = teams_maintain
-      log.debug(f'teams_maintain: {teams_maintain}')
-
       data['github_project_teams_write'] = teams_write
-      log.debug(f'teams_write: {teams_write}')
-
       data['github_project_branch_protection_restricted_teams'] = (
         branch_protection_restricted_teams
       )
-      log.debug(
-        f'branch_protection_restricted_teams: {branch_protection_restricted_teams}'
-      )
 
-      # Get enforce_admin details from branch protection
       enforce_admins = branch_protection.enforce_admins
       data['github_enforce_admins_enabled'] = enforce_admins
-      log.debug(f'github_enforce_admins_enabled: {enforce_admins}')
 
     except Exception as e:
       log.error(f'Unable to get teams/admin information {repo.name}: {e}')
       component_flags['app_disabled'] = True
 
-  # Github topics
+  return data
+
+
+def get_repo_properties(repo, default_branch):
+  return {
+    'language': repo.language,
+    'description': f'{"[ARCHIVED] " if repo.archived else ""}{repo.description}',
+    'github_project_visibility': repo.visibility,
+    'github_repo': repo.name,
+    'latest_commit': {
+      'sha': default_branch.commit.sha,
+      'date_time': default_branch.commit.commit.committer.date.isoformat(),
+    },
+  }
+
+
+# This is the main function that processes each component in turn
+# 1. Get Github repo data that may change without a commit
+# 2. For all components that have a different commit to the SC, get Github repo data that may have changed
+#    2a. Then get ancillary stuff like Helm data, alertmanager data, security scan results etc
+
+
+def branch_independent_components(component, services):
+  gh = services.gh
+  log = services.log
+  component_name = component['attributes']['name']
+  github_repo = component['attributes']['github_repo']
+
+  data = {}
+  component_flags = {
+    'app_disabled': False,
+    'branch_protection_disabled': False,
+  }
+
   try:
-    topics = repo.get_topics()
-    data['github_topics'] = topics
+    repo = gh.get_org_repo(f'{github_repo}')
+    default_branch = repo.get_branch(repo.default_branch)
+    branch_protection = default_branch.get_protection()
+    data.update(get_repo_properties(repo, default_branch))
+    data.update(get_repo_teams_info(repo, branch_protection, component_flags, log))
+  except Exception as e:
+    if 'Branch not protected' in f'{e}':
+      component_flags['branch_protection_disabled'] = True
+    else:
+      log.error(
+        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      )
+      component_flags['app_disabled'] = True
+
+  try:
+    data['github_topics'] = repo.get_topics()
   except Exception as e:
     log.warning(f'Unable to get topics for {repo.name}: {e}')
 
-  # Try to detect frontends or UIs
   if re.search(
     r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
     f'{component_name} {repo.description}',
   ):
     log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data['frontend'] = True
+
+  if repo.archived:
+    log.debug('Repo is archived')
+    component_flags['archived'] = True
 
   log.debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
@@ -172,9 +168,9 @@ def branch_changed_components(component, repo, services):
   # This will return information about:
   # - Helm environments
   # - Helm chart version
-  # - Environment configurations
-  # - Alertmanager configuration
-  # - Security scan results
+  # - Environment configurations:
+  #   - Alertmanager configuration
+  #   - Endpoint URLs
 
   log.debug(f'Getting information for {component_name} from Helm config')
   if helm_data := helm.get_info_from_helm(component, repo, services):
@@ -188,15 +184,15 @@ def branch_changed_components(component, repo, services):
   # Information from CircleCI data
   ################################
 
-  # Trivy Scan summary
   if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
+    # Trivy Scan summary - this will be superceded by hmpps-trivy-discovery
     try:
       if trivy_scan_json := cc.get_trivy_scan_json_data(component_name):
         # Add trivy scan result to final data dictionary
         data['trivy_scan_summary'] = trivy_scan_json
         data['trivy_last_completed_scan_date'] = trivy_scan_json.get('CreatedAt')
     except Exception:
-      log.debug('Unable to get trivy scan results')
+      log.debug('Unable to get CircleCI trivy scan results')
 
     # CircleCI Orb version
     update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
@@ -249,27 +245,10 @@ def branch_changed_components(component, repo, services):
       pass
 
   # Parse Dockerfile
-  if file_contents := gh.get_file_plain(repo, f'{component_project_dir}/Dockerfile'):
-    dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
-    dockerfile.content = file_contents
-
-    docker_data = {}
-    if re.search(r'rsds-ca-2019-root\.pem', dockerfile.content, re.MULTILINE):
-      docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
-    if re.search(r'global-bundle\.pem', dockerfile.content, re.MULTILINE):
-      docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
-
-    try:
-      # Get list of parent images, and strip out references to 'base'
-      parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
-      # Get the last element in the array, which should be the base image of the final stage.
-      base_image = parent_images[-1]
-      docker_data['base_image'] = base_image
-      log.debug(f'Found Dockerfile base image: {base_image}')
-    except Exception as e:
-      log.error(f'Error parent/base image from Dockerfile: {e}')
-
-    if docker_data:
+  if dockerfile_contents := gh.get_file_plain(
+    repo, f'{component_project_dir}/Dockerfile'
+  ):
+    if docker_data := get_dockerfile_data(dockerfile_contents, log):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
@@ -348,14 +327,12 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
     else:
       component_flags['main_changed'] = False
 
-    if force_update:
-      component_flags['main_changed'] = True
-      log.info(f'Forced update for {component_name}')
-
     ###########################################################################################################
     # Anything after this point is only processed if the repo has been updated (component_flags will have data)
     ###########################################################################################################
-    if not (component_flags['main_changed'] or component_flags['env_changed']):
+    if not (
+      component_flags['main_changed'] or component_flags['env_changed'] or force_update
+    ):
       log.info(f'No main branch or environment changes for {component_name}')
     else:
       # branch_changed_components function returns a dictionary of further changed fields
@@ -364,6 +341,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 
       ###########################################################################################################
       # Processing the environment data - updating the Environments table with information from above
+      # Which is basically the environments from the helm charts
       ###########################################################################################################
       component_env_data = []
       # Some environment data may already have been populated from helm
@@ -437,7 +415,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     )
     while cur_rate_limit.remaining < 500:
       time_delta = cur_rate_limit.reset - datetime.now()
-      time_to_reset = time_delta.total_seconds()
+      time_to_reset = abs(time_delta.total_seconds())
 
       log.info(f'Backing off for {time_to_reset} second, to avoid github API limits.')
       sleep(time_to_reset)

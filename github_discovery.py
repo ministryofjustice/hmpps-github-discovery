@@ -352,16 +352,16 @@ def get_alertmanager_data():
       json_config_data = json.loads(json.dumps(yaml_config_data))
       return json_config_data
     else:
-      log.error(f"Error: {response.status_code}")
+      log.error(f"Alertmanager Error: {response.status_code}")
       return None
   except requests.exceptions.SSLError as e:
-    log.error(f"SSL Error: {e}")
+    log.error(f"Alertmanager SSL Error: {e}")
     return None
   except requests.exceptions.RequestException as e:
-    log.error(f"Request Error: {e}")
+    log.error(f"Alertmanager Request Error: {e}")
     return None
   except json.JSONDecodeError as e:
-    log.error(f"JSON Decode Error: {e}")
+    log.error(f"Alertmanager JSON Decode Error: {e}")
     return None
 
 def find_channel_by_severity_label(alert_severity_label):
@@ -382,7 +382,8 @@ def find_channel_by_severity_label(alert_severity_label):
         if slack_configs:
           return slack_configs[0].get('channel')
         else :
-          return ''
+          log.info(f"ERROR - No slack_configs found for alert severity label {alert_severity_label}, receiver {receiver_name}")
+          return 'NO_CHANNEL_FOUND'
 
 def process_components(data):
   log.info(f'Processing batch of {len(data)} components...')
@@ -792,8 +793,11 @@ def process_repo(**component):
 
               if alert_severity_label:
                 channel = find_channel_by_severity_label(alert_severity_label)
-                e.update({'alert_severity_label': alert_severity_label})
-                e.update({'alerts_slack_channel': channel})
+                if channel is not None:
+                  e.update({'alert_severity_label': alert_severity_label})
+                  e.update({'alerts_slack_channel': channel})
+                else:
+                  log.info(f"ERROR - For Alert severity label {alert_severity_label} channel not found for {c_name} in {env}")
               else:
                 log.info(f"ERROR - Alert severity label not found for {c_name} in {env}")
 

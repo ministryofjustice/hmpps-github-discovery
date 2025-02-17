@@ -9,7 +9,7 @@ class Slack:
       format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
     )
     self.log = logging.getLogger(__name__)
-    self.notification_channel = slack_params.get('notification_channel', '')
+    self.notify_channel = slack_params.get('notify_channel', '')
     self.alert_channel = slack_params.get('alert_channel', '')
 
     # Test auth and connection to Slack
@@ -49,13 +49,13 @@ class Slack:
     return slack_channel_name
 
   def notify(self, message):
-    if not self.notification_channel:
-      self.log.error('No notification channel set in config')
+    if not self.notify_channel:
+      self.log.warning('No notification channel set in config')
       return
-    self.log.debug(f'Sending notification to {self.notification_channel}')
+    self.log.debug(f'Sending notification to {self.notify_channel}')
     try:
       self.slack_client.chat_postMessage(
-        channel=self.notification_channel, text=f':information-source: {message}'
+        channel=self.notify_channel, text=f':information-source: {message}'
       )
     except SlackApiError as e:
       self.log.error(f'Slack error: {e}')

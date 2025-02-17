@@ -28,7 +28,7 @@ def get_environments(component, repo, bootstrap_projects, services):
         {
           'type': 'dev',
           'namespace': project['circleci_project_k8s_namespace'],
-          'ns_id': sc.get_id(
+          'ns': sc.get_id(
             'namespaces', 'name', project['circleci_project_k8s_namespace']
           ),
         },
@@ -38,14 +38,14 @@ def get_environments(component, repo, bootstrap_projects, services):
         log.debug(
           f'Found CircleCI environment {circleci_env["env_name"]} and namespace {circleci_env["namespace"]} for {component_name}'
         )
-        if env_type := env_mapping.get(circleci_env['env_type']):
+        if env_type := env_mapping.get(circleci_env.get('env_type')):
           update_dict(
             envs,
             circleci_env['env_name'],
             {
               'type': env_type,
               'namespace': circleci_env['namespace'],
-              'ns_id': sc.get_id('namespaces', 'name', circleci_env['namespace']),
+              'ns': sc.get_id('namespaces', 'name', circleci_env['namespace']),
             },
           )
 
@@ -65,6 +65,7 @@ def get_environments(component, repo, bootstrap_projects, services):
         log.debug(f'Unable to get environment variables for {repo_env.name}: {e}')
 
       # there are some non-standard environments in some of the repos
+      # so only process the ones that map to the env_mapping list
       if env_vars:
         if env_type := env_mapping.get(repo_env.name):
           # default settings
@@ -74,6 +75,7 @@ def get_environments(component, repo, bootstrap_projects, services):
             var
           ) in env_vars:  # We should populate these for all namespaces where possible
             if var.name == 'KUBE_NAMESPACE':
+              log.info(f'Found namespace {var.value} for {component_name}')
               namespace = var.value
               ns_id = sc.get_id('namespaces', 'name', var.value)
 
@@ -83,7 +85,7 @@ def get_environments(component, repo, bootstrap_projects, services):
             {
               'type': env_type,
               'namespace': namespace,
-              'ns_id': ns_id,
+              'ns': ns_id,
             },
           )
     if envs:
@@ -130,6 +132,7 @@ def process_environments(
   if environment_data := get_environments(
     component, repo, bootstrap_projects, services
   ):
+    log.debug(f'Found environments from bootstrap/Github: {environment_data}')
     # The helm environments are used as the primary source of truth for environments
     # since they define the enviroments to which the app can be deployed.
     for helm_env in helm_environments:
@@ -143,7 +146,9 @@ def process_environments(
   # Time to process the environment table first so we can get the env_id:
   for env in helm_environments:
     # only process the environments that have a valid type
-    if not helm_environments[env].get('type'):
+    if not helm_environments[env].get('type') or not helm_environments[env].get(
+      'namespace'
+    ):
       log.info(f'Skipping environment {env} as it has no type')
     else:
       # Prepare the environment record with the basic data

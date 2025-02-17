@@ -22,7 +22,7 @@ Service Catalogue
 - CIRCLECI_TOKEN: CircleCI API token
 
 Optional environment variables
-- SLACK_NOTIFICATION_CHANNEL: Slack channel for notifications
+- SLACK_NOTIFY_CHANNEL: Slack channel for notifications
 - SLACK_ALERT_CHANNEL: Slack channel for alerts
 - LOG_LEVEL: Log level (default: INFO)
 
@@ -40,7 +40,6 @@ from classes.alertmanager import AlertmanagerData
 from classes.circleci import CircleCI
 
 # Components
-import processes.github_teams as github_teams
 import processes.products as products
 import processes.components as components
 
@@ -61,16 +60,23 @@ class Services:
 
 # def create_summary(services, processed_components, processed_products, processed_teams):
 def create_summary(services, processed_components, processed_products):
-  def summarize_processed_items(items, item_type, attributes):
+  # Summarize the items based on the attributes
+
+  def summarize_processed_components(items, item_type, attributes):
     summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
     summary += f'{len(items)} {item_type.lower()}(s) processed\n'
     for attr, desc in attributes.items():
       filtered_items = [item for item in items if item[1].get(attr)]
       summary += f'- {len(filtered_items)} {desc}\n'
       if filtered_items:
-        summary += f'{desc.capitalize()}:\n'
         for item in filtered_items:
           summary += f'  {item[0]}\n'
+        summary += '\n'
+    return summary
+
+  def summarize_processed_products(qty, item_type):
+    summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
+    summary += f'{qty} {item_type.lower()}(s) processed\n'
     return summary
 
   component_attributes = {
@@ -93,12 +99,10 @@ def create_summary(services, processed_components, processed_products):
   #   'team_failure': 'teams that encountered errors',
   # }
 
-  summary = summarize_processed_items(
+  summary = summarize_processed_components(
     processed_components, 'component', component_attributes
   )
-  summary += summarize_processed_items(
-    processed_products, 'product', {'': 'products processed'}
-  )
+  summary += summarize_processed_products(processed_products, 'product')
   # summary += summarize_processed_items(processed_teams, 'team', team_attributes)
 
   services.slack.notify(summary)
@@ -134,7 +138,7 @@ def main():
 
   slack_params = {
     'token': os.getenv('SLACK_BOT_TOKEN'),
-    'notification_channel': os.getenv('SLACK_NOTIFICATION_CHANNEL', ''),
+    'notify_channel': os.getenv('SLACK_NOTIFY_CHANNEL', ''),
     'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
   }
 

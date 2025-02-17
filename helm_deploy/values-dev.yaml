@@ -3,7 +3,7 @@
 
 generic-service:
   env:
-    REFRESH_INTERVAL_HOURS: "2"
+    REFRESH_INTERVAL_HOURS: "11"
     LOG_LEVEL: debug
 
   namespace_secrets:
@@ -12,3 +12,7 @@ generic-service:
 
 generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-dev
+
+cron:
+  github_discovery_schedule: "20 01 * * *"
+  github_teams_discovery_schedule: "45 01 * * *"

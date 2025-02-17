@@ -58,7 +58,7 @@ def process_github_teams(services):
 
     log.debug(f'team_data: {team_data}')
     # Looks wthin Service Catalogue Github Teams for a matching team_name
-    log.info(f'Looking for {team_name} in the service catalogue..')
+    log.debug(f'Looking for {team_name} in the service catalogue..')
     if sc_team := next(
       (team for team in sc_teams if team['attributes'].get('team_name') == team_name),
       None,
@@ -83,35 +83,3 @@ def process_github_teams(services):
 
     processed_teams.append((team_name, team_flags))
   return processed_teams
-
-
-def main():
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-  )
-  log = logging.getLogger(__name__)
-
-  # service catalogue parameters
-  sc_params = {
-    'sc_api_endpoint': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'sc_api_token': os.getenv('SERVICE_CATALOGUE_API_KEY'),
-    'sc_filter': os.getenv('SC_FILTER', ''),
-  }
-
-  # Github parameters
-  gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
-  }
-  services = Services(sc_params, gh_params, log)
-
-  log.info('Processing teams...')
-  processed_teams = process_github_teams(services)
-  log.info('Finished processing teams.')
-
-  return processed_teams
-
-
-if __name__ == '__main__':
-  main()

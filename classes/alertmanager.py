@@ -17,7 +17,7 @@ class AlertmanagerData:
   def get_alertmanager_data(self):
     self.json_config_data = None
     try:
-      response = requests.get(self.url, verify=False)
+      response = requests.get(self.url, verify=False, timeout=5)
       if response.status_code == 200:
         alertmanager_data = response.json()
         config_data = alertmanager_data['config']

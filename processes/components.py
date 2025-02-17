@@ -1,4 +1,3 @@
-import logging
 import threading
 import os
 import re
@@ -13,9 +12,9 @@ from classes.alertmanager import AlertmanagerData
 from classes.slack import Slack
 
 # Standalone functions
-import includes.helm as helm
+from includes import helm as helm
 from includes.utils import update_dict, get_dockerfile_data
-import includes.environments as environments
+from includes import environments as environments
 
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
@@ -30,6 +29,20 @@ class Services:
     self.cc = CircleCI(cc_params, log)
     self.slack = Slack(slack_params, log)
     self.log = log
+
+
+def get_bootstrap_projects(services):
+  gh = services.gh
+  log = services.log
+  # Get projects.json from bootstrap repo for namespaces data
+  bootstrap_repo = gh.get_org_repo('hmpps-project-bootstrap')
+  log.info(f'Getting projects.json from {bootstrap_repo.name}')
+  bootstrap_projects_json = services.gh.get_file_json(bootstrap_repo, 'projects.json')
+  # Convert the project lists to a dictionary for easier lookup
+  bootstrap_projects = {}
+  for p in bootstrap_projects_json:
+    bootstrap_projects.update({p['github_repo_name']: p})
+  return bootstrap_projects
 
 
 # Repo functions - teams and branch protection
@@ -97,7 +110,7 @@ def get_repo_properties(repo, default_branch):
 #    2a. Then get ancillary stuff like Helm data, alertmanager data, security scan results etc
 
 
-def branch_independent_components(component, services):
+def process_independent_component(component, services):
   gh = services.gh
   log = services.log
   component_name = component['attributes']['name']
@@ -146,7 +159,7 @@ def branch_independent_components(component, services):
   return data, component_flags
 
 
-def branch_changed_components(component, repo, services):
+def process_changed_component(component, repo, services):
   gh = services.gh
   cc = services.cc
   log = services.log
@@ -264,10 +277,10 @@ def branch_changed_components(component, repo, services):
 # This is the core function that will be run in a thread for each component
 # It will:
 # - Get the latest commit from the SC
-# - Run the branch_independent_components function to get the data that can change
+# - Run the process_independent_component function to get the data that can change
 #   without a commit/environment change
 # - Compare the latest commit with the latest Github commit
-# - If they are different, run the branch_changed_components function
+# - If they are different, run the process_changed_component function
 # - Update the SC with the new data
 # - If there are any errors, set flags to indicate what went wrong
 # - Return the flags for the component
@@ -299,7 +312,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 
     log.info(f'Processing main branch independent components for: {component_name}')
     # Get the fields that aren't updated by a commit to main
-    independent_components, component_flags = branch_independent_components(
+    independent_components, component_flags = process_independent_component(
       component, services
     )
 
@@ -335,9 +348,9 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
     ):
       log.info(f'No main branch or environment changes for {component_name}')
     else:
-      # branch_changed_components function returns a dictionary of further changed fields
+      # process_changed_component function returns a dictionary of further changed fields
       log.info(f'Processing changed components for: {component_name}')
-      data.update(branch_changed_components(component, repo, services))
+      data.update(process_changed_component(component, repo, services))
 
       ###########################################################################################################
       # Processing the environment data - updating the Environments table with information from above
@@ -388,14 +401,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
 
   processed_components = []
 
-  # Get projects.json from bootstrap repo for namespaces data
-  bootstrap_repo = gh.get_org_repo('hmpps-project-bootstrap')
-  log.info(f'Getting projects.json from {bootstrap_repo.name}')
-  bootstrap_projects_json = services.gh.get_file_json(bootstrap_repo, 'projects.json')
-  # Convert the project lists to a dictionary for easier lookup
-  bootstrap_projects = {}
-  for p in bootstrap_projects_json:
-    bootstrap_projects.update({p['github_repo_name']: p})
+  bootstrap_projects = get_bootstrap_projects(services)
 
   components = sc.get_all_records(sc.components_get)
 
@@ -414,11 +420,16 @@ def batch_process_sc_components(services, max_threads, force_update=False):
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
     while cur_rate_limit.remaining < 500:
+      cur_rate_limit = services.gh.get_rate_limit()
       time_delta = cur_rate_limit.reset - datetime.now()
-      time_to_reset = abs(time_delta.total_seconds())
-
-      log.info(f'Backing off for {time_to_reset} second, to avoid github API limits.')
-      sleep(time_to_reset)
+      time_to_reset = time_delta.total_seconds()
+      if int(time_to_reset) > 0:
+        log.info(
+          f'Backing off for {time_to_reset} seconds, to avoid github API limits.'
+        )
+        sleep(
+          int(time_to_reset + 1)
+        )  # Add a second to avoid irritating fractional settings
 
     # Mini function to process the component and store the result
     # because the threading needs to target a function
@@ -451,58 +462,3 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     t.join()
 
   return processed_components
-
-
-###########################################################################################################
-# In case it's run as a standalone script
-###########################################################################################################
-def main():
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-  )
-  log = logging.getLogger(__name__)
-  # service catalogue parameters
-  sc_params = {
-    'sc_api_endpoint': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'sc_api_token': os.getenv('SERVICE_CATALOGUE_API_KEY'),
-    'sc_filter': os.getenv('SC_FILTER', ''),
-  }
-
-  # Github parameters
-  gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
-  }
-
-  circle_ci_params = {
-    'url': os.getenv(
-      'CIRCLECI_API_ENDPOINT',
-      'https://circleci.com/api/v1.1/project/gh/ministryofjustice/',
-    ),
-    'token': os.getenv('CIRCLECI_TOKEN'),
-  }
-  am_params = {
-    'alertmanager_endpoint': os.getenv(
-      'ALERTMANAGER_ENDPOINT',
-      'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status',
-    )
-  }
-
-  slack_params = {
-    'token': os.getenv('SLACK_BOT_TOKEN'),
-    'notification_channel': os.getenv('SLACK_NOTIFICATION_CHANNEL', ''),
-    'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
-  }
-
-  services = Services(
-    sc_params, gh_params, circle_ci_params, am_params, slack_params, log
-  )
-
-  log.info('Processing components...')
-  processed_components = batch_process_sc_components(services, max_threads)
-  log.info(f'Processed components: {processed_components}')
-
-
-if __name__ == '__main__':
-  main()

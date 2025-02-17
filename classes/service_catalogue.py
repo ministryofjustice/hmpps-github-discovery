@@ -37,7 +37,7 @@ class ServiceCatalogue:
     self.products_get = f'{self.products}?populate[0]=parent&populate[1]=children&populate[2]=product_set&populate[3]=service_area&populate[4]=team{self.product_filter}{pagination_page_size}{sort_filter}'
 
     self.github_teams = 'github-teams'
-    self.environments = 'environments'
+    self.environments = 'envs'
     self.connection_ok = self.test_connection()
 
   """
@@ -95,6 +95,33 @@ class ServiceCatalogue:
           raise Exception(
             f'Received non-200 response from Service Catalogue when reading all records from {table}: {r.status_code}'
           )
+
+    except Exception as e:
+      self.log.error(
+        f'Problem with Service Catalogue API while reading all records from {table}. {e}'
+      )
+    return json_data
+
+  """
+  Get a single record by filter parameter from the Service Catalogue
+  """
+
+  def get_one_record(self, table, label, parameter):
+    json_data = {}
+    try:
+      if '?' in table:  # add an extra parameter if there are already parameters
+        filter = f'&filters[{label}][$eq]={parameter}'
+      else:
+        filter = f'?filters[{label}][$eq]={parameter}'
+      r = requests.get(
+        f'{self.url}/v1/{table}{filter}', headers=self.api_headers, timeout=10
+      )
+      if r.status_code == 200:
+        json_data = r.json()['data'][0]
+      else:
+        raise Exception(
+          f'Received non-200 response from Service Catalogue when reading all records from {table}: {r.status_code}'
+        )
 
     except Exception as e:
       self.log.error(

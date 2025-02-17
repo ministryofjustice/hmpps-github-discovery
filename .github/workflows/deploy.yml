@@ -50,4 +50,7 @@ jobs:
           cert: ${{ secrets.KUBE_CERT }}
           cluster: ${{ secrets.KUBE_CLUSTER }}
           namespace: ${{ secrets.KUBE_NAMESPACE }}
-          token: ${{ secrets.KUBE_TOKEN }}    
+          token: ${{ secrets.KUBE_TOKEN }}
+          sc_filter: ${{ vars.SC_FILTER }}
+          slack_notify_channel: ${{ vars.SLACK_NOTIFY_CHANNEL }}
+          slack_alert_channel: ${{ vars.SLACK_ALERT_CHANNEL }}

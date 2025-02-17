@@ -75,7 +75,7 @@ def get_info_from_helm(component, repo, services):
           allow_list_key,
         )
         if ip_allow_list[helm_file]:
-          ip_allow_list_data['helm_file.name'] = ip_allow_list[helm_file]
+          ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
         # HEAT-223 End : Read and collate data for IPallowlist from all environment specific values.yaml files.
 
     # Helm chart dependencies
@@ -95,13 +95,17 @@ def get_info_from_helm(component, repo, services):
     # Default values for modsecurity and alert_severity_label - clear these out in case theres's nothing set
     mod_security_defaults = {}
     alert_severity_label_default = None
-
-    # Get the default values chart filename
+    ip_allow_list_default = {}
+    # Get the default values chart filename (including yml versions)
     helm_default_values = (
       gh.get_file_yaml(
         repo, f'{helm_dir}/{component["attributes"]["name"]}/values.yaml'
       )
+      or gh.get_file_yaml(
+        repo, f'{helm_dir}/{component["attributes"]["name"]}/values.yml'
+      )
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yaml')
+      or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')
       or {}
     )
 
@@ -169,21 +173,27 @@ def get_info_from_helm(component, repo, services):
         update_dict(helm_envs, env, {'monitor': False})
 
       # Get the values.yaml file for the environment
-      values = gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
+      values = gh.get_file_yaml(
+        repo, f'{helm_dir}/values-{env}.yaml'
+      ) or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
       if values:
         # generic service->ingress->host(s)
         if 'generic-service' in values:
           if ingress_dict := values['generic-service'].get('ingress'):
             if 'host' in ingress_dict:
-              update_dict(helm_envs, env, {'url': ingress_dict['host']})
+              update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})
             elif 'hosts' in ingress_dict:
-              update_dict(helm_envs, env, {'url': ingress_dict['hosts'][-1]})
+              update_dict(
+                helm_envs, env, {'url': f'https://{ingress_dict["hosts"][-1]}'}
+              )
         # ingress->host(s)
         elif 'ingress' in values:
           if 'host' in values['ingress']:
-            update_dict(helm_envs, env, {'url': values['ingress']['host']})
+            update_dict(helm_envs, env, {'url': f'https://{values["ingress"]["host"]}'})
           elif 'hosts' in values['ingress']:
-            update_dict(helm_envs, env, {'url': values['ingress']['hosts'][-1]})
+            update_dict(
+              helm_envs, env, {'url': f'https://{values["ingress"]["hosts"][-1]}'}
+            )
 
         # Container image alternative location
         if 'image' in values:
@@ -269,7 +279,7 @@ def get_info_from_helm(component, repo, services):
 
         # Health paths using the host name:
         if env_host := helm_envs[env].get('url'):
-          env_url = f'https://{env_host}'
+          env_url = f'{env_host}'
           health_path = '/health'
           info_path = '/info'
           # Hack for hmpps-auth non standard endpoints
@@ -298,22 +308,26 @@ def get_info_from_helm(component, repo, services):
                 {'include_in_subject_access_requests': False},
               )
 
-        try:
-          ip_allow_list_env = ip_allow_list_data[f'values-{env}.yaml']
+        if ip_allow_list_env := ip_allow_list_data.get(f'values-{env}.yaml'):
+          values_filename = f'values-{env}.yaml'
           allow_list_values = {
-            f'values-{env}.yaml': ip_allow_list_env,
+            f'{values_filename}': ip_allow_list_env,
+            'values.yaml-': ip_allow_list_default,
+          }
+        else:
+          allow_list_values = {
+            f'values-{env}.yaml': {},
             'values.yaml': ip_allow_list_default,
           }
-          update_dict(
-            helm_envs,
-            env,
-            {
-              'ip_allow_list': allow_list_values,
-              'ip_allow_list_enabled': utils.is_ipallowList_enabled(allow_list_values),
-            },
-          )
-        except KeyError:
-          pass
+
+        update_dict(
+          helm_envs,
+          env,
+          {
+            'ip_allow_list': allow_list_values,
+            'ip_allow_list_enabled': utils.is_ipallowList_enabled(allow_list_values),
+          },
+        )
 
     # Need to add the helm data to the main data list of environments
     if helm_envs:

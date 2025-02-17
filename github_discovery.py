@@ -382,7 +382,8 @@ def find_channel_by_severity_label(alert_severity_label):
         if slack_configs:
           return slack_configs[0].get('channel')
         else :
-          return ''
+          log.info(f"ERROR - No slack_configs found for alert severity label {alert_severity_label}, receiver {receiver_name}")
+          return 'NO_CHANNEL_FOUND'
 
 def process_components(data):
   log.info(f'Processing batch of {len(data)} components...')

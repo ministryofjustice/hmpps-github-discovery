@@ -3,7 +3,7 @@ import os
 import re
 import json
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timezone
 
 from classes.service_catalogue import ServiceCatalogue
 from classes.github import GithubSession
@@ -424,7 +424,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     )
     while cur_rate_limit.remaining < 500:
       cur_rate_limit = services.gh.get_rate_limit()
-      time_delta = cur_rate_limit.reset - datetime.now()
+      time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 0:
         log.info(

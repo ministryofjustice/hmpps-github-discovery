@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue
 
+Optional parameters:
+-f, --force: Force update of the service catalogue
+
 Required environment variables
 ------------------------------
 
@@ -117,7 +120,7 @@ def main():
 
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
-  if '-f' in os.sys.argv:
+  if '-f' in os.sys.argv or '--force' in os.sys.argv:
     force_update = True
 
   #### Create resources ####

@@ -376,6 +376,9 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
         log.debug(
           f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
         )
+      else:  # if there's no data, remove the environments key
+        if data.get('environments'):
+          del data['environments']
       # Add environment flags to the component flags, since they're related
       for each_flag in env_flags:
         component_flags[each_flag] = env_flags[each_flag]

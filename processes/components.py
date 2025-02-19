@@ -400,7 +400,6 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 def batch_process_sc_components(services, max_threads, force_update=False):
   log = services.log
   sc = services.sc
-  gh = services.gh
 
   processed_components = []
 

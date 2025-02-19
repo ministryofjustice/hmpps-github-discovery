@@ -5,6 +5,26 @@ from includes.utils import update_dict, env_mapping
 
 
 ################################################################################################
+# get_existing_alertmanager_config
+# This function will get the existing alertmanager config from the component
+# to prevent it being overwritten by blank entries in case the data is not
+# available due to missing alertmanager data
+def get_existing_alertmanager_config(component, env_name, services):
+  log = services.log
+  env_data = (
+    component['attributes']['environments'][env]
+    for env in component['attributes']['environments']
+    if env['name'] == env_name
+  )
+  alert_severity_label = env_data.get('alert_severity_label')
+  alerts_slack_channel = env_data.get('alerts_slack_channel')
+  log.debug(
+    f'Existing alertmanager config: {alert_severity_label}, {alerts_slack_channel}'
+  )
+  return alert_severity_label, alerts_slack_channel
+
+
+################################################################################################
 # get_environments
 # This function will get the environments associated with a component
 # from the bootstrap projects json file and Github repo environments

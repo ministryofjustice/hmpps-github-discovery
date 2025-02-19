@@ -236,6 +236,9 @@ def get_info_from_helm(component, repo, services):
               update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
 
         # Alert severity label
+        existing_alertmanager_config = am.get_existing_alertmanager_config(
+          component, env, services
+        )
         if 'generic-prometheus-alerts' in values:
           if alert_severity_label := values['generic-prometheus-alerts'].get(
             'alertSeverity'
@@ -253,6 +256,8 @@ def get_info_from_helm(component, repo, services):
               env,
               {'alerts_slack_channel': alerts_slack_channel},
             )
+          else:  # revert to previous saved values to avoid blanking it out
+            update_dict(helm_envs, env, existing_alertmanager_config)
         elif alert_severity_label_default:
           log.warning(
             f'Warning: Alert severity label not found for {component_name} in {env} - attempting to set default'
@@ -270,12 +275,13 @@ def get_info_from_helm(component, repo, services):
               env,
               {'alerts_slack_channel': alerts_slack_channel},
             )
+          else:  # revert to previous saved values to avoid blanking it out
+            update_dict(helm_envs, env, existing_alertmanager_config)
         else:
           log.warning(
             f'WARNING - Default alert severity label not found for {component_name}'
           )
-          update_dict(helm_envs, env, {'alert_severity_label': None})
-          update_dict(helm_envs, env, {'alerts_slack_channel': None})
+          update_dict(helm_envs, env, existing_alertmanager_config)
 
         # Health paths using the host name:
         if env_host := helm_envs[env].get('url'):

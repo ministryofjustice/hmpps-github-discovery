@@ -431,7 +431,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
           f'Backing off for {time_to_reset} seconds, to avoid github API limits.'
         )
         sleep(
-          int(time_to_reset + 1)
+          int(time_to_reset + 10)
         )  # Add a second to avoid irritating fractional settings
 
     # Mini function to process the component and store the result

@@ -4,9 +4,9 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: hmpps-github-discovery-teams
+  name: hmpps-github-discovery
 spec:
-  schedule: "{{ .Values.cron.github_teams_discovery }}"
+  schedule: "{{ .Values.cron.github_discovery_full }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600
@@ -18,9 +18,9 @@ spec:
       template:
         spec:
           containers:
-            - name: github-teams-discovery
+            - name: github-discovery
               image: ghcr.io/ministryofjustice/hmpps-github-discovery
-              command: ["python", "-u", "/app/github_teams_discovery.py"]
+              command: ["python", "-u", "/app/github_discovery.py", '-f']
               env:
                 - name: PATH
                   value: "/home/appuser/.local:/usr/local/bin:$PATH"

@@ -1,18 +1,16 @@
 ---
 # Per environment values which override defaults in hmpps-github-discovery/values.yaml
 
-generic-service:
-  env:
-    REFRESH_INTERVAL_HOURS: "11"
-    LOG_LEVEL: debug
-
-  namespace_secrets:
-    hmpps-github-discovery:
-      SC_FILTER: "SC_FILTER"
-
 generic-prometheus-alerts:
-  alertSeverity: hmpps-sre-alerts-dev
+  alertSeverity: hmpps-sre-alerts-nonprod
 
-cron:
-  github_discovery_schedule: "20 01 * * *"
-  github_teams_discovery_schedule: "45 01 * * *"
+discoveryCronJob:
+  enabled: false
+  env:
+    LOG_LEVEL: debug
+    SC_FILTER: "SC_FILTER"
+
+# cron:
+#   github_teams_discovery: "20 2 * * *"
+#   github_discovery: "45 */6 * * *"
+#   github_discovery_full: "45 2 * * *"

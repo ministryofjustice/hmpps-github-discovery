@@ -94,7 +94,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags, log):
 def get_repo_properties(repo, default_branch):
   return {
     'language': repo.language,
-    'description': f'{"[ARCHIVED] " if repo.archived else ""}{repo.description}',
+    'description': f'{"[ARCHIVED] " if repo.archived and "ARCHIVED" not in repo.description else ""}{repo.description}',
     'github_project_visibility': repo.visibility,
     'github_repo': repo.name,
     'latest_commit': {
@@ -425,9 +425,9 @@ def batch_process_sc_components(services, max_threads, force_update=False):
       cur_rate_limit = services.gh.get_rate_limit()
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
-      if int(time_to_reset) > 0:
+      if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:
         log.info(
-          f'Backing off for {time_to_reset} seconds, to avoid github API limits.'
+          f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )
         sleep(
           int(time_to_reset + 10)

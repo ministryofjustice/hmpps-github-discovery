@@ -101,9 +101,7 @@ def main():
 
   services = Services(sc_params, gh_params, am_params, cc_params, log)
 
-  component = services.sc.get_one_record(
-    services.sc.components_get, 'name', component_name
-  )
+  component = services.sc.get_record(services.sc.components_get, 'name', component_name)
   log.debug(f'Component: {component}')
   if component:
     log.info(f'Processing component {component_name}...')

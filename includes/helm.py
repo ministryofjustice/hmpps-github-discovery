@@ -238,10 +238,10 @@ def get_info_from_helm(component, repo, services):
         # Alert severity label
         existing_alertmanager_config = {
           'alert_severity_label': get_existing_env_config(
-            component, env.get('name'), 'alert_severity_label', services
+            component, env, 'alert_severity_label', services
           ),
           'alerts_slack_channel': get_existing_env_config(
-            component, env.get('name'), 'alerts_slack_channel', services
+            component, env, 'alerts_slack_channel', services
           ),
         }
 

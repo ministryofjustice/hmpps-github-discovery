@@ -92,11 +92,11 @@ def get_environments(component, repo, bootstrap_projects, services):
       # there's some data that is not populated by Github Discovery, for example
       # the build_image_tag, so loop through the environments and get them
       for env in envs:
-        log.debug(f'Updating non-discovery fields for environment {env.get("name")}')
+        log.debug(f'Updating non-discovery fields for environment {env}')
         if build_image_tag := get_existing_env_config(
-          component, env.get('name'), 'build_image_tag', services
+          component, env, 'build_image_tag', services
         ):
-          envs[env['name']]['build_image_tag'] = build_image_tag
+          envs[env]['build_image_tag'] = build_image_tag
           log.debug(
             f'Added build_image_tag {build_image_tag} to environment {env["name"]}'
           )

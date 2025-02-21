@@ -2,37 +2,7 @@
 from classes.service_catalogue import ServiceCatalogue
 import os
 import logging
-
-
-def compare_attributes(prod_attributes, dev_attributes, log=None):
-  if log is None:
-    log = logging.getLogger(__name__)
-  differences = []
-
-  # Get the union of keys from both dictionaries
-  all_keys = set(prod_attributes.keys()).union(set(dev_attributes.keys()))
-
-  for key in all_keys:
-    prod_value = prod_attributes.get(key)
-    dev_value = dev_attributes.get(key)
-
-    if isinstance(prod_value, dict):
-      if prod_value.get('id'):
-        prod_value.pop('id')
-    if isinstance(dev_value, dict):
-      if dev_value.get('id'):
-        dev_value.pop('id')
-
-    ignored_keys = {
-      'product',
-      'updatedAt',
-      'veracode_results_summary',
-      'trivy_scan_summary',
-    }
-    if prod_value != dev_value and key not in ignored_keys:
-      differences.append({'key': key, 'prod_value': prod_value, 'dev_value': dev_value})
-
-  return differences
+import json
 
 
 def main():
@@ -55,56 +25,61 @@ def main():
   sc_prod = ServiceCatalogue(sc_prod_params)
   sc_dev = ServiceCatalogue(sc_dev_params)
 
-  prod_data = sc_prod.get_all_records(sc_prod.components_get)
-  dev_data = sc_dev.get_all_records(sc_dev.components_get)
+  prod_components = sc_prod.get_all_records(sc_prod.components_get)
+  dev_components = sc_dev.get_all_records(sc_dev.components_get)
+  dev_environments = sc_dev.get_all_records(sc_dev.environments)
 
-  for component in prod_data:
+  for component in prod_components:
+    log.info(f'Getting environment data for {component.get("attributes").get("name")}')
     prod_attributes = component['attributes']
-    dev_attributes = [
-      x['attributes']
-      for x in dev_data
-      if x['attributes']['name'] == prod_attributes['name']
-    ][0]
-    log.info(f'{prod_attributes["name"]}')
-    log.info('=======================')
-    differences = compare_attributes(prod_attributes, dev_attributes)
-    for diff in differences:
-      if diff['key'] == 'environments':
-        prod_env_names = {env['name'] for env in diff['prod_value']}
-        dev_env_names = {env['name'] for env in diff['dev_value']}
-        all_env_names = prod_env_names.union(dev_env_names)
-
-        for env_name in all_env_names:
-          prod_env = next(
-            (env for env in diff['prod_value'] if env['name'] == env_name), None
+    if environments := prod_attributes.get('environments'):
+      for env in environments:
+        if build_image_tag := env.get('build_image_tag'):
+          log.info(
+            f'Copying build image tag {build_image_tag} from prod to dev for {component.get("attributes").get("name")}'
           )
-          dev_env = next(
-            (env for env in diff['dev_value'] if env['name'] == env_name), None
+          dev_component = next(
+            (
+              c
+              for c in dev_components
+              if c['attributes']['name'] == component['attributes']['name']
+            ),
+            None,
           )
-          for key in ['build_image_tag', 'id']:
-            if prod_env:
-              prod_env.pop(key, None)
-            if dev_env:
-              dev_env.pop(key, None)
-
-          # Hack for different IP allowlist types
-          if prod_env and dev_env:
-            if not prod_env.get('ip_allow_list'):
-              prod_env['ip_allow_list'] = dev_env['ip_allow_list']
-            if not prod_env.get('ip_allow_list_enabled') and not dev_env.get(
-              'ip_allow_list_enabled'
-            ):
-              prod_env['ip_allow_list_enabled'] = dev_env['ip_allow_list_enabled']
-
-          if prod_env != dev_env:
-            log.info(f'    Environment {env_name}:')
-            log.info(f'      PROD: {prod_env}')
-            log.info(f'      DEV: {dev_env}')
-      else:
-        log.info(
-          f'  {diff["key"]}: PROD: {diff["prod_value"]} DEV: {diff["dev_value"]}'
-        )
-      log.info('\n')
+          if dev_component:
+            dev_attributes = dev_component.get('attributes')
+            # Do the components first
+            if dev_environments := dev_attributes.get('environments'):
+              for dev_env in dev_environments:
+                if dev_env.get('name') == env.get('name'):
+                  dev_env['build_image_tag'] = build_image_tag
+                  log.info(f'Updated build image tag for {dev_env.get("name")}')
+              log.debug(
+                f'component environment data is now: {json.dumps(dev_environments, indent=2)}'
+              )
+              log.info('updating dev component')
+              sc_dev.update(
+                sc_dev.environments,
+                dev_component['id'],
+                {'environments': dev_environments},
+              )
+            # Then do the environment tables
+            if dev_env_links := dev_attributes.get('envs').get('data'):
+              for dev_env in dev_env_links:
+                if dev_env_data := sc_dev.get_record(
+                  sc_dev.environments, 'id', dev_env['id']
+                ):
+                  dev_env_data['build_image_tag'] = build_image_tag
+                  log.debug(
+                    f'envs environment data for {dev_env_data.get("attributes").get("name")} is now: {json.dumps(dev_env_data, indent=2)}'
+                  )
+                  log.info('updating dev env')
+                  sc_dev.update(
+                    sc_dev.environments,
+                    dev_env_data['id'],
+                    {'build_image_tag': build_image_tag},
+                  )
+        log.info('\n')
 
 
 if __name__ == '__main__':

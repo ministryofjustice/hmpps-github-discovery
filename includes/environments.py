@@ -1,7 +1,7 @@
 # Environment specific functions
 # This will prepare data to be updated in the environment table
 # as well as returning data to be added to the component table (to be deprecated)
-from includes.utils import update_dict, env_mapping
+from includes.utils import update_dict, env_mapping, get_existing_env_config
 
 
 ################################################################################################
@@ -89,6 +89,17 @@ def get_environments(component, repo, bootstrap_projects, services):
             },
           )
     if envs:
+      # there's some data that is not populated by Github Discovery, for example
+      # the build_image_tag, so loop through the environments and get them
+      for env in envs:
+        log.debug(f'Updating non-discovery fields for environment {env.get("name")}')
+        if build_image_tag := get_existing_env_config(
+          component, env.get('name'), 'build_image_tag', services
+        ):
+          envs[env['name']]['build_image_tag'] = build_image_tag
+          log.debug(
+            f'Added build_image_tag {build_image_tag} to environment {env["name"]}'
+          )
       log.info(
         f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
       )

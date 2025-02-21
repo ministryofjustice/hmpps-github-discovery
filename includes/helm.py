@@ -1,6 +1,6 @@
 import re
 import includes.utils as utils
-from includes.utils import update_dict, env_mapping
+from includes.utils import update_dict, env_mapping, get_existing_env_config
 
 
 def get_helm_dirs(repo, component, log):
@@ -236,9 +236,15 @@ def get_info_from_helm(component, repo, services):
               update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
 
         # Alert severity label
-        existing_alertmanager_config = am.get_existing_alertmanager_config(
-          component, env, services
-        )
+        existing_alertmanager_config = {
+          'alert_severity_label': get_existing_env_config(
+            component, env.get('name'), 'alert_severity_label', services
+          ),
+          'alerts_slack_channel': get_existing_env_config(
+            component, env.get('name'), 'alerts_slack_channel', services
+          ),
+        }
+
         if 'generic-prometheus-alerts' in values:
           if alert_severity_label := values['generic-prometheus-alerts'].get(
             'alertSeverity'

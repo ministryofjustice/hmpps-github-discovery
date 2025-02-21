@@ -59,28 +59,3 @@ class AlertmanagerData:
             return slack_configs[0].get('channel')
           else:
             return ''
-
-  ################################################################################################
-  # get_existing_alertmanager_config
-  # This function will get the existing alertmanager config from the component
-  # to prevent it being overwritten by blank entries in case the data is not
-  # available due to missing alertmanager data
-  def get_existing_alertmanager_config(self, component, env_name, services):
-    am_data = {}
-    log = services.log
-    if envs := component['attributes'].get('environments'):
-      env_data = next(
-        (env for env in envs if env.get('name') == env_name),
-        {},
-      )
-      alert_severity_label = env_data.get('alert_severity_label')
-      alerts_slack_channel = env_data.get('alerts_slack_channel')
-      log.debug(
-        f'Existing alertmanager config: {alert_severity_label}, {alerts_slack_channel}'
-      )
-      am_data = {
-        'alert_severity_label': alert_severity_label,
-        'alerts_slack_channel': alerts_slack_channel,
-      }
-
-    return am_data

@@ -139,3 +139,25 @@ def get_dockerfile_data(dockerfile_contents, log):
   except Exception as e:
     log.error(f'Error parent/base image from Dockerfile: {e}')
   return docker_data
+
+
+################################################################################################
+# get_existing_env_config
+# This function will get the config value from the component environment
+# to prevent it being overwritten by blank entries
+def get_existing_env_config(component, env_name, config, services):
+  log = services.log
+  if envs := component['attributes'].get('environments'):
+    env_data = next(
+      (env for env in envs if env.get('name') == env_name),
+      {},
+    )
+    if config_value := env_data.get(config):
+      log.debug(f'Existing config: {config}, {config_value}')
+    else:
+      log.debug(f'No existing value found for {config}')
+
+  return config_value
+
+
+################################################################################################

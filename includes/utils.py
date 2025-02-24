@@ -146,6 +146,7 @@ def get_dockerfile_data(dockerfile_contents, log):
 # This function will get the config value from the component environment
 # to prevent it being overwritten by blank entries
 def get_existing_env_config(component, env_name, config, services):
+  config_value = None
   log = services.log
   if envs := component['attributes'].get('environments'):
     env_data = next(

@@ -97,9 +97,7 @@ def get_environments(component, repo, bootstrap_projects, services):
           component, env, 'build_image_tag', services
         ):
           envs[env]['build_image_tag'] = build_image_tag
-          log.debug(
-            f'Added build_image_tag {build_image_tag} to environment {env["name"]}'
-          )
+          log.debug(f'Added build_image_tag {build_image_tag} to environment {env}')
       log.info(
         f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
       )

@@ -37,6 +37,7 @@ class CircleCI:
     output_json_content = {}
     try:
       response = requests.get(project_url, headers=self.headers, timeout=30)
+      artifacts_url = None
       for build_info in response.json():
         workflows = build_info.get('workflows', {})
         workflow_name = workflows.get('workflow_name', {})
@@ -45,29 +46,31 @@ class CircleCI:
           latest_build_num = build_info['build_num']
           artifacts_url = f'{project_url}/{latest_build_num}/artifacts'
           break
-      self.log.debug('Getting artifact URLs from CircleCI')
-      response = requests.get(artifacts_url, headers=self.headers, timeout=30)
 
-      artifact_urls = response.json()
-      output_json_url = next(
-        (
-          artifact['url']
-          for artifact in artifact_urls
-          if 'results.json' in artifact['url']
-        ),
-        None,
-      )
-      if output_json_url:
-        self.log.debug('Fetching artifacts from CircleCI data')
-        # do not use DEBUG logging for this request
-        logging.getLogger('urllib3').setLevel(logging.INFO)
-        response = requests.get(output_json_url, headers=self.headers, timeout=30)
-        logging.getLogger('urllib3').setLevel(self.log_level)
-        output_json_content = response.json()
-      return output_json_content
+      if artifacts_url:
+        self.log.debug('Getting artifact URLs from CircleCI')
+        response = requests.get(artifacts_url, headers=self.headers, timeout=30)
+
+        artifact_urls = response.json()
+        if output_json_url := next(
+          (
+            artifact['url']
+            for artifact in artifact_urls
+            if 'results.json' in artifact['url']
+          ),
+          None,
+        ):
+          self.log.debug('Fetching artifacts from CircleCI data')
+          # do not use DEBUG logging for this request
+          logging.getLogger('urllib3').setLevel(logging.INFO)
+          response = requests.get(output_json_url, headers=self.headers, timeout=30)
+          logging.getLogger('urllib3').setLevel(self.log_level)
+          output_json_content = response.json()
 
     except Exception as e:
       self.log.debug(f'Error: {e}')
+
+    return output_json_content
 
   def get_circleci_orb_version(self, circleci_config):
     versions_data = {}

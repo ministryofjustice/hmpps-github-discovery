@@ -20,7 +20,7 @@ spec:
           containers:
             - name: github-discovery
               image: ghcr.io/ministryofjustice/hmpps-github-discovery
-              command: ["python", "-u", "/app/github_discovery.py", '-f']
+              command: ["python", "-u", "/app/github_discovery.py", "-f"]
               env:
                 - name: PATH
                   value: "/home/appuser/.local:/usr/local/bin:$PATH"

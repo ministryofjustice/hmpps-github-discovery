@@ -21,7 +21,7 @@ class CircleCI:
   def test_connection(self):
     try:
       response = requests.get(
-        f'{self.url}/hmpps-project-bootstrap', headers=self.headers, timeout=10
+        f'{self.url}hmpps-project-bootstrap', headers=self.headers, timeout=10
       )
       response.raise_for_status()
       self.log.info(f'CircleCI API: {response.status_code}')

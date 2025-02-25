@@ -1,67 +1,12 @@
 ---
-generic-service:
-  nameOverride: hmpps-github-discovery
-
-  replicaCount: 1
-
-  image:
-    repository: ghcr.io/ministryofjustice/hmpps-github-discovery
-    tag: xxx    # override at deployment time
-    port: 8080
-
-  ingress:
-    enabled: false
-
-  # Due to a bug cant disable/override the sub chart.
-  # https://github.com/helm/helm/pull/12162
-  # Have implemented a basic http health endpoint, until this bug is fixed.
-  #livenessProbe: null
-  #readinessProbe: null
-
-  livenessProbe:
-    httpGet:
-      path: /ping
-      port: 8080
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 5
-
-  readinessProbe:
-    httpGet:
-      path: /ping
-      port: 8080
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 5
-
-  # Environment variables to load into the deployment
-  env:
-    REFRESH_INTERVAL: "7200"
-    LOG_LEVEL: debug
-
-  # Pre-existing kubernetes secrets to load as environment variables in the deployment.
-  # namespace_secrets:
-  #   [name of kubernetes secret]:
-  #     [name of environment variable as seen by app]: [key of kubernetes secret to load]
-
-  namespace_secrets:
-    hmpps-github-discovery:
-      SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"
-      SERVICE_CATALOGUE_API_KEY: "SERVICE_CATALOGUE_API_KEY"
-      GITHUB_APP_ID: "GITHUB_APP_ID"
-      GITHUB_APP_INSTALLATION_ID: "GITHUB_APP_INSTALLATION_ID"
-      GITHUB_APP_PRIVATE_KEY: "GITHUB_APP_PRIVATE_KEY"
-      CIRCLECI_TOKEN: "CIRCLECI_TOKEN"
-      CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
-      SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
-
 generic-prometheus-alerts:
   targetApplication: hmpps-github-discovery
 
 discoveryCronJob:
-  enabled: true
+  image:
+    repository: ghcr.io/ministryofjustice/hmpps-github-discovery
+    port: 8080
+    tag: xxx # override at deployment time
   namespace_secrets:
     hmpps-github-discovery:
       SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"
@@ -73,5 +18,4 @@ discoveryCronJob:
       CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
       SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
       
-cron:
-  github_teams_discovery_schedule: "20 */6 * * *"
+

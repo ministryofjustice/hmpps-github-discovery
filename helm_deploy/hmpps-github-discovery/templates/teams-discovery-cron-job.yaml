@@ -4,11 +4,9 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: github-teams-discovery
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
+  name: hmpps-github-discovery-teams
 spec:
-  schedule: "20 */6 * * *"
+  schedule: "{{ .Values.cron.github_teams_discovery }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600

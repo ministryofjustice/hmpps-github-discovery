@@ -62,24 +62,38 @@ class Services:
 
 
 # def create_summary(services, processed_components, processed_products, processed_teams):
-def create_summary(services, processed_components, processed_products):
+def create_summary(
+  services, processed_components, processed_products, force_update=False
+):
   # Summarize the items based on the attributes
 
-  def summarize_processed_components(items, item_type, attributes):
-    summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
-    summary += f'{len(items)} {item_type.lower()}(s) processed\n'
-    for attr, desc in attributes.items():
-      filtered_items = [item for item in items if item[1].get(attr)]
-      summary += f'- {len(filtered_items)} {desc}\n'
-      if filtered_items and 'update' not in desc and 'add' not in desc:
-        for item in filtered_items:
-          summary += f'  {item[0]}\n'
-        summary += '\n'
+  def summarize_processed_components(items, item_type, attributes, force_update=False):
+    if force_update:
+      summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
+      summary += f'{len(items)} {item_type.lower()}(s) processed\n'
+      for attr, desc in attributes.items():
+        filtered_items = [item for item in items if item[1].get(attr)]
+        summary += f'- {len(filtered_items)} {desc}\n'
+        if filtered_items and 'update' not in desc and 'add' not in desc:
+          for item in filtered_items:
+            summary += f'  {item[0]}\n'
+          summary += '\n'
+    else:
+      summary = f'{len(items)} {item_type.lower()}(s) processed\n'
+      for attr, desc in attributes.items():
+        filtered_items = [item for item in items if item[1].get(attr)]
+        if filtered_items and 'update' not in desc and 'add' not in desc:
+          for item in filtered_items:
+            summary += f'  {item[0]}\n'
+          summary += '\n'
     return summary
 
-  def summarize_processed_products(qty, item_type):
-    summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
-    summary += f'{qty} {item_type.lower()}(s) processed\n'
+  def summarize_processed_products(qty, item_type, force_update=False):
+    if force_update:
+      summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
+      summary += f'{qty} {item_type.lower()}(s) processed\n'
+    else:
+      summary + f'{qty} {item_type.lower()}(s) processed\n'
     return summary
 
   component_attributes = {
@@ -101,11 +115,11 @@ def create_summary(services, processed_components, processed_products):
   #   'team_added': 'team(s) added',
   #   'team_failure': 'teams that encountered errors',
   # }
-
-  summary = summarize_processed_components(
-    processed_components, 'component', component_attributes
+  summary = 'fGithub Discovery completed OK {("full update" if force_update else "")}\n'
+  summary += summarize_processed_components(
+    processed_components, 'component', component_attributes, force_update
   )
-  summary += summarize_processed_products(processed_products, 'product')
+  summary += summarize_processed_products(processed_products, 'product', force_update)
   # summary += summarize_processed_items(processed_teams, 'team', team_attributes)
 
   services.slack.notify(summary)

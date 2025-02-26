@@ -244,52 +244,64 @@ def get_info_from_helm(component, repo, services):
             component, env, 'alerts_slack_channel', services
           ),
         }
+        alertmanager_config = {
+          'alert_severity_label': None,
+          'alerts_slack_channel': None,
+        }
 
         if 'generic-prometheus-alerts' in values:
+          log.debug(
+            f'generic-prometheus alerts found in values: {values["generic-prometheus-alerts"]}'
+          )
           if alert_severity_label := values['generic-prometheus-alerts'].get(
             'alertSeverity'
           ):
-            update_dict(
-              helm_envs,
-              env,
-              {'alert_severity_label': alert_severity_label},
-            )
+            log.debug(f'updating {env} alert_severity_label to {alert_severity_label}')
+            alertmanager_config['alert_severity_label'] = alert_severity_label
+
           if alerts_slack_channel := am.find_channel_by_severity_label(
             alert_severity_label
           ):
-            update_dict(
-              helm_envs,
-              env,
-              {'alerts_slack_channel': alerts_slack_channel},
+            alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
+            log.debug(f'updating {env} alerts_slack_channel to {alerts_slack_channel}')
+          else:
+            log.warning(
+              f'Alerts slack channel not found for {alert_severity_label} in {env} - attempting to set default'
             )
-          else:  # revert to previous saved values to avoid blanking it out
-            update_dict(helm_envs, env, existing_alertmanager_config)
+
+        # fallback to a default severity label
         elif alert_severity_label_default:
           log.warning(
-            f'Warning: Alert severity label not found for {component_name} in {env} - attempting to set default'
+            f'Alert severity label not found for {component_name} in {env} - attempting to set default'
           )
-          update_dict(
-            helm_envs,
-            env,
-            {'alert_severity_label': alert_severity_label_default},
-          )
+          alertmanager_config['alert_severity_label'] = alert_severity_label_default
           if alerts_slack_channel := am.find_channel_by_severity_label(
             alert_severity_label_default
           ):
-            update_dict(
-              helm_envs,
-              env,
-              {'alerts_slack_channel': alerts_slack_channel},
-            )
-          else:  # revert to previous saved values to avoid blanking it out
-            update_dict(helm_envs, env, existing_alertmanager_config)
+            alertmanager_config['alert_severity_label'] = alerts_slack_channel
+
+        # not even a default severity label found
         else:
           log.warning(
             f'WARNING - Default alert severity label not found for {component_name}'
           )
-          update_dict(helm_envs, env, existing_alertmanager_config)
+
+        # If any data is missing, revert to the previous value
+        if not alertmanager_config.get('alert_severity_label'):
+          alertmanager_config['alert_severity_label'] = (
+            existing_alertmanager_config.get('alert_severity_label')
+          )
+        if not alertmanager_config.get('alerts_slack_channel'):
+          alertmanager_config['alerts_slack_channel'] = (
+            existing_alertmanager_config.get('alerts_slack_channel')
+          )
+
+          # Update the helm environment data with the outcome of this check
+        update_dict(helm_envs, env, alertmanager_config)
 
         # Health paths using the host name:
+        health_path = None
+        info_path = None
         if env_host := helm_envs[env].get('url'):
           env_url = f'{env_host}'
           health_path = '/health'
@@ -319,6 +331,9 @@ def get_info_from_helm(component, repo, services):
                 env,
                 {'include_in_subject_access_requests': False},
               )
+        # Modification to set monitoring to False if no health path is found
+        if not health_path:
+          update_dict(helm_envs, env, {'monitor': False})
 
         if ip_allow_list_env := ip_allow_list_data.get(f'values-{env}.yaml'):
           values_filename = f'values-{env}.yaml'

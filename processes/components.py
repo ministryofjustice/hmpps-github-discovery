@@ -318,20 +318,9 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 
     data.update(independent_components)
 
-    # Logic to check if the branch specific components need to be processed
-    current_envs = helm.get_envs_from_helm(component, repo, services)
-
-    log.debug(f'Current environments for {component_name}: {current_envs}')
-    # Get the environments from the service catalogue
-    sc_envs = component['attributes']['environments']
-    log.debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
-
-    # Check if the environments have changed
-    if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
-      component_flags['env_changed'] = True
-      log.info(f'Environments have changed for {component_name}')
-    else:
-      component_flags['env_changed'] = False
+    component_flags['env_changed'] = environments.check_env_change(
+      component, repo, bootstrap_projects, services
+    )
 
     # Check if the commit has changed:
     if sc_latest_commit and sc_latest_commit != gh_latest_commit:

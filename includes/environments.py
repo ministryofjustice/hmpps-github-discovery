@@ -2,6 +2,7 @@
 # This will prepare data to be updated in the environment table
 # as well as returning data to be added to the component table (to be deprecated)
 from includes.utils import update_dict, env_mapping, get_existing_env_config
+from includes import helm
 
 
 ################################################################################################
@@ -192,3 +193,31 @@ def process_environments(
 
   log.debug(f'Component environment data to be added: {component_env_data}')
   return component_env_data, env_flags
+
+
+# Logic to check if the branch specific components need to be processed
+def check_env_change(component, repo, bootstrap_projects, services):
+  env_changed = False
+  log = services.log
+  component_name = component['attributes']['name']
+  current_envs = []
+  # Current envs are the combination of helm environments and the bootstrap/Github environments
+  config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
+  helm_envs = helm.get_envs_from_helm(component, repo, services)
+
+  # get the environments that are common to both the helm and Github/Bootstrap
+  for helm_env in helm_envs:
+    if helm_env in config_envs:
+      current_envs.append(helm_env)
+
+  log.debug(f'Current environments for {component_name}: {current_envs}')
+  # Get the environments from the service catalogue
+  sc_envs = component['attributes']['environments']
+  log.debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
+
+  # Check if the environments have changed
+  if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
+    env_changed = True
+    log.info(f'Environments have changed for {component_name}')
+
+  return env_changed

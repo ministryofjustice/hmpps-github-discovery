@@ -93,7 +93,7 @@ def create_summary(
       summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
       summary += f'{qty} {item_type.lower()}(s) processed\n'
     else:
-      summary + f'{qty} {item_type.lower()}(s) processed\n'
+      summary = f'{qty} {item_type.lower()}(s) processed\n'
     return summary
 
   component_attributes = {

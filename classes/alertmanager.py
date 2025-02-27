@@ -24,6 +24,9 @@ class AlertmanagerData:
         formatted_config_data = config_data['original'].replace('\\n', '\n')
         yaml_config_data = yaml.safe_load(formatted_config_data)
         self.json_config_data = json.loads(json.dumps(yaml_config_data))
+        # self.log.debug(
+        #   f'Alertmanager data:\n=================\n\n{json.dumps(self.json_config_data, indent=2)}\n\n'
+        # )
         self.log.info('Successfully fetched Alertmanager data')
       else:
         self.log.error(f'Error: {response.status_code}')
@@ -45,17 +48,24 @@ class AlertmanagerData:
     receiver_name = ''
     if self.json_config_data is None:
       return ''
-
+    self.log.debug(f'Looking for a route for {alert_severity_label}')
     for route in self.json_config_data['route']['routes']:
       if route['match'].get('severity') == alert_severity_label:
         receiver_name = route['receiver']
+        self.log.debug(
+          f'Found route for {alert_severity_label} - receiver_name: {receiver_name}'
+        )
         break
     # Find the channel for the receiver name
     if receiver_name:
       for receiver in self.json_config_data['receivers']:
         if receiver['name'] == receiver_name:
+          self.log.debug(f'Found receiver for {receiver_name}')
           slack_configs = receiver.get('slack_configs', [])
           if slack_configs:
+            self.log.info(
+              f'Found slack_channel for {receiver_name} - {slack_configs[0].get("channel")}'
+            )
             return slack_configs[0].get('channel')
           else:
             return ''

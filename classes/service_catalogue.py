@@ -1,5 +1,6 @@
 import requests
 import logging
+import json
 
 
 class ServiceCatalogue:
@@ -136,7 +137,7 @@ class ServiceCatalogue:
   def update(self, table, element_id, data):
     success = False
     try:
-      self.log.debug(data)
+      self.log.debug(f'data to be uploaded: {json.dumps(data, indent=2)}')
       x = requests.put(
         f'{self.url}/v1/{table}/{element_id}',
         headers=self.api_headers,

@@ -173,9 +173,12 @@ def get_info_from_helm(component, repo, services):
         update_dict(helm_envs, env, {'monitor': False})
 
       # Get the values.yaml file for the environment
-      values = gh.get_file_yaml(
-        repo, f'{helm_dir}/values-{env}.yaml'
-      ) or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
+      values = (
+        gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
+        or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
+        or None
+      )
+      log.debug(f'helm values for {component_name} in {env}: {values}')
       if values:
         # generic service->ingress->host(s)
         if 'generic-service' in values:
@@ -249,29 +252,31 @@ def get_info_from_helm(component, repo, services):
           'alerts_slack_channel': None,
         }
 
-        if 'generic-prometheus-alerts' in values:
+        if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
           log.debug(
-            f'generic-prometheus alerts found in values: {values["generic-prometheus-alerts"]}'
+            f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
           )
-          if alert_severity_label := values['generic-prometheus-alerts'].get(
-            'alertSeverity'
-          ):
+          if alert_severity_label := generic_prometheus_alerts.get('alertSeverity'):
             log.debug(f'updating {env} alert_severity_label to {alert_severity_label}')
             alertmanager_config['alert_severity_label'] = alert_severity_label
-
-          if alerts_slack_channel := am.find_channel_by_severity_label(
-            alert_severity_label
-          ):
-            alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
-            log.debug(f'updating {env} alerts_slack_channel to {alerts_slack_channel}')
-          else:
-            log.warning(
-              f'Alerts slack channel not found for {alert_severity_label} in {env} - attempting to set default'
-            )
-
+            # Only look for the slack channel if the alert_severity_label tehre
+            if alerts_slack_channel := am.find_channel_by_severity_label(
+              alert_severity_label
+            ):
+              alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
+              log.debug(
+                f'updating {env} alerts_slack_channel to {alerts_slack_channel}'
+              )
+            else:
+              log.warning(
+                f'Alerts slack channel not found for {alert_severity_label} in {env} values file'
+              )
         # fallback to a default severity label
-        elif alert_severity_label_default:
-          log.warning(
+        if (
+          not alertmanager_config['alert_severity_label']
+          and alert_severity_label_default
+        ):
+          log.info(
             f'Alert severity label not found for {component_name} in {env} - attempting to set default'
           )
           alertmanager_config['alert_severity_label'] = alert_severity_label_default

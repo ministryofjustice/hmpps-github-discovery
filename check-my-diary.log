@@ -1,0 +1,387 @@
+[2025-02-28 17:00:03,171] INFO MainThread Testing connection to the Service Catalogue - https://service-catalogue-dev.hmpps.service.justice.gov.uk
+[2025-02-28 17:00:03,177] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:03,307] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "HEAD / HTTP/1.1" 200 0
+[2025-02-28 17:00:03,308] INFO MainThread Successfully connected to the Service Catalogue - https://service-catalogue-dev.hmpps.service.justice.gov.uk. 200
+[2025-02-28 17:00:03,391] DEBUG MainThread Starting new HTTPS connection (1): api.github.com:443
+[2025-02-28 17:00:03,613] DEBUG MainThread https://api.github.com:443 "POST /app/installations/18640335/access_tokens HTTP/1.1" 201 400
+[2025-02-28 17:00:03,617] DEBUG MainThread Starting new HTTPS connection (1): api.github.com:443
+[2025-02-28 17:00:03,787] DEBUG MainThread https://api.github.com:443 "GET /rate_limit HTTP/1.1" 200 None
+[2025-02-28 17:00:03,788] INFO MainThread Github API: RateLimit(core=Rate(reset=2025-02-28 17:38:09+00:00, remaining=14825, limit=15000))
+[2025-02-28 17:00:04,250] DEBUG MainThread https://api.github.com:443 "GET /orgs/ministryofjustice HTTP/1.1" 200 None
+[2025-02-28 17:00:04,251] DEBUG MainThread Starting new HTTP connection (1): localhost:6574
+[2025-02-28 17:00:04,347] DEBUG MainThread http://localhost:6574 "GET /alertmanager/status HTTP/1.1" 200 None
+[2025-02-28 17:00:05,051] INFO MainThread Successfully fetched Alertmanager data
+[2025-02-28 17:00:05,052] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:05,132] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/components?populate%5B0%5D=latest_commit&populate%5B1%5D=environments&populate%5B2%5D=product&populate%5B3%5D=envs&pagination%5BpageSize%5D=10&filters%5Bname%5D%5B$eq%5D=check-my-diary HTTP/1.1" 200 21087
+[2025-02-28 17:00:05,147] DEBUG MainThread Component: {'id': 25, 'attributes': {'name': 'check-my-diary', 'description': 'A UI for viewing shift pattern and detail', 'jira_project_keys': ['SDIT'], 'github_project_teams_write': ['hmpps-developers'], 'github_project_teams_admin': [], 'github_project_branch_protection_restricted_teams': [], 'github_project_visibility': 'public', 'createdAt': '2023-06-07T11:03:14.359Z', 'updatedAt': '2025-02-28T16:56:58.477Z', 'publishedAt': '2023-06-07T11:03:14.343Z', 'title': 'Check My Diary', 'app_insights_cloud_role_name': 'check-my-diary', 'api': False, 'frontend': True, 'part_of_monorepo': False, 'github_repo': 'check-my-diary', 'language': 'TypeScript', 'github_project_teams_maintain': ['check-my-diary-devs', 'syscon-devs'], 'github_topics': [], 'versions': {'circleci': {'hmpps_orb': '10'}, 'dockerfile': {'base_image': 'node:22.14-bookworm-slim'}, 'helm_dependencies': {'generic-service': '3.8', 'generic-prometheus-alerts': '1.11'}}, 'container_image': 'quay.io/hmpps/check-my-diary', 'veracode_results_url': 'https://analysiscenter.veracode.com/auth/index.jsp#ViewReportsResultSummary:77328:1230581:47215998', 'veracode_last_completed_scan_date': '2025-02-24T04:06:46.000Z', 'veracode_results_summary': {'tags': '', 'teams': 'hmpps-tech', '_links': {'self': {'href': 'https://api.veracode.com/appsec/v2/applications/b02cb4b5-1915-4194-9cbf-dd3682e2bbeb/summary_report'}}, 'app_id': 1230581, 'version': 'github_id:13490524056 branch:main sha:3978a15', 'app_name': 'check-my-diary', 'build_id': 47215998, 'platform': 'Not Specified', 'severity': [{'level': 5, 'category': []}, {'level': 4, 'category': []}, {'level': 3, 'category': []}, {'level': 2, 'category': []}, {'level': 1, 'category': []}, {'level': 0, 'category': []}], 'submitter': 'CircleCI_Three API', 'account_id': 77328, 'sandbox_id': 3836155, 'analysis_id': 47180875, 'flaw-status': {'new': 0, 'open': 0, 'fixed': 0, 'total': 0, 'reopen': 0, 'sev-1-change': 0, 'sev-2-change': 0, 'sev-3-change': 0, 'sev-4-change': 0, 'sev-5-change': 0, 'not_mitigated': 0, 'conforms-to-guidelines': None, 'deviates-from-guidelines': None, 'total-reviewed-mitigations': None}, 'policy_name': 'Ministry of Justice', 'total_flaws': 0, 'customfields': {'customfield': [{'name': 'Status', 'value': ''}, {'name': 'Custom 2', 'value': ''}, {'name': 'Custom 3', 'value': ''}, {'name': 'Custom 4', 'value': ''}, {'name': 'Custom 5', 'value': ''}, {'name': 'Custom 6', 'value': ''}, {'name': 'Custom 7', 'value': ''}, {'name': 'Custom 8', 'value': ''}, {'name': 'Custom 9', 'value': ''}, {'name': 'Custom 10', 'value': ''}]}, 'scan_overdue': 'false', 'business_unit': 'Her Majesty&#x2019;s Prison and Probation Service &#x28;HMPPS&#x29;', 'business_owner': '', 'policy_version': 4, 'veracode_level': 'VL4', 'generation_date': '2025-02-28 12:56:46 UTC', 'is_latest_build': True, 'static-analysis': {'score': 100, 'rating': 'A', 'modules': {'module': [{'os': 'JavaScript', 'loc': 29, 'name': 'JS files within source.zip', 'score': 100, 'domain': None, 'compiler': 'JAVASCRIPT_5_1', 'target_url': None, 'architecture': 'JAVASCRIPT', 'numflawssev0': 0, 'numflawssev1': 0, 'numflawssev2': 0, 'numflawssev3': 0, 'numflawssev4': 0, 'numflawssev5': 0}]}, 'version': 'github_id:13490524056 branch:main sha:3978a15', 'next_scan_due': None, 'engine_version': '20250217180426', 'published_date': '2025-02-24 04:06:45 UTC', 'submitted_date': '2025-02-24 04:03:21 UTC', 'mitigated_score': None, 'mitigated_rating': None, 'dynamic_scan_type': None, 'analysis_size_bytes': 1174, 'scan_exit_status_id': None, 'scan_exit_status_desc': None}, 'last_update_time': '2025-02-24 04:06:46 UTC', 'life_cycle_stage': 'Not Specified', 'legacy_scan_engine': False, 'flaws_not_mitigated': 0, 'policy_rules_status': 'Pass', 'business_criticality': 5, 'grace_period_expired': False, 'report_format_version': '1.3', 'planned_deployment_date': '', 'static_analysis_unit_id': 47196525, 'policy_compliance_status': 'Pass', 'first_build_submitted_date': '2024-12-02 04:04:04 UTC'}, 'veracode_exempt': False, 'veracode_policy_rules_status': 'Pass', 'trivy_scan_summary': {'Results': [{'Type': 'debian', 'Class': 'os-pkgs', 'Target': 'quay.io/hmpps/check-my-diary:latest (debian 12.7)'}, {'Type': 'node-pkg', 'Class': 'lang-pkgs', 'Target': 'Node.js'}], 'Metadata': {'OS': {'Name': '12.7', 'Family': 'debian'}, 'DiffIDs': ['sha256:8e2ab394fabf557b00041a8f080b10b4e91c7027b7c174f095332c7ebb6501cb', 'sha256:195e5c8c9bd477ad601cd0b7ee4cdd2d13f7cde50c994cd4061bad081c972822', 'sha256:b4f0910b3cba66c4940ab455db067f12c0cc5326fcaa598781153144ccea3647', 'sha256:b01b96c44bfe71b5db2134650f1c65a0fe948c982d9518bbbf01a28020ae7e25', 'sha256:733f25af982f4cf68f535019f2408826d79d9ee014525d99869a4e62dbe45dc8', 'sha256:b25cda1a6c62a2626f65a5c2adc2e879f6afc135e5930d83b266c1cc9c2a9a25', 'sha256:e946beec7aba2c45e6aa3fe80b16761ff0543fb3937a1f56bc8dab684e0e7194', 'sha256:380afb3c1282e266fb24d083991b14d7b1bbf967a94a81d01df89b8df40d051e', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:a7cbb247adc04daf9be54c56f9c3154715b9de8dd655a419a0fb5fdda465b3f3', 'sha256:a61abeb3c553adf53f12c8c2566657080f93f028d991564e8296c6ece2d5416f', 'sha256:bd01304c69d859e899ac006f120e2eff89e2ccba314709faac9d936c3b45cd14', 'sha256:b7ca98ac6f8e179fb19de179a3b42f21e1cf4f55305c95873278f455879ad1e6'], 'ImageID': 'sha256:a85dd4115a981b9d6682b9c3547ef8d4f7cda3a5b24fd6e76e5c80e589235f4d', 'RepoTags': ['quay.io/hmpps/check-my-diary:latest'], 'ImageConfig': {'os': 'linux', 'config': {'Cmd': ['npm', 'start'], 'Env': ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'NODE_VERSION=20.17.0', 'YARN_VERSION=1.22.22', 'TZ=Europe/London', 'BUILD_NUMBER=2024-09-19.9664.bc8e651', 'GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6', 'GIT_BRANCH=main', 'NODE_ENV=production'], 'User': '2000', 'Labels': {'build.url': 'https://circleci.com/gh/ministryofjustice/check-my-diary/9664', 'maintainer': 'dps-hmpps@digital.justice.gov.uk', 'app.version': '2024-09-19.9664.bc8e651', 'build.gitref': 'bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6', 'build.number': '9664', 'build.version': '2024-09-19.9664.bc8e651'}, 'Entrypoint': ['docker-entrypoint.sh'], 'WorkingDir': '/app', 'ArgsEscaped': True}, 'rootfs': {'type': 'layers', 'diff_ids': ['sha256:8e2ab394fabf557b00041a8f080b10b4e91c7027b7c174f095332c7ebb6501cb', 'sha256:195e5c8c9bd477ad601cd0b7ee4cdd2d13f7cde50c994cd4061bad081c972822', 'sha256:b4f0910b3cba66c4940ab455db067f12c0cc5326fcaa598781153144ccea3647', 'sha256:b01b96c44bfe71b5db2134650f1c65a0fe948c982d9518bbbf01a28020ae7e25', 'sha256:733f25af982f4cf68f535019f2408826d79d9ee014525d99869a4e62dbe45dc8', 'sha256:b25cda1a6c62a2626f65a5c2adc2e879f6afc135e5930d83b266c1cc9c2a9a25', 'sha256:e946beec7aba2c45e6aa3fe80b16761ff0543fb3937a1f56bc8dab684e0e7194', 'sha256:380afb3c1282e266fb24d083991b14d7b1bbf967a94a81d01df89b8df40d051e', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:4531927029d268cda1372497f84d286537600ac97e90af03c5a2456c6a8670d3', 'sha256:a7cbb247adc04daf9be54c56f9c3154715b9de8dd655a419a0fb5fdda465b3f3', 'sha256:a61abeb3c553adf53f12c8c2566657080f93f028d991564e8296c6ece2d5416f', 'sha256:bd01304c69d859e899ac006f120e2eff89e2ccba314709faac9d936c3b45cd14', 'sha256:b7ca98ac6f8e179fb19de179a3b42f21e1cf4f55305c95873278f455879ad1e6']}, 'created': '2024-09-19T15:00:12.075825856Z', 'history': [{'created': '2024-08-21T19:04:33Z', 'created_by': '/bin/sh -c #(nop) ADD file:d13afefcc2b0b02b598a3ac2598fe2187db41de1e17820e5b600a955b1429d59 in / '}, {'created': '2024-08-21T19:04:33Z', 'created_by': '/bin/sh -c #(nop)  CMD ["bash"]', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'RUN /bin/sh -c groupadd --gid 1000 node   && useradd --uid 1000 --gid node --shell /bin/bash --create-home node # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'ENV NODE_VERSION=20.17.0', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'RUN /bin/sh -c ARCH= OPENSSL_ARCH= && dpkgArch="$(dpkg --print-architecture)"     && case "${dpkgArch##*-}" in       amd64) ARCH=\'x64\' OPENSSL_ARCH=\'linux-x86_64\';;       ppc64el) ARCH=\'ppc64le\' OPENSSL_ARCH=\'linux-ppc64le\';;       s390x) ARCH=\'s390x\' OPENSSL_ARCH=\'linux*-s390x\';;       arm64) ARCH=\'arm64\' OPENSSL_ARCH=\'linux-aarch64\';;       armhf) ARCH=\'armv7l\' OPENSSL_ARCH=\'linux-armv4\';;       i386) ARCH=\'x86\' OPENSSL_ARCH=\'linux-elf\';;       *) echo "unsupported architecture"; exit 1 ;;     esac     && set -ex     && apt-get update && apt-get install -y ca-certificates curl wget gnupg dirmngr xz-utils libatomic1 --no-install-recommends     && rm -rf /var/lib/apt/lists/*     && export GNUPGHOME="$(mktemp -d)"     && for key in       4ED778F539E3634C779C87C6D7062848A1AB005C       141F07595B7B3FFE74309A937405533BE57C7D57       74F12602B6F1C4E913FAA37AD3A89613643B6201       DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7       61FC681DFB92A079F1685E77973F295594EC4689       8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600       C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8       890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4       C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C       108F52B48DB57BB0CC439B2997B01419BD92F80A       A363A499291CBBC940DD62E41F10027AF002F8B0       CC68F5A3106FF448322E48ED27F5E38D5B0A215F     ; do       gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$key" ||       gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key" ;     done     && curl -fsSLO --compressed "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-$ARCH.tar.xz"     && curl -fsSLO --compressed "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc"     && gpg --batch --decrypt --output SHASUMS256.txt SHASUMS256.txt.asc     && gpgconf --kill all     && rm -rf "$GNUPGHOME"     && grep " node-v$NODE_VERSION-linux-$ARCH.tar.xz\\$" SHASUMS256.txt | sha256sum -c -     && tar -xJf "node-v$NODE_VERSION-linux-$ARCH.tar.xz" -C /usr/local --strip-components=1 --no-same-owner     && rm "node-v$NODE_VERSION-linux-$ARCH.tar.xz" SHASUMS256.txt.asc SHASUMS256.txt     && find /usr/local/include/node/openssl/archs -mindepth 1 -maxdepth 1 ! -name "$OPENSSL_ARCH" -exec rm -rf {} \\;     && apt-mark auto \'.*\' > /dev/null     && find /usr/local -type f -executable -exec ldd \'{}\' \';\'       | awk \'/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); print so }\'       | sort -u       | xargs -r dpkg-query --search       | cut -d: -f1       | sort -u       | xargs -r apt-mark manual     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false     && ln -s /usr/local/bin/node /usr/local/bin/nodejs     && node --version     && npm --version # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'ENV YARN_VERSION=1.22.22', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'RUN /bin/sh -c set -ex   && savedAptMark="$(apt-mark showmanual)"   && apt-get update && apt-get install -y ca-certificates curl wget gnupg dirmngr --no-install-recommends   && rm -rf /var/lib/apt/lists/*   && export GNUPGHOME="$(mktemp -d)"   && for key in     6A010C5166006599AA17F08146C2130DFD2497F5   ; do     gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$key" ||     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key" ;   done   && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz"   && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz.asc"   && gpg --batch --verify yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz   && gpgconf --kill all   && rm -rf "$GNUPGHOME"   && mkdir -p /opt   && tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/   && ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn   && ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg   && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz   && apt-mark auto \'.*\' > /dev/null   && { [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark > /dev/null; }   && find /usr/local -type f -executable -exec ldd \'{}\' \';\'     | awk \'/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); print so }\'     | sort -u     | xargs -r dpkg-query --search     | cut -d: -f1     | sort -u     | xargs -r apt-mark manual   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false   && yarn --version   && rm -rf /tmp/* # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'COPY docker-entrypoint.sh /usr/local/bin/ # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'ENTRYPOINT ["docker-entrypoint.sh"]', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-08-21T19:04:33Z', 'created_by': 'CMD ["node"]', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'ARG BUILD_NUMBER', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'ARG GIT_REF', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'ARG GIT_BRANCH', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'LABEL maintainer=HMPPS Digital Studio <info@digital.justice.gov.uk>', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'ENV TZ=Europe/London', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:44Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime && echo "$TZ" > /etc/timezone # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c addgroup --gid 2000 --system appgroup &&         adduser --uid 2000 --system appuser --gid 2000 # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'WORKDIR /app'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c test -n "$BUILD_NUMBER" || (echo "BUILD_NUMBER not set" && false) # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c test -n "$GIT_REF" || (echo "GIT_REF not set" && false) # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c test -n "$GIT_BRANCH" || (echo "GIT_BRANCH not set" && false) # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'ENV BUILD_NUMBER=2024-09-19.9664.bc8e651', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'ENV GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:45Z', 'created_by': 'ENV GIT_BRANCH=main', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T14:59:48Z', 'created_by': 'RUN |3 BUILD_NUMBER=2024-09-19.9664.bc8e651 GIT_REF=bc8e65182bf76f89a27c5ace4cc10ca32c9ff3d6 GIT_BRANCH=main /bin/sh -c apt-get update &&         apt-get upgrade -y &&         apt-get autoremove -y &&         rm -rf /var/lib/apt/lists/* # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:10Z', 'created_by': 'COPY --chown=appuser:appgroup /app/package.json /app/package-lock.json ./ # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:10Z', 'created_by': 'COPY --chown=appuser:appgroup /app/dist ./dist # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:12Z', 'created_by': 'COPY --chown=appuser:appgroup /app/node_modules ./node_modules # buildkit'}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:12Z', 'created_by': 'EXPOSE map[3000/tcp:{}]', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:12Z', 'created_by': 'ENV NODE_ENV=production', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:12Z', 'created_by': 'USER 2000', 'empty_layer': True}, {'comment': 'buildkit.dockerfile.v0', 'created': '2024-09-19T15:00:12Z', 'created_by': 'CMD ["npm" "start"]', 'empty_layer': True}], 'architecture': 'amd64'}, 'RepoDigests': ['quay.io/hmpps/check-my-diary@sha256:33d2a01be1114e9dc0ae6cf13b70a60b92799115bf00c8b7c5a5ab24959cfb2e']}, 'CreatedAt': '2024-09-20T05:35:12.015306636Z', 'ArtifactName': 'quay.io/hmpps/check-my-diary:latest', 'ArtifactType': 'container_image', 'SchemaVersion': 2}, 'trivy_last_completed_scan_date': '2024-09-20T05:35:12.015306636Z', 'github_template_repo': None, 'github_only': None, 'path_to_project': None, 'path_to_helm_dir': None, 'github_repo_is_template': None, 'github_enforce_admins_enabled': True, 'slack_channel_prod_release_notify': None, 'slack_channel_nonprod_release_notify': None, 'slack_channel_security_scans_notify': None, 'latest_commit': {'id': 292354, 'sha': '3f62094cbbf93dae33620189ad065712b2401635', 'date_time': '2025-02-25T09:09:41.000Z'}, 'environments': [{'id': 94138, 'name': 'preprod', 'namespace': 'check-my-diary-preprod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'type': 'preprod', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-preprod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod'}, {'id': 94139, 'name': 'prod', 'namespace': 'check-my-diary-prod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://checkmydiary.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'type': 'prod', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-prod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon', 'alerts_slack_channel': ''}], 'product': {'data': {'id': 311, 'attributes': {'name': 'Check My Diary', 'subproduct': False, 'legacy': True, 'description': 'Allows staff to access information from CSR (Staff rostering) outside of work', 'phase': 'Live', 'delivery_manager': 'David Forshaw', 'product_manager': '', 'confluence_link': '', 'gdrive_link': '', 'createdAt': '2024-06-26T10:09:19.629Z', 'updatedAt': '2025-02-28T12:00:10.859Z', 'publishedAt': '2024-06-26T10:09:19.625Z', 'p_id': 'DPS052', 'slack_channel_id': 'C0151PJE3GD', 'slug': 'check-my-diary-1', 'slack_channel_name': 'ask_check_my_diary', 'lead_developer': 'Paul Massey'}}}, 'envs': {'data': [{'id': 487, 'attributes': {'name': 'check-my-diary-preprod', 'type': 'preprod', 'namespace': 'check-my-diary-preprod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-preprod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'createdAt': '2025-02-26T02:50:23.951Z', 'updatedAt': '2025-02-28T16:56:58.142Z', 'publishedAt': '2025-02-26T02:50:23.949Z'}}, {'id': 488, 'attributes': {'name': 'check-my-diary-prod', 'type': 'prod', 'namespace': 'check-my-diary-prod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://checkmydiary.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-prod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon', 'alerts_slack_channel': '', 'createdAt': '2025-02-26T02:50:24.042Z', 'updatedAt': '2025-02-28T16:56:58.361Z', 'publishedAt': '2025-02-26T02:50:24.038Z'}}]}}}
+[2025-02-28 17:00:05,147] INFO MainThread Processing component check-my-diary...
+[2025-02-28 17:00:05,435] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/hmpps-project-bootstrap HTTP/1.1" 200 None
+[2025-02-28 17:00:05,435] INFO MainThread Getting projects.json from hmpps-project-bootstrap
+[2025-02-28 17:00:07,762] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/hmpps-project-bootstrap/contents/projects.json HTTP/1.1" 200 None
+[2025-02-28 17:00:07,797] INFO MainThread Processing component: check-my-diary
+[2025-02-28 17:00:07,797] DEBUG MainThread Getting latest commit from SC for check-my-diary
+[2025-02-28 17:00:07,797] DEBUG MainThread Latest commit in SC for check-my-diary is 3f62094cbbf93dae33620189ad065712b2401635
+[2025-02-28 17:00:08,279] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:08,743] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main HTTP/1.1" 200 None
+[2025-02-28 17:00:08,746] DEBUG MainThread Latest commit in Github for check-my-diary is 3f62094cbbf93dae33620189ad065712b2401635
+[2025-02-28 17:00:08,746] INFO MainThread Processing main branch independent components for: check-my-diary
+[2025-02-28 17:00:09,254] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:09,715] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main HTTP/1.1" 200 None
+[2025-02-28 17:00:10,157] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main/protection HTTP/1.1" 200 None
+[2025-02-28 17:00:10,582] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main/protection/restrictions/teams HTTP/1.1" 200 2
+[2025-02-28 17:00:11,159] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/teams HTTP/1.1" 200 None
+[2025-02-28 17:00:11,773] DEBUG MainThread https://api.github.com:443 "GET /organizations/2203574/team/3084062/repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:12,287] DEBUG MainThread https://api.github.com:443 "GET /organizations/2203574/team/4043920/repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:12,795] DEBUG MainThread https://api.github.com:443 "GET /organizations/2203574/team/4278416/repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:13,300] DEBUG MainThread https://api.github.com:443 "GET /organizations/2203574/team/4380209/repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:13,799] DEBUG MainThread https://api.github.com:443 "GET /organizations/2203574/team/5527477/repos/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:14,261] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/topics HTTP/1.1" 200 12
+[2025-02-28 17:00:14,263] DEBUG MainThread Detected 'frontend|-ui' keyword, setting frontend flag.
+[2025-02-28 17:00:14,263] DEBUG MainThread Processed main branch independent components for check-my-diary
+data: {'language': 'TypeScript', 'description': 'A UI for viewing shift pattern and detail', 'github_project_visibility': 'public', 'github_repo': 'check-my-diary', 'latest_commit': {'sha': '3f62094cbbf93dae33620189ad065712b2401635', 'date_time': '2025-02-25T09:09:41+00:00'}, 'github_project_teams_admin': [], 'github_project_teams_maintain': ['check-my-diary-devs', 'syscon-devs'], 'github_project_teams_write': ['hmpps-developers'], 'github_project_branch_protection_restricted_teams': [], 'github_enforce_admins_enabled': True, 'github_topics': [], 'frontend': True}
+[2025-02-28 17:00:14,263] DEBUG MainThread Getting environments for check-my-diary from bootstrap/Github
+[2025-02-28 17:00:14,263] DEBUG MainThread Found bootstrap project data for check-my-diary - {'github_repo_name': 'check-my-diary', 'github_repo_description': 'A UI for viewing shift pattern and detail', 'github_project_teams_write': ['check-my-diary-devs'], 'github_project_teams_admin': ['check-my-diary-devs'], 'github_project_teams_maintain': ['check-my-diary-devs'], 'circleci_context_k8s_namespaces': [{'env_name': 'preprod', 'env_type': 'preprod', 'namespace': 'check-my-diary-preprod'}, {'env_name': 'prod', 'env_type': 'prod', 'namespace': 'check-my-diary-prod'}], 'jira_project_keys': ['SDIT'], 'hmpps_product_id': 'DPS052'}
+[2025-02-28 17:00:14,263] DEBUG MainThread Found CircleCI environment preprod and namespace check-my-diary-preprod for check-my-diary
+[2025-02-28 17:00:14,266] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:14,347] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/namespaces?filters%5Bname%5D%5B$eq%5D=check-my-diary-preprod HTTP/1.1" 200 259
+[2025-02-28 17:00:14,347] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-preprod in namespaces: 534
+[2025-02-28 17:00:14,347] DEBUG MainThread Found CircleCI environment prod and namespace check-my-diary-prod for check-my-diary
+[2025-02-28 17:00:14,349] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:14,420] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/namespaces?filters%5Bname%5D%5B$eq%5D=check-my-diary-prod HTTP/1.1" 200 256
+[2025-02-28 17:00:14,420] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-prod in namespaces: 539
+[2025-02-28 17:00:14,673] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/environments?per_page=1 HTTP/1.1" 200 None
+[2025-02-28 17:00:15,082] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/environments HTTP/1.1" 200 None
+[2025-02-28 17:00:15,084] DEBUG MainThread Updating non-discovery fields for environment preprod
+[2025-02-28 17:00:15,084] DEBUG MainThread Existing config: build_image_tag, 2025-02-25.9930.3f62094
+[2025-02-28 17:00:15,084] DEBUG MainThread Added build_image_tag 2025-02-25.9930.3f62094 to environment preprod
+[2025-02-28 17:00:15,084] DEBUG MainThread Updating non-discovery fields for environment prod
+[2025-02-28 17:00:15,084] DEBUG MainThread Existing config: build_image_tag, 2025-02-25.9930.3f62094
+[2025-02-28 17:00:15,084] DEBUG MainThread Added build_image_tag 2025-02-25.9930.3f62094 to environment prod
+[2025-02-28 17:00:15,085] INFO MainThread Environments found in bootstrap/Github for check-my-diary: 2
+[2025-02-28 17:00:15,085] DEBUG MainThread helm_dir for check-my-diary is ./helm_deploy
+[2025-02-28 17:00:15,537] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main HTTP/1.1" 200 None
+[2025-02-28 17:00:15,985] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy?ref=3f62094cbbf93dae33620189ad065712b2401635 HTTP/1.1" 200 None
+[2025-02-28 17:00:15,988] DEBUG MainThread Current environments for check-my-diary: ['preprod', 'prod']
+[2025-02-28 17:00:15,988] DEBUG MainThread Environments in Service catalogue for check-my-diary: [{'id': 94138, 'name': 'preprod', 'namespace': 'check-my-diary-preprod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'type': 'preprod', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-preprod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod'}, {'id': 94139, 'name': 'prod', 'namespace': 'check-my-diary-prod', 'info_path': '/info', 'health_path': '/health', 'url': 'https://checkmydiary.service.justice.gov.uk', 'cluster': 'live.cloud-platform.service.justice.gov.uk', 'type': 'prod', 'monitor': True, 'active_agencies': None, 'swagger_docs': None, 'ip_allow_list_enabled': False, 'ip_allow_list': {'values.yaml': {}, 'values-prod.yaml': {}}, 'include_in_subject_access_requests': None, 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'build_image_tag': '2025-02-25.9930.3f62094', 'alert_severity_label': 'syscon', 'alerts_slack_channel': ''}]
+[2025-02-28 17:00:15,988] INFO MainThread Processing changed components for: check-my-diary
+[2025-02-28 17:00:15,988] DEBUG MainThread Getting information for check-my-diary from Helm config
+[2025-02-28 17:00:15,988] DEBUG MainThread helm_dir for check-my-diary is ./helm_deploy
+[2025-02-28 17:00:16,431] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/branches/main HTTP/1.1" 200 None
+[2025-02-28 17:00:16,995] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy?ref=3f62094cbbf93dae33620189ad065712b2401635 HTTP/1.1" 200 None
+[2025-02-28 17:00:17,475] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/values-preprod.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:17,927] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/values-prod.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:18,531] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/check-my-diary/Chart.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:18,996] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/check-my-diary/values.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:19,451] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/values-preprod.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:19,457] DEBUG MainThread helm values for check-my-diary in preprod: {'generic-service': {'replicaCount': 2, 'ingress': {'host': 'check-my-diary-preprod.prison.service.justice.gov.uk', 'tlsSecretName': 'check-my-diary-cert'}, 'env': {'MAINTENANCE_START': '2023-04-26T15:00:00', 'MAINTENANCE_END': '2023-04-26T16:00:00', 'HMPPS_AUTH_URL': 'https://sign-in-preprod.hmpps.service.justice.gov.uk/auth', 'INGRESS_URL': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'TOKEN_VERIFICATION_API_URL': 'https://token-verification-api-preprod.prison.service.justice.gov.uk', 'DPS_HOME_URL': 'https://digital-preprod.prison.service.justice.gov.uk', 'ENVIRONMENT_NAME': 'PRE-PRODUCTION', 'CMD_API_URL': 'https://cmd-api-preprod.prison.service.justice.gov.uk'}, 'scheduledDowntime': {'enabled': True, 'startup': '25 6 * * 1-5', 'shutdown': '45 21 * * 1-5'}}, 'generic-prometheus-alerts': {'businessHoursOnly': True, 'alertSeverity': 'syscon-nonprod', 'elastiCacheAlertsClusterIds': {'cp-8b1a161abe55dd23-001': 'HMPPS Check my Diary ElastiCache Cluster Node 1', 'cp-8b1a161abe55dd23-002': 'HMPPS Check my Diary ElastiCache Cluster Node 2'}}}
+[2025-02-28 17:00:19,457] DEBUG MainThread Existing config: alert_severity_label, syscon-nonprod
+[2025-02-28 17:00:19,457] DEBUG MainThread Existing config: alerts_slack_channel, #syscon-alerts-non-prod
+[2025-02-28 17:00:19,457] DEBUG MainThread generic-prometheus alerts found in values: {'businessHoursOnly': True, 'alertSeverity': 'syscon-nonprod', 'elastiCacheAlertsClusterIds': {'cp-8b1a161abe55dd23-001': 'HMPPS Check my Diary ElastiCache Cluster Node 1', 'cp-8b1a161abe55dd23-002': 'HMPPS Check my Diary ElastiCache Cluster Node 2'}}
+[2025-02-28 17:00:19,457] DEBUG MainThread updating preprod alert_severity_label to syscon-nonprod
+[2025-02-28 17:00:19,457] DEBUG MainThread Looking for a route for syscon-nonprod
+[2025-02-28 17:00:19,457] DEBUG MainThread Found route for syscon-nonprod - receiver_name: slack-syscon-nonprod
+[2025-02-28 17:00:19,457] DEBUG MainThread Found receiver for slack-syscon-nonprod
+[2025-02-28 17:00:19,457] INFO MainThread Found slack_channel for slack-syscon-nonprod - #syscon-alerts-non-prod
+[2025-02-28 17:00:19,457] DEBUG MainThread updating preprod alerts_slack_channel to #syscon-alerts-non-prod
+[2025-02-28 17:00:19,457] WARNING MainThread WARNING - Default alert severity label not found for check-my-diary
+[2025-02-28 17:00:19,459] DEBUG MainThread Starting new HTTPS connection (1): check-my-diary-preprod.prison.service.justice.gov.uk:443
+[2025-02-28 17:00:19,588] DEBUG MainThread https://check-my-diary-preprod.prison.service.justice.gov.uk:443 "GET /health HTTP/1.1" 200 324
+[2025-02-28 17:00:19,589] DEBUG MainThread Found endpoint: https://check-my-diary-preprod.prison.service.justice.gov.uk/health 
+[2025-02-28 17:00:19,592] DEBUG MainThread Starting new HTTPS connection (1): check-my-diary-preprod.prison.service.justice.gov.uk:443
+[2025-02-28 17:00:19,665] DEBUG MainThread https://check-my-diary-preprod.prison.service.justice.gov.uk:443 "GET /info HTTP/1.1" 200 206
+[2025-02-28 17:00:19,666] DEBUG MainThread Found endpoint: https://check-my-diary-preprod.prison.service.justice.gov.uk/info 
+[2025-02-28 17:00:19,668] DEBUG MainThread Starting new HTTPS connection (1): check-my-diary-preprod.prison.service.justice.gov.uk:443
+[2025-02-28 17:00:19,734] DEBUG MainThread https://check-my-diary-preprod.prison.service.justice.gov.uk:443 "GET /swagger-ui.html HTTP/1.1" 302 30
+[2025-02-28 17:00:19,930] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/helm_deploy/values-prod.yaml HTTP/1.1" 200 None
+[2025-02-28 17:00:19,935] DEBUG MainThread helm values for check-my-diary in prod: {'generic-service': {'replicaCount': 4, 'ingress': {'host': 'checkmydiary.service.justice.gov.uk', 'tlsSecretName': 'tls-certificate'}, 'env': {'MAINTENANCE_START': '2025-03-16T18:00:00', 'MAINTENANCE_END': '2025-03-16T21:00:00', 'HMPPS_AUTH_URL': 'https://sign-in.hmpps.service.justice.gov.uk/auth', 'INGRESS_URL': 'https://checkmydiary.service.justice.gov.uk', 'TOKEN_VERIFICATION_API_URL': 'https://token-verification-api.prison.service.justice.gov.uk', 'DPS_HOME_URL': 'https://digital.prison.service.justice.gov.uk', 'CMD_API_URL': 'https://cmd-api.prison.service.justice.gov.uk'}}, 'generic-prometheus-alerts': {'ingress2xxEnabled': True, 'ingress2xxThreshold': 300, 'elastiCacheAlertsClusterIds': {'cp-b603dacd90f94dd7-001': 'HMPPS Check my Diary ElastiCache Cluster Node 1', 'cp-b603dacd90f94dd7-002': 'HMPPS Check my Diary ElastiCache Cluster Node 2'}}}
+[2025-02-28 17:00:19,935] DEBUG MainThread Existing config: alert_severity_label, syscon
+[2025-02-28 17:00:19,935] DEBUG MainThread No existing value found for alerts_slack_channel
+[2025-02-28 17:00:19,936] DEBUG MainThread generic-prometheus alerts found in values: {'ingress2xxEnabled': True, 'ingress2xxThreshold': 300, 'elastiCacheAlertsClusterIds': {'cp-b603dacd90f94dd7-001': 'HMPPS Check my Diary ElastiCache Cluster Node 1', 'cp-b603dacd90f94dd7-002': 'HMPPS Check my Diary ElastiCache Cluster Node 2'}}
+[2025-02-28 17:00:19,936] INFO MainThread Alert severity label not found for check-my-diary in prod - attempting to set default
+[2025-02-28 17:00:19,936] DEBUG MainThread Looking for a route for syscon
+[2025-02-28 17:00:19,936] DEBUG MainThread Found route for syscon - receiver_name: slack-syscon
+[2025-02-28 17:00:19,936] DEBUG MainThread Found receiver for slack-syscon
+[2025-02-28 17:00:19,936] INFO MainThread Found slack_channel for slack-syscon - #syscon-alerts
+[2025-02-28 17:00:19,938] DEBUG MainThread Starting new HTTPS connection (1): checkmydiary.service.justice.gov.uk:443
+[2025-02-28 17:00:20,075] DEBUG MainThread https://checkmydiary.service.justice.gov.uk:443 "GET /health HTTP/1.1" 200 325
+[2025-02-28 17:00:20,077] DEBUG MainThread Found endpoint: https://checkmydiary.service.justice.gov.uk/health 
+[2025-02-28 17:00:20,080] DEBUG MainThread Starting new HTTPS connection (1): checkmydiary.service.justice.gov.uk:443
+[2025-02-28 17:00:20,181] DEBUG MainThread https://checkmydiary.service.justice.gov.uk:443 "GET /info HTTP/1.1" 200 207
+[2025-02-28 17:00:20,182] DEBUG MainThread Found endpoint: https://checkmydiary.service.justice.gov.uk/info 
+[2025-02-28 17:00:20,185] DEBUG MainThread Starting new HTTPS connection (1): checkmydiary.service.justice.gov.uk:443
+[2025-02-28 17:00:20,273] DEBUG MainThread https://checkmydiary.service.justice.gov.uk:443 "GET /swagger-ui.html HTTP/1.1" 302 30
+[2025-02-28 17:00:20,277] DEBUG MainThread Helm data for check-my-diary: {'versions': {'helm_dependencies': {'generic-service': '3.8', 'generic-prometheus-alerts': '1.11'}}, 'container_image': 'quay.io/hmpps/check-my-diary', 'product': 311, 'environments': {'preprod': {'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}, 'prod': {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}}}
+[2025-02-28 17:00:20,277] DEBUG MainThread Found Helm data for record id check-my-diary - {'versions': {'helm_dependencies': {'generic-service': '3.8', 'generic-prometheus-alerts': '1.11'}}, 'container_image': 'quay.io/hmpps/check-my-diary', 'product': 311, 'environments': {'preprod': {'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}, 'prod': {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}}}
+[2025-02-28 17:00:20,277] DEBUG MainThread Finished getting information from helm for check-my-diary
+data: {'versions': {'helm_dependencies': {'generic-service': '3.8', 'generic-prometheus-alerts': '1.11'}}, 'container_image': 'quay.io/hmpps/check-my-diary', 'product': 311, 'environments': {'preprod': {'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}, 'prod': {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}}}
+[2025-02-28 17:00:20,563] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/.circleci/config.yml HTTP/1.1" 200 None
+[2025-02-28 17:00:20,579] DEBUG MainThread Getting trivy scan data for check-my-diary
+[2025-02-28 17:00:20,581] DEBUG MainThread Starting new HTTPS connection (1): circleci.com:443
+[2025-02-28 17:00:20,904] DEBUG MainThread https://circleci.com:443 "GET /api/v1.1/project/gh/ministryofjustice/check-my-diary HTTP/1.1" 200 None
+[2025-02-28 17:00:20,906] DEBUG MainThread hmpps orb version: 10
+[2025-02-28 17:00:21,108] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/package.json HTTP/1.1" 200 None
+[2025-02-28 17:00:21,540] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/build.gradle HTTP/1.1" 404 None
+[2025-02-28 17:00:21,542] DEBUG MainThread 404 File not found check-my-diary:build.gradle
+[2025-02-28 17:00:21,995] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/contents/Dockerfile HTTP/1.1" 200 None
+[2025-02-28 17:00:22,010] DEBUG MainThread Found Dockerfile base image: node:22.14-bookworm-slim
+[2025-02-28 17:00:22,011] DEBUG MainThread Finished getting other repo information for check-my-diary
+data: {'versions': {'helm_dependencies': {'generic-service': '3.8', 'generic-prometheus-alerts': '1.11'}, 'circleci': {'hmpps_orb': '10'}, 'dockerfile': {'base_image': 'node:22.14-bookworm-slim'}}, 'container_image': 'quay.io/hmpps/check-my-diary', 'product': 311, 'environments': {'preprod': {'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}, 'prod': {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False}}, 'app_insights_cloud_role_name': 'check-my-diary'}
+[2025-02-28 17:00:22,011] DEBUG MainThread Helm environment data for check-my-diary: {
+  "preprod": {
+    "type": "preprod",
+    "url": "https://check-my-diary-preprod.prison.service.justice.gov.uk",
+    "modsecurity_enabled": false,
+    "modsecurity_audit_enabled": false,
+    "modsecurity_snippet": null,
+    "alert_severity_label": "syscon-nonprod",
+    "alerts_slack_channel": "#syscon-alerts-non-prod",
+    "health_path": "/health",
+    "info_path": "/info",
+    "ip_allow_list": {
+      "values-preprod.yaml": {},
+      "values.yaml": {}
+    },
+    "ip_allow_list_enabled": false
+  },
+  "prod": {
+    "type": "prod",
+    "url": "https://checkmydiary.service.justice.gov.uk",
+    "modsecurity_enabled": false,
+    "modsecurity_audit_enabled": false,
+    "modsecurity_snippet": null,
+    "alert_severity_label": "#syscon-alerts",
+    "alerts_slack_channel": "",
+    "health_path": "/health",
+    "info_path": "/info",
+    "ip_allow_list": {
+      "values-prod.yaml": {},
+      "values.yaml": {}
+    },
+    "ip_allow_list_enabled": false
+  }
+}
+[2025-02-28 17:00:22,011] DEBUG MainThread Processing environments for check-my-diary
+[2025-02-28 17:00:22,011] DEBUG MainThread Getting environments for check-my-diary from bootstrap/Github
+[2025-02-28 17:00:22,011] DEBUG MainThread Found bootstrap project data for check-my-diary - {'github_repo_name': 'check-my-diary', 'github_repo_description': 'A UI for viewing shift pattern and detail', 'github_project_teams_write': ['check-my-diary-devs'], 'github_project_teams_admin': ['check-my-diary-devs'], 'github_project_teams_maintain': ['check-my-diary-devs'], 'circleci_context_k8s_namespaces': [{'env_name': 'preprod', 'env_type': 'preprod', 'namespace': 'check-my-diary-preprod'}, {'env_name': 'prod', 'env_type': 'prod', 'namespace': 'check-my-diary-prod'}], 'jira_project_keys': ['SDIT'], 'hmpps_product_id': 'DPS052'}
+[2025-02-28 17:00:22,011] DEBUG MainThread Found CircleCI environment preprod and namespace check-my-diary-preprod for check-my-diary
+[2025-02-28 17:00:22,014] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:22,098] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/namespaces?filters%5Bname%5D%5B$eq%5D=check-my-diary-preprod HTTP/1.1" 200 259
+[2025-02-28 17:00:22,098] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-preprod in namespaces: 534
+[2025-02-28 17:00:22,099] DEBUG MainThread Found CircleCI environment prod and namespace check-my-diary-prod for check-my-diary
+[2025-02-28 17:00:22,105] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:22,200] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/namespaces?filters%5Bname%5D%5B$eq%5D=check-my-diary-prod HTTP/1.1" 200 256
+[2025-02-28 17:00:22,201] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-prod in namespaces: 539
+[2025-02-28 17:00:22,388] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/environments?per_page=1 HTTP/1.1" 200 None
+[2025-02-28 17:00:22,804] DEBUG MainThread https://api.github.com:443 "GET /repos/ministryofjustice/check-my-diary/environments HTTP/1.1" 200 None
+[2025-02-28 17:00:22,804] DEBUG MainThread Updating non-discovery fields for environment preprod
+[2025-02-28 17:00:22,804] DEBUG MainThread Existing config: build_image_tag, 2025-02-25.9930.3f62094
+[2025-02-28 17:00:22,804] DEBUG MainThread Added build_image_tag 2025-02-25.9930.3f62094 to environment preprod
+[2025-02-28 17:00:22,804] DEBUG MainThread Updating non-discovery fields for environment prod
+[2025-02-28 17:00:22,804] DEBUG MainThread Existing config: build_image_tag, 2025-02-25.9930.3f62094
+[2025-02-28 17:00:22,804] DEBUG MainThread Added build_image_tag 2025-02-25.9930.3f62094 to environment prod
+[2025-02-28 17:00:22,804] INFO MainThread Environments found in bootstrap/Github for check-my-diary: 2
+[2025-02-28 17:00:22,804] DEBUG MainThread Found environments from bootstrap/Github: {'preprod': {'type': 'preprod', 'namespace': 'check-my-diary-preprod', 'ns': 534, 'build_image_tag': '2025-02-25.9930.3f62094'}, 'prod': {'type': 'prod', 'namespace': 'check-my-diary-prod', 'ns': 539, 'build_image_tag': '2025-02-25.9930.3f62094'}}
+[2025-02-28 17:00:22,804] DEBUG MainThread Found environment preprod in helm environments
+[2025-02-28 17:00:22,804] DEBUG MainThread Environment data: {'type': 'preprod', 'namespace': 'check-my-diary-preprod', 'ns': 534, 'build_image_tag': '2025-02-25.9930.3f62094'}
+[2025-02-28 17:00:22,804] DEBUG MainThread Found environment prod in helm environments
+[2025-02-28 17:00:22,804] DEBUG MainThread Environment data: {'type': 'prod', 'namespace': 'check-my-diary-prod', 'ns': 539, 'build_image_tag': '2025-02-25.9930.3f62094'}
+[2025-02-28 17:00:22,806] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:22,889] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/components?filters%5Bname%5D%5B$eq%5D=check-my-diary HTTP/1.1" 200 17533
+[2025-02-28 17:00:22,914] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary in components: 25
+[2025-02-28 17:00:22,916] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,004] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/environments?filters%5Bname%5D%5B$eq%5D=check-my-diary-preprod HTTP/1.1" 200 893
+[2025-02-28 17:00:23,006] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-preprod in environments: 487
+[2025-02-28 17:00:23,007] INFO MainThread Updating environment preprod in the environment table
+[2025-02-28 17:00:23,007] DEBUG MainThread Environment_record: {'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False, 'namespace': 'check-my-diary-preprod', 'ns': 534, 'build_image_tag': '2025-02-25.9930.3f62094', 'component': 25, 'name': 'check-my-diary-preprod'}
+[2025-02-28 17:00:23,007] DEBUG MainThread data to be uploaded: {
+  "type": "preprod",
+  "url": "https://check-my-diary-preprod.prison.service.justice.gov.uk",
+  "modsecurity_enabled": false,
+  "modsecurity_audit_enabled": false,
+  "modsecurity_snippet": null,
+  "alert_severity_label": "syscon-nonprod",
+  "alerts_slack_channel": "#syscon-alerts-non-prod",
+  "health_path": "/health",
+  "info_path": "/info",
+  "ip_allow_list": {
+    "values-preprod.yaml": {},
+    "values.yaml": {}
+  },
+  "ip_allow_list_enabled": false,
+  "namespace": "check-my-diary-preprod",
+  "ns": 534,
+  "build_image_tag": "2025-02-25.9930.3f62094",
+  "component": 25,
+  "name": "check-my-diary-preprod"
+}
+[2025-02-28 17:00:23,009] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,103] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "PUT /v1/environments/487 HTTP/1.1" 200 829
+[2025-02-28 17:00:23,105] INFO MainThread Successfully updated record 487 in environments: 200
+[2025-02-28 17:00:23,105] DEBUG MainThread Found existing environment ID for preprod in component check-my-diary: 94138
+[2025-02-28 17:00:23,108] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,195] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/components?filters%5Bname%5D%5B$eq%5D=check-my-diary HTTP/1.1" 200 17533
+[2025-02-28 17:00:23,219] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary in components: 25
+[2025-02-28 17:00:23,221] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,286] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "GET /v1/environments?filters%5Bname%5D%5B$eq%5D=check-my-diary-prod HTTP/1.1" 200 833
+[2025-02-28 17:00:23,286] DEBUG MainThread Successfully found Service Catalogue ID for name=check-my-diary-prod in environments: 488
+[2025-02-28 17:00:23,287] INFO MainThread Updating environment prod in the environment table
+[2025-02-28 17:00:23,287] DEBUG MainThread Environment_record: {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False, 'namespace': 'check-my-diary-prod', 'ns': 539, 'build_image_tag': '2025-02-25.9930.3f62094', 'component': 25, 'name': 'check-my-diary-prod'}
+[2025-02-28 17:00:23,287] DEBUG MainThread data to be uploaded: {
+  "type": "prod",
+  "url": "https://checkmydiary.service.justice.gov.uk",
+  "modsecurity_enabled": false,
+  "modsecurity_audit_enabled": false,
+  "modsecurity_snippet": null,
+  "alert_severity_label": "#syscon-alerts",
+  "alerts_slack_channel": "",
+  "health_path": "/health",
+  "info_path": "/info",
+  "ip_allow_list": {
+    "values-prod.yaml": {},
+    "values.yaml": {}
+  },
+  "ip_allow_list_enabled": false,
+  "namespace": "check-my-diary-prod",
+  "ns": 539,
+  "build_image_tag": "2025-02-25.9930.3f62094",
+  "component": 25,
+  "name": "check-my-diary-prod"
+}
+[2025-02-28 17:00:23,288] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,382] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "PUT /v1/environments/488 HTTP/1.1" 200 777
+[2025-02-28 17:00:23,383] INFO MainThread Successfully updated record 488 in environments: 200
+[2025-02-28 17:00:23,384] DEBUG MainThread Found existing environment ID for prod in component check-my-diary: 94139
+[2025-02-28 17:00:23,384] DEBUG MainThread Component environment data to be added: [{'type': 'preprod', 'url': 'https://check-my-diary-preprod.prison.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': 'syscon-nonprod', 'alerts_slack_channel': '#syscon-alerts-non-prod', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-preprod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False, 'namespace': 'check-my-diary-preprod', 'ns': 534, 'build_image_tag': '2025-02-25.9930.3f62094', 'component': 25, 'name': 'preprod', 'id': 94138}, {'type': 'prod', 'url': 'https://checkmydiary.service.justice.gov.uk', 'modsecurity_enabled': False, 'modsecurity_audit_enabled': False, 'modsecurity_snippet': None, 'alert_severity_label': '#syscon-alerts', 'alerts_slack_channel': '', 'health_path': '/health', 'info_path': '/info', 'ip_allow_list': {'values-prod.yaml': {}, 'values.yaml': {}}, 'ip_allow_list_enabled': False, 'namespace': 'check-my-diary-prod', 'ns': 539, 'build_image_tag': '2025-02-25.9930.3f62094', 'component': 25, 'name': 'prod', 'id': 94139}]
+[2025-02-28 17:00:23,385] DEBUG MainThread Final environment data for check-my-diary: [
+  {
+    "type": "preprod",
+    "url": "https://check-my-diary-preprod.prison.service.justice.gov.uk",
+    "modsecurity_enabled": false,
+    "modsecurity_audit_enabled": false,
+    "modsecurity_snippet": null,
+    "alert_severity_label": "syscon-nonprod",
+    "alerts_slack_channel": "#syscon-alerts-non-prod",
+    "health_path": "/health",
+    "info_path": "/info",
+    "ip_allow_list": {
+      "values-preprod.yaml": {},
+      "values.yaml": {}
+    },
+    "ip_allow_list_enabled": false,
+    "namespace": "check-my-diary-preprod",
+    "ns": 534,
+    "build_image_tag": "2025-02-25.9930.3f62094",
+    "component": 25,
+    "name": "preprod",
+    "id": 94138
+  },
+  {
+    "type": "prod",
+    "url": "https://checkmydiary.service.justice.gov.uk",
+    "modsecurity_enabled": false,
+    "modsecurity_audit_enabled": false,
+    "modsecurity_snippet": null,
+    "alert_severity_label": "#syscon-alerts",
+    "alerts_slack_channel": "",
+    "health_path": "/health",
+    "info_path": "/info",
+    "ip_allow_list": {
+      "values-prod.yaml": {},
+      "values.yaml": {}
+    },
+    "ip_allow_list_enabled": false,
+    "namespace": "check-my-diary-prod",
+    "ns": 539,
+    "build_image_tag": "2025-02-25.9930.3f62094",
+    "component": 25,
+    "name": "prod",
+    "id": 94139
+  }
+]
+[2025-02-28 17:00:23,385] DEBUG MainThread data to be uploaded: {
+  "language": "TypeScript",
+  "description": "A UI for viewing shift pattern and detail",
+  "github_project_visibility": "public",
+  "github_repo": "check-my-diary",
+  "latest_commit": {
+    "sha": "3f62094cbbf93dae33620189ad065712b2401635",
+    "date_time": "2025-02-25T09:09:41+00:00"
+  },
+  "github_project_teams_admin": [],
+  "github_project_teams_maintain": [
+    "check-my-diary-devs",
+    "syscon-devs"
+  ],
+  "github_project_teams_write": [
+    "hmpps-developers"
+  ],
+  "github_project_branch_protection_restricted_teams": [],
+  "github_enforce_admins_enabled": true,
+  "github_topics": [],
+  "frontend": true,
+  "versions": {
+    "helm_dependencies": {
+      "generic-service": "3.8",
+      "generic-prometheus-alerts": "1.11"
+    },
+    "circleci": {
+      "hmpps_orb": "10"
+    },
+    "dockerfile": {
+      "base_image": "node:22.14-bookworm-slim"
+    }
+  },
+  "container_image": "quay.io/hmpps/check-my-diary",
+  "product": 311,
+  "environments": [
+    {
+      "type": "preprod",
+      "url": "https://check-my-diary-preprod.prison.service.justice.gov.uk",
+      "modsecurity_enabled": false,
+      "modsecurity_audit_enabled": false,
+      "modsecurity_snippet": null,
+      "alert_severity_label": "syscon-nonprod",
+      "alerts_slack_channel": "#syscon-alerts-non-prod",
+      "health_path": "/health",
+      "info_path": "/info",
+      "ip_allow_list": {
+        "values-preprod.yaml": {},
+        "values.yaml": {}
+      },
+      "ip_allow_list_enabled": false,
+      "namespace": "check-my-diary-preprod",
+      "ns": 534,
+      "build_image_tag": "2025-02-25.9930.3f62094",
+      "component": 25,
+      "name": "preprod",
+      "id": 94138
+    },
+    {
+      "type": "prod",
+      "url": "https://checkmydiary.service.justice.gov.uk",
+      "modsecurity_enabled": false,
+      "modsecurity_audit_enabled": false,
+      "modsecurity_snippet": null,
+      "alert_severity_label": "#syscon-alerts",
+      "alerts_slack_channel": "",
+      "health_path": "/health",
+      "info_path": "/info",
+      "ip_allow_list": {
+        "values-prod.yaml": {},
+        "values.yaml": {}
+      },
+      "ip_allow_list_enabled": false,
+      "namespace": "check-my-diary-prod",
+      "ns": 539,
+      "build_image_tag": "2025-02-25.9930.3f62094",
+      "component": 25,
+      "name": "prod",
+      "id": 94139
+    }
+  ],
+  "app_insights_cloud_role_name": "check-my-diary"
+}
+[2025-02-28 17:00:23,386] DEBUG MainThread Starting new HTTPS connection (1): service-catalogue-dev.hmpps.service.justice.gov.uk:443
+[2025-02-28 17:00:23,538] DEBUG MainThread https://service-catalogue-dev.hmpps.service.justice.gov.uk:443 "PUT /v1/components/25 HTTP/1.1" 200 17469
+[2025-02-28 17:00:23,560] INFO MainThread Successfully updated record 25 in components: 200
+[2025-02-28 17:00:23,560] INFO MainThread Processed component: {'app_disabled': False, 'branch_protection_disabled': False, 'env_changed': False, 'main_changed': False, 'env_updated': True}

@@ -208,6 +208,20 @@ class ServiceCatalogue:
       )
       return None
 
+  def get_component_env_id(self, component, env):
+    env_id = None
+    for env_data in component['attributes'].get('environments'):
+      if env_data['name'] == env:
+        env_id = env_data['id']
+        self.log.debug(
+          f'Found existing environment ID for {env} in component {component["attributes"]["name"]}: {env_id}'
+        )
+    if not env_id:
+      self.log.debug(
+        f'No existing environment ID found for {env} in component {component["attributes"]["name"]}'
+      )
+    return env_id
+
   def find_all_teams_ref_in_sc(self):
     components = self.get_all_records(self.components_get)
     combined_teams = set()

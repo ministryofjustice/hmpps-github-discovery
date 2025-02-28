@@ -51,10 +51,13 @@ def get_environments(component, repo, bootstrap_projects, services):
           )
 
   # Then check Github - these environments take precedence since they're newer
-  repo_envs = repo.get_environments()
-  if (
-    repo_envs.totalCount < 10
-  ):  # workaround for a repo that has hundreds of environments
+  try:
+    repo_envs = repo.get_environments()
+  except Exception as e:
+    log.error(f'Error getting environments for {component_name}: {e}')
+
+  if repo_envs and repo_envs.totalCount < 10:
+    # workaround for a repo that has hundreds of environments
     for repo_env in repo_envs:
       log.debug(
         f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
@@ -89,19 +92,20 @@ def get_environments(component, repo, bootstrap_projects, services):
               'ns': ns_id,
             },
           )
-    if envs:
-      # there's some data that is not populated by Github Discovery, for example
-      # the build_image_tag, so loop through the environments and get them
-      for env in envs:
-        log.debug(f'Updating non-discovery fields for environment {env}')
-        if build_image_tag := get_existing_env_config(
-          component, env, 'build_image_tag', services
-        ):
-          envs[env]['build_image_tag'] = build_image_tag
-          log.debug(f'Added build_image_tag {build_image_tag} to environment {env}')
-      log.info(
-        f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
-      )
+
+  # there's some data that is not populated by Github Discovery, for example
+  # the build_image_tag, so loop through the environments and get them from the existing records
+  if envs:
+    for env in envs:
+      log.debug(f'Updating non-discovery fields for environment {env}')
+      if build_image_tag := get_existing_env_config(
+        component, env, 'build_image_tag', services
+      ):
+        envs[env]['build_image_tag'] = build_image_tag
+        log.debug(f'Added build_image_tag {build_image_tag} to environment {env}')
+    log.info(
+      f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
+    )
 
   return envs
 
@@ -189,6 +193,10 @@ def process_environments(
 
       # Then prepare the environment for the components table to be returned and added
       helm_environments[env]['name'] = env
+      # Check to see if the environment record already exists in the component table
+      # And if so, include the ID so a new one isn't created
+      if env_id := sc.get_component_env_id(component, env):
+        helm_environments[env]['id'] = env_id
       component_env_data.append(helm_environments[env])
 
   log.debug(f'Component environment data to be added: {component_env_data}')

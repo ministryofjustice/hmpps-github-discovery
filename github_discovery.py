@@ -83,6 +83,7 @@ def create_summary(
       for attr, desc in attributes.items():
         filtered_items = [item for item in items if item[1].get(attr)]
         if filtered_items and 'update' not in desc and 'add' not in desc:
+          summary += f'- {len(filtered_items)} {desc}\n'
           for item in filtered_items:
             summary += f'  {item[0]}\n'
           summary += '\n'
@@ -115,7 +116,7 @@ def create_summary(
   #   'team_added': 'team(s) added',
   #   'team_failure': 'teams that encountered errors',
   # }
-  summary = 'fGithub Discovery completed OK {("full update" if force_update else "")}\n'
+  summary = f'Github Discovery completed OK {("full update" if force_update else "")}\n'
   summary += summarize_processed_components(
     processed_components, 'component', component_attributes, force_update
   )
@@ -214,7 +215,7 @@ def main():
   # processed_teams = github_teams.process_github_teams(services)
 
   # create_summary(services, processed_components, processed_products, processed_teams)
-  create_summary(services, processed_components, processed_products)
+  create_summary(services, processed_components, processed_products, force_update)
 
 
 if __name__ == '__main__':

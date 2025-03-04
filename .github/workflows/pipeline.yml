@@ -29,12 +29,12 @@ jobs:
   
   deploy_to_dev_on_workflow_dispatch:
     name: Deploy to dev on manual workflow dispatch 
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'
     uses: ./.github/workflows/deploy.yml
     needs: 
       - build
     with:
-      environment: development
+      environment: dev
       version: ${{ needs.build.outputs.version }}
     secrets: inherit
 

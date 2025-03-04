@@ -31,7 +31,6 @@ def process_github_teams(services):
   # Get the github teams refenered in admin, manintain and write teams from SC
   log.info('Getting Github teams references in components')
   all_repo_ref_gh_teams = sc.find_all_teams_ref_in_sc()
-
   # Get the data from GH for teams from terraform files
   log.info('Retrieving Github teams terraform data...')
   tf_teamrepo = gh.get_org_repo('hmpps-github-teams')
@@ -51,7 +50,8 @@ def process_github_teams(services):
     team_data = {
       'github_team_id': gh_team.id,
       'team_name': team_name,
-      'team_description': gh_team.description,
+      'parent_team_name': gh_team.parent.name if gh_team.parent else None,
+      'team_desc': gh_team.description.replace('• This team is managed by Terraform, see https://github.com/ministryofjustice/hmpps-github-teams - DO NOT UPDATE MANUALLY!', '') if gh_team.description else '',
       'terraform_managed': terraform_managed,
       'members': [member.login for member in gh.org.get_team(gh_team.id).get_members()],
     }
@@ -63,11 +63,13 @@ def process_github_teams(services):
       (team for team in sc_teams if team['attributes'].get('team_name') == team_name),
       None,
     ):
+      sc_team_id = sc_team['id']
+      sc_team_attributes = sc_team['attributes']
       # Update the team in SC if anything has changed
       for key in team_data:
-        if key in sc_team and team_data[key] != sc_team[key]:
+        if key in sc_team['attributes'] and team_data[key] != sc_team_attributes[key]:
           log.info(f'Updating team {team_name} in the service catalogue')
-          if sc.update(sc.github_teams, sc_team.get('id'), team_data):
+          if sc.update(sc.github_teams, sc_team_id, team_data):
             team_flags['team_updated'] = True
           else:
             team_flags['team_failure'] = True

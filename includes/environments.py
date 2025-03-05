@@ -163,7 +163,10 @@ def process_environments(
     if not helm_environments[env].get('type') or not helm_environments[env].get(
       'namespace'
     ):
-      log.info(f'Skipping environment {env} as it has no type')
+      if not helm_environments[env].get('type'):
+        log.info(f'Skipping environment {env} as it has no type')
+      if not helm_environments[env].get('namespace'):
+        log.info(f'Skipping environment {env} as it has no namespace')
     else:
       # Prepare the environment record with the basic data
       environment_record = helm_environments[env]

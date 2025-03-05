@@ -39,6 +39,9 @@ class ServiceCatalogue:
 
     self.github_teams = 'github-teams'
     self.environments = 'environments'
+    self.environments_get = (
+      f'{self.environments}?populate[0]=component{pagination_page_size}{sort_filter}'
+    )
     self.connection_ok = self.test_connection()
 
   """

@@ -38,7 +38,7 @@ def test_endpoint(url, endpoint, log):
       log.debug(f'Found endpoint: {url}{endpoint} ')
       return True
   except Exception as e:
-    log.debug(f'Could not connect to endpoint {url}{endpoint} - {e}')
+    log.info(f'Could not connect to endpoint {url}{endpoint} - {e}')
     return False
 
 

@@ -350,7 +350,7 @@ def get_info_from_helm(component, repo, services):
           values_filename = f'values-{env}.yaml'
           allow_list_values = {
             f'{values_filename}': ip_allow_list_env,
-            'values.yaml-': ip_allow_list_default,
+            'values.yaml': ip_allow_list_default,
           }
         else:
           allow_list_values = {

@@ -117,33 +117,37 @@ def get_info_from_helm(component, repo, services):
       )
 
       # Try to get the container image
-      try:
-        container_image = helm_default_values['image']['repository']
+      if container_image := helm_default_values.get('image', {}).get('repository', {}):
         data['container_image'] = container_image
-      except KeyError:
-        pass
-      try:
-        container_image = helm_default_values['generic-service']['image']['repository']
+        log.debug(
+          f'Container image found in image->repository for {component_name}: {container_image}'
+        )
+      if (
+        container_image := helm_default_values.get('generic-service')
+        .get('image')
+        .get('repository')
+      ):
         data['container_image'] = container_image
-      except KeyError:
-        pass
+        log.debug(
+          f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
+        )
+      if not data.get('container_image'):
+        log.info(f'No container image found for {component_name}')
 
       # Try to get the productID
-      try:
-        helm_product_id = helm_default_values['generic-service']['productId']
-        # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
-        # TODO: use the product_id from the repository variables?
-        if (
-          sc_product_id := component.get('attributes', {})
-          .get('product', {})
-          .get('data', {})
-          .get('id', {})
-        ):
-          data['product'] = sc_product_id
-        else:
-          data['product'] = sc.get_id('products', 'p_id', helm_product_id)
-      except KeyError:
-        pass
+      if helm_product_id := helm_default_values.get('generic-service', {}).get(
+        'productId', {}
+      ):
+        data['product'] = sc.get_id('products', 'p_id', helm_product_id)
+      # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
+      # TODO: use the product_id from the repository variables?
+      if (
+        sc_product_id := component.get('attributes', {})
+        .get('product', {})
+        .get('data', {})
+        .get('id', {})
+      ):
+        data['product'] = sc_product_id
 
       # Get modsecurity data defaults, if enabled.
       for mod_security_type in [
@@ -201,7 +205,7 @@ def get_info_from_helm(component, repo, services):
         # Container image alternative location
         if 'image' in values:
           # image->repository
-          if container_image := values['image'].get('repository'):
+          if container_image := values.get('image', {}).get('repository', {}):
             data['container_image'] = container_image
           # generic-service->image->repository
           elif 'generic-service' in values and 'image' in values['generic-service']:
@@ -283,7 +287,7 @@ def get_info_from_helm(component, repo, services):
           if alerts_slack_channel := am.find_channel_by_severity_label(
             alert_severity_label_default
           ):
-            alertmanager_config['alert_severity_label'] = alerts_slack_channel
+            alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
 
         # not even a default severity label found
         else:
@@ -293,15 +297,17 @@ def get_info_from_helm(component, repo, services):
 
         # If any data is missing, revert to the previous value
         if not alertmanager_config.get('alert_severity_label'):
+          log.debug('No alert severity label found - reverting to existing config')
           alertmanager_config['alert_severity_label'] = (
             existing_alertmanager_config.get('alert_severity_label')
           )
         if not alertmanager_config.get('alerts_slack_channel'):
+          log.debug('No slack channel found - reverting to existing config')
           alertmanager_config['alerts_slack_channel'] = (
             existing_alertmanager_config.get('alerts_slack_channel')
           )
-
-          # Update the helm environment data with the outcome of this check
+        log.debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+        # Update the helm environment data with the outcome of this check
         update_dict(helm_envs, env, alertmanager_config)
 
         # Health paths using the host name:

@@ -73,4 +73,4 @@ class AlertmanagerData:
             return slack_configs[0].get('channel')
           else:
             self.log.debug(f'No slack_configs found for {receiver_name}')
-            return 'Not Set'
+            return None

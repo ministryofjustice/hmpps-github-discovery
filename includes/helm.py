@@ -285,11 +285,6 @@ def get_info_from_helm(component, repo, services):
             log.info(
               f'WARNING - Default alert severity label not found for {component_name} and no value set in values-{env}.yml file')
 
-        # If any data is missing, revert to the previous value
-        if alertmanager_config.get('alert_severity_label') is None:
-          log.debug('No alert severity label found - reverting to existing config')
-          alertmanager_config['alert_severity_label'] = 'Not set'
-          alertmanager_config['alerts_slack_channel'] = 'Not set'
         if (alertmanager_config.get('alerts_slack_channel') == 'Alertmanager data not available' and 
             existing_alertmanager_config.get('alerts_severity_label') == alertmanager_config.get('alerts_severity_label')):
           log.debug('Alertmanager connection issue, severity label matches so keeping channel to previous config')

@@ -49,28 +49,29 @@ class AlertmanagerData:
   def find_channel_by_severity_label(self, alert_severity_label):
     # Find the receiver name for the given severity
     receiver_name = ''
-    if self.isDataUnavailable():
-      return 'Alertmanager data not available'
-    
-    self.log.debug(f'Looking for a route for {alert_severity_label}')
-    for route in self.json_config_data['route']['routes']:
-      if route['match'].get('severity') == alert_severity_label:
-        receiver_name = route['receiver']
-        self.log.debug(
-          f'Found route for {alert_severity_label} - receiver_name: {receiver_name}'
-        )
-        break
-    # Find the channel for the receiver name
-    if receiver_name:
-      for receiver in self.json_config_data['receivers']:
-        if receiver['name'] == receiver_name:
-          self.log.debug(f'Found receiver for {receiver_name}')
-          slack_configs = receiver.get('slack_configs', [])
-          if slack_configs:
-            self.log.info(
-              f'Found slack_channel for {receiver_name} - {slack_configs[0].get("channel")}'
-            )
-            return slack_configs[0].get('channel')
-          else:
-            self.log.debug(f'No slack_configs found for {receiver_name}')
-            return None
+    if self.isDataAvailable():
+      self.log.debug(f'Looking for a route for {alert_severity_label}')
+      for route in self.json_config_data['route']['routes']:
+        if route['match'].get('severity') == alert_severity_label:
+          receiver_name = route['receiver']
+          self.log.debug(
+            f'Found route for {alert_severity_label} - receiver_name: {receiver_name}'
+          )
+          break
+      # Find the channel for the receiver name
+      if receiver_name:
+        for receiver in self.json_config_data['receivers']:
+          if receiver['name'] == receiver_name:
+            self.log.debug(f'Found receiver for {receiver_name}')
+            slack_configs = receiver.get('slack_configs', [])
+            if slack_configs:
+              self.log.info(
+                f'Found slack_channel for {receiver_name} - {slack_configs[0].get("channel")}'
+              )
+              return slack_configs[0].get('channel')
+            else:
+              self.log.debug(f'No slack_configs found for {receiver_name}')
+              return None
+    else:
+      self.log.error('No Alertmanager data available')
+      return None

@@ -241,16 +241,8 @@ def get_info_from_helm(component, repo, services):
               )
             else:  # default either to false or None
               update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
-        if not am.isDataUnavailable():
-          # Alert severity label
-          existing_alertmanager_config = {
-            'alert_severity_label': get_existing_env_config(
-              component, env, 'alert_severity_label', services
-            ),
-            'alerts_slack_channel': get_existing_env_config(
-              component, env, 'alerts_slack_channel', services
-            ),
-          }
+        if am.isDataAvailable():
+          # Alert severity label and slack channel
           alertmanager_config = {
             'alert_severity_label': None,
             'alerts_slack_channel': None,

@@ -297,7 +297,7 @@ def get_info_from_helm(component, repo, services):
           alertmanager_config['alerts_slack_channel'] = 'Not set'
         if (alertmanager_config.get('alerts_slack_channel') == 'Alertmanager data not available' and 
             existing_alertmanager_config.get('alerts_severity_label') == alertmanager_config.get('alerts_severity_label')):
-          log.debug('No slack channel found - reverting to existing config')
+          log.debug('Alertmanager connection issue, severity label matches so keeping channel to previous config')
           alertmanager_config['alerts_slack_channel'] = (
             existing_alertmanager_config.get('alerts_slack_channel')
           )

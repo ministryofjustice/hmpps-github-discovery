@@ -263,7 +263,7 @@ def get_info_from_helm(component, repo, services):
           if alert_severity_label := generic_prometheus_alerts.get('alertSeverity'):
             log.debug(f'updating {env} alert_severity_label to {alert_severity_label}')
             alertmanager_config['alert_severity_label'] = alert_severity_label
-            # Only look for the slack channel if the alert_severity_label tehre
+            # Only look for the slack channel if the alert_severity_label there
             if alerts_slack_channel := am.find_channel_by_severity_label(
               alert_severity_label
             ):
@@ -276,32 +276,27 @@ def get_info_from_helm(component, repo, services):
                 f'Alerts slack channel not found for {alert_severity_label} in {env} values file'
               )
         # fallback to a default severity label
-        if (
-          not alertmanager_config['alert_severity_label']
-          and alert_severity_label_default
-        ):
-          log.info(
-            f'Alert severity label not found for {component_name} in {env} - attempting to set default'
-          )
-          alertmanager_config['alert_severity_label'] = alert_severity_label_default
-          if alerts_slack_channel := am.find_channel_by_severity_label(
-            alert_severity_label_default
-          ):
-            alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
-
-        # not even a default severity label found
-        else:
-          log.warning(
-            f'WARNING - Default alert severity label not found for {component_name}'
-          )
+        if (not alertmanager_config['alert_severity_label']):
+          if alert_severity_label_default:
+            log.info(
+              f'Alert severity label not found for {component_name} in {env} - attempting to set default'
+            )
+            alertmanager_config['alert_severity_label'] = alert_severity_label_default
+            if alerts_slack_channel := am.find_channel_by_severity_label(
+              alert_severity_label_default
+            ):
+              alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
+          else:
+            log.info(
+              f'WARNING - Default alert severity label not found for {component_name} and no value set in values-{env}.yml file')
 
         # If any data is missing, revert to the previous value
-        if not alertmanager_config.get('alert_severity_label'):
+        if alertmanager_config.get('alert_severity_label') is None:
           log.debug('No alert severity label found - reverting to existing config')
-          alertmanager_config['alert_severity_label'] = (
-            existing_alertmanager_config.get('alert_severity_label')
-          )
-        if not alertmanager_config.get('alerts_slack_channel'):
+          alertmanager_config['alert_severity_label'] = 'Not set'
+          alertmanager_config['alerts_slack_channel'] = 'Not set'
+        if (alertmanager_config.get('alerts_slack_channel') == 'Alertmanager data not available' and 
+            existing_alertmanager_config.get('alerts_severity_label') == alertmanager_config.get('alerts_severity_label')):
           log.debug('No slack channel found - reverting to existing config')
           alertmanager_config['alerts_slack_channel'] = (
             existing_alertmanager_config.get('alerts_slack_channel')

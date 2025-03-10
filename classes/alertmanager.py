@@ -29,7 +29,7 @@ class AlertmanagerData:
         # )
         self.log.info('Successfully fetched Alertmanager data')
       else:
-        self.log.error(f'Error: {response.status_code}')
+        self.log.error(f'Error fetching Alertmanager data: {response.status_code}')
 
     except requests.exceptions.SSLError as e:
       self.log.error(f'SSL Error: {e}')
@@ -47,7 +47,7 @@ class AlertmanagerData:
     # Find the receiver name for the given severity
     receiver_name = ''
     if self.json_config_data is None:
-      return ''
+      return 'Alertmanager data not available'
     self.log.debug(f'Looking for a route for {alert_severity_label}')
     for route in self.json_config_data['route']['routes']:
       if route['match'].get('severity') == alert_severity_label:
@@ -68,4 +68,4 @@ class AlertmanagerData:
             )
             return slack_configs[0].get('channel')
           else:
-            return ''
+            return 'Not Set'

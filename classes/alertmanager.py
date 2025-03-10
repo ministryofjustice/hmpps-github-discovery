@@ -43,11 +43,15 @@ class AlertmanagerData:
     except Exception as e:
       self.log.error(f'Error getting data from Alertmanager: {e}')
 
+  def isDataUnavailable(self):
+    return self.json_config_data is None
+  
   def find_channel_by_severity_label(self, alert_severity_label):
     # Find the receiver name for the given severity
     receiver_name = ''
-    if self.json_config_data is None:
+    if self.isDataUnavailable():
       return 'Alertmanager data not available'
+    
     self.log.debug(f'Looking for a route for {alert_severity_label}')
     for route in self.json_config_data['route']['routes']:
       if route['match'].get('severity') == alert_severity_label:

@@ -263,10 +263,7 @@ def get_info_from_helm(component, repo, services):
           if alert_severity_label := generic_prometheus_alerts.get('alertSeverity'):
             log.debug(f'updating {env} alert_severity_label to {alert_severity_label}')
             alertmanager_config['alert_severity_label'] = alert_severity_label
-            # Only look for the slack channel if the alert_severity_label there
-            if alerts_slack_channel := am.find_channel_by_severity_label(
-              alert_severity_label
-            ):
+            if alerts_slack_channel := am.find_channel_by_severity_label(alert_severity_label):
               alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
               log.debug(
                 f'updating {env} alerts_slack_channel to {alerts_slack_channel}'
@@ -282,9 +279,7 @@ def get_info_from_helm(component, repo, services):
               f'Alert severity label not found for {component_name} in {env} - attempting to set default'
             )
             alertmanager_config['alert_severity_label'] = alert_severity_label_default
-            if alerts_slack_channel := am.find_channel_by_severity_label(
-              alert_severity_label_default
-            ):
+            if alerts_slack_channel := am.find_channel_by_severity_label(alert_severity_label_default):
               alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
           else:
             log.info(

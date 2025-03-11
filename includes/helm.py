@@ -242,21 +242,15 @@ def get_info_from_helm(component, repo, services):
             else:  # default either to false or None
               update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
         if am.isDataAvailable():
-          # Alert severity label and slack channel
-          alertmanager_config = {
-            'alert_severity_label': None,
-            'alerts_slack_channel': None,
-          }
-         
+          # Update Alert severity label and slack channel
           if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
             if alert_severity_label := generic_prometheus_alerts['alertSeverity']:
               log.debug(f'generic-prometheus alerts found in values: {generic_prometheus_alerts}')
               log.debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
-              alertmanager_config['alert_severity_label'] = alert_severity_label
+
           if alert_severity_label_default and not alertmanager_config['alert_severity_label']:
             log.info(f'Alert severity label not found for {component_name} in {env} - setting to default')
             alert_severity_label = alert_severity_label_default
-            alertmanager_config['alert_severity_label'] = alert_severity_label_default
           else:
             log.info(f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml')
           
@@ -265,7 +259,10 @@ def get_info_from_helm(component, repo, services):
             log.debug(f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}')
           else:
             log.warning(f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}')
-
+          alertmanager_config = {
+            'alert_severity_label': alert_severity_label,
+            'alerts_slack_channel': alerts_slack_channel,
+          }
           log.debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
           # Update the helm environment data with the outcome of this check
           update_dict(helm_envs, env, alertmanager_config)

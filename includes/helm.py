@@ -248,7 +248,7 @@ def get_info_from_helm(component, repo, services):
               log.debug(f'generic-prometheus alerts found in values: {generic_prometheus_alerts}')
               log.debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
 
-          if alert_severity_label_default and not alertmanager_config['alert_severity_label']:
+          if alert_severity_label_default and not alert_severity_label:
             log.info(f'Alert severity label not found for {component_name} in {env} - setting to default')
             alert_severity_label = alert_severity_label_default
           else:

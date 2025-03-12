@@ -19,7 +19,7 @@ spec:
         spec:
           containers:
             - name: github-discovery
-              image: ghcr.io/ministryofjustice/hmpps-github-discovery
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["python", "-u", "/app/github_discovery.py"]
               env:
                 - name: PATH

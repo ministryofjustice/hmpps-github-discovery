@@ -245,7 +245,7 @@ def get_info_from_helm(component, repo, services):
         if am.isDataAvailable():
           # Update Alert severity label and slack channel
           if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
-            if generic_prometheus_alerts['alertSeverity']:
+            if 'alertSeverity' in generic_prometheus_alerts:
               alert_severity_label = generic_prometheus_alerts['alertSeverity']
               log.debug(f'generic-prometheus alerts found in values: {generic_prometheus_alerts}')
               log.debug(f'Updating {env} alert_severity_label to {alert_severity_label}')

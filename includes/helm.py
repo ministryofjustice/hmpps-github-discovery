@@ -122,23 +122,35 @@ def get_info_from_helm(component, repo, services):
         log.debug(
           f'Container image found in image->repository for {component_name}: {container_image}'
         )
-      if (
-        container_image := helm_default_values.get('generic-service')
-        .get('image')
-        .get('repository')
-      ):
-        data['container_image'] = container_image
-        log.debug(
-          f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
-        )
+      if 'generic-service' in helm_default_values:
+        if 'generic-service' in helm_default_values and (
+          container_image := helm_default_values.get('generic-service')
+          .get('image')
+          .get('repository')
+        ):
+          data['container_image'] = container_image
+          log.debug(
+            f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
+          )
+        # Try to get the productID
+        if helm_product_id := helm_default_values.get('generic-service', {}).get(
+          'productId', {}
+        ):
+          data['product'] = sc.get_id('products', 'p_id', helm_product_id)
+        # Get modsecurity data defaults, if enabled.
+        for mod_security_type in [
+          'modsecurity_enabled',
+          'modsecurity_audit_enabled',
+          'modsecurity_snippet',
+        ]:
+          mod_security_defaults[mod_security_type] = (
+            helm_default_values.get('generic-service', {})
+            .get('ingress', {})
+            .get(mod_security_type, None)
+          )
       if not data.get('container_image'):
         log.info(f'No container image found for {component_name}')
 
-      # Try to get the productID
-      if helm_product_id := helm_default_values.get('generic-service', {}).get(
-        'productId', {}
-      ):
-        data['product'] = sc.get_id('products', 'p_id', helm_product_id)
       # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
       # TODO: use the product_id from the repository variables?
       if (
@@ -149,17 +161,6 @@ def get_info_from_helm(component, repo, services):
       ):
         data['product'] = sc_product_id
 
-      # Get modsecurity data defaults, if enabled.
-      for mod_security_type in [
-        'modsecurity_enabled',
-        'modsecurity_audit_enabled',
-        'modsecurity_snippet',
-      ]:
-        mod_security_defaults[mod_security_type] = (
-          helm_default_values.get('generic-service', {})
-          .get('ingress', {})
-          .get(mod_security_type, None)
-        )
       alert_severity_label_default = helm_default_values.get(
         'generic-prometheus-alerts', {}
       ).get('alertSeverity', None)

@@ -4,7 +4,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: hmpps-github-discovery
+  name: hmpps-github-discovery-incremental
 spec:
   schedule: "{{ .Values.cron.github_discovery }}"
   concurrencyPolicy: Forbid

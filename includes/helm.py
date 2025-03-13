@@ -255,7 +255,6 @@ def get_info_from_helm(component, repo, services):
             alert_severity_label = alert_severity_label_default
           else:
             alert_severity_label = None
-            log.info(f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml')
           
           if alert_severity_label:
             if am.find_channel_by_severity_label(alert_severity_label):
@@ -264,6 +263,9 @@ def get_info_from_helm(component, repo, services):
             else:
               alerts_slack_channel = None
               log.warning(f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}')
+          else:
+            alerts_slack_channel = None
+            log.warning(f'Alerts severity label and slack channel not found for {component_name} for {env}')
           alertmanager_config = {
             'alert_severity_label': alert_severity_label,
             'alerts_slack_channel': alerts_slack_channel,

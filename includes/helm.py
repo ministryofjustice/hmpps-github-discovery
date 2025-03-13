@@ -254,6 +254,7 @@ def get_info_from_helm(component, repo, services):
             log.info(f'Alert severity label not found for {component_name} in {env} - setting to default')
             alert_severity_label = alert_severity_label_default
           else:
+            alert_severity_label = None
             log.info(f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml')
           
           if alert_severity_label:

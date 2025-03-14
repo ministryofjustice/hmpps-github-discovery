@@ -37,7 +37,7 @@ def process_sc_product(product, services):
 
   if data:
     # Update product with all results in data dict.
-    sc.update(sc.product, product['id'], data)
+    sc.update(sc.products, product['id'], data)
 
 
 def batch_process_sc_products(services, max_threads=10):

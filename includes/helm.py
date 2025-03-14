@@ -242,24 +242,30 @@ def get_info_from_helm(component, repo, services):
               )
             else:  # default either to false or None
               update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
+              
+        alert_severity_label = None
+        alerts_slack_channel = None
         if am.isDataAvailable():
           # Update Alert severity label and slack channel
           if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
-            if alert_severity_label := generic_prometheus_alerts['alertSeverity']:
+            alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
+            if alert_severity_label:
               log.debug(f'generic-prometheus alerts found in values: {generic_prometheus_alerts}')
               log.debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
 
-          if alert_severity_label_default and not alert_severity_label:
+          if not alert_severity_label and alert_severity_label_default:
             log.info(f'Alert severity label not found for {component_name} in {env} - setting to default')
             alert_severity_label = alert_severity_label_default
           else:
             log.info(f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml')
-          
-          if alerts_slack_channel := am.find_channel_by_severity_label(alert_severity_label):
-            log.debug(f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}')
-          else:
-            alerts_slack_channel = None
-            log.warning(f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}')
+
+          if alert_severity_label:
+            alerts_slack_channel = am.find_channel_by_severity_label(alert_severity_label)
+            if alerts_slack_channel:
+              log.debug(f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}')
+            else:
+              log.warning(f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}')
+
           alertmanager_config = {
             'alert_severity_label': alert_severity_label,
             'alerts_slack_channel': alerts_slack_channel,

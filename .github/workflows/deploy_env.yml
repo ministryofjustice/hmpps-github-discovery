@@ -94,5 +94,5 @@ jobs:
           helm_dir: ${{ inputs.helm_dir }}
           helm_allowlist_groups: ${{ vars.HMPPS_IP_ALLOWLIST_GROUPS_YAML }}
           helm_allowlist_version: ${{ vars.HMPPS_IP_ALLOWLIST_GROUPS_VERSION }}
-          slack_notify_channel: ${{ inputs.slack_notify_channel }}
-          slack_alert_channel: ${{ inputs.slack_alert_channel }}
+          slack_notify_channel: ${{ vars.slack_notify_channel }}
+          slack_alert_channel: ${{ vars.slack_alert_channel }}

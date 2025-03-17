@@ -52,18 +52,22 @@ jobs:
     needs:
       - build
       - helm_lint
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_env.yml@v2 # WORKFLOW_VERSION
+    uses: ./.github/workflows/deploy_env.yml # LOCAL_VERSION
     secrets: inherit
     with:
       environment: 'dev'
       app_version: '${{ needs.build.outputs.app_version }}'
+      slack_alert_channel: '${{ vars.SLACK_ALERT_CHANNEL }}'
+      slack_notify_channel: '${{ vars.SLACK_NOTIFY_CHANNEL }}'
   deploy_prod:
     name: Deploy to production environment
     needs:
       - build
       - deploy_dev
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_env.yml@v2 # WORKFLOW_VERSION
+    uses: ./.github/workflows/deploy_env.yml # LOCAL_VERSION
     secrets: inherit
     with:
       environment: 'prod'
       app_version: '${{ needs.build.outputs.app_version }}'
+      slack_alert_channel: '${{ vars.SLACK_ALERT_CHANNEL }}'
+      slack_notify_channel: '${{ vars.SLACK_NOTIFY_CHANNEL }}'

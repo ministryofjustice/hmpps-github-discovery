@@ -55,6 +55,7 @@ jobs:
     uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_env.yml@v2 # WORKFLOW_VERSION
     secrets: inherit
     with:
+      helm_additional_args: '--set env.SLACK_ALERT_CHANNEL=${{ vars.SLACK_ALERT_CHANNEL }} \n\\ --set env.SLACK_NOTIFY_CHANNEL=${{ vars.SLACK_NOTIFY_CHANNEL }}'
       environment: 'dev'
       app_version: '${{ needs.build.outputs.app_version }}'
   deploy_prod:

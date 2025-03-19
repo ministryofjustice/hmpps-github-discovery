@@ -33,7 +33,7 @@ on:
         type: string
       helm_additional_args:
         description: Helm additional args
-        default: ""
+        default: "--set 'discoveryCronJob.env.SLACK_NOTIFY_CHANNEL=${{ vars.PROD_SLACK_NOTIFY_CHANNEL }}'  --set 'discoveryCronJob.env.SLACK_ALERT_CHANNEL=${{ vars.PROD_SLACK_ALERT_CHANNEL }}'"
         required: false
         type: string
       helm_timeout:
@@ -76,7 +76,7 @@ jobs:
         with:
           version: latest
 
-      - uses: ./.github/actions/build-test-and-deploy/cloud-platform-deploy # LOCAL_VERSION
+      - uses: ministryofjustice/hmpps-github-actions/.github/actions/build-test-and-deploy/cloud-platform-deploy@v2 # WORKFLOW_VERSION
         id: deploy
         with:
           environment: ${{ inputs.environment }}
@@ -94,5 +94,3 @@ jobs:
           helm_dir: ${{ inputs.helm_dir }}
           helm_allowlist_groups: ${{ vars.HMPPS_IP_ALLOWLIST_GROUPS_YAML }}
           helm_allowlist_version: ${{ vars.HMPPS_IP_ALLOWLIST_GROUPS_VERSION }}
-          slack_notify_channel: ${{ vars.slack_notify_channel }}
-          slack_alert_channel: ${{ vars.slack_alert_channel }}

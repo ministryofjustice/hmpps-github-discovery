@@ -33,7 +33,7 @@ on:
         type: string
       helm_additional_args:
         description: Helm additional args
-        default: ""
+        default: "--set 'discoveryCronJob.env.SLACK_NOTIFY_CHANNEL=${{ vars.PROD_SLACK_NOTIFY_CHANNEL }}'  --set 'discoveryCronJob.env.SLACK_ALERT_CHANNEL=${{ vars.PROD_SLACK_ALERT_CHANNEL }}'"
         required: false
         type: string
       helm_timeout:

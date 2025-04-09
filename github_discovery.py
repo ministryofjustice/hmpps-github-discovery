@@ -45,6 +45,7 @@ from classes.circleci import CircleCI
 # Components
 import processes.products as products
 import processes.components as components
+import processes.update_sc_scheduled_jobs as update_sc_scheduled_job
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -126,17 +127,32 @@ def create_summary(
   services.slack.notify(summary)
   services.log.info(summary)
 
+def should_send_slack_notification(processed_messages):
+  for message in processed_messages:
+    if "processed" in message:
+      parts = message.split("processed")
+      if len(parts) > 1:
+        try:
+          count = int(parts[1].split()[0])
+          if count > 0:
+            return True
+        except ValueError:
+          continue
+  return False  # All categories have 0 processed
 
 def main():
   logging.basicConfig(
     format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
   )
   log = logging.getLogger(__name__)
-
+  
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
   if '-f' in os.sys.argv or '--force' in os.sys.argv:
     force_update = True
+    job_name = 'hmpps-github-discovery-full'
+  else:
+    job_name = 'hmpps-github-discovery-incremental'
 
   #### Create resources ####
 
@@ -217,6 +233,12 @@ def main():
   # create_summary(services, processed_components, processed_products, processed_teams)
   create_summary(services, processed_components, processed_products, force_update)
 
+  try:
+    update_sc_scheduled_job.process_sc_scheduled_jobs(services, job_name,True)
+    log.info("Github discovery job completed successfully.")
+  except Exception as e:
+    log.error(f"Github discovery job failed with error: {e}")
+    update_sc_scheduled_job(services, job_name, False)
 
 if __name__ == '__main__':
   main()

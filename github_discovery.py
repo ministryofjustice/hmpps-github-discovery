@@ -132,7 +132,7 @@ def main():
     format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
   )
   log = logging.getLogger(__name__)
-  
+
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
   if '-f' in os.sys.argv or '--force' in os.sys.argv:
@@ -224,8 +224,7 @@ def main():
     update_sc_scheduled_job.process_sc_scheduled_jobs(services, job_name, True)
     log.info("Github discovery job completed successfully.")
   except Exception as e:
-    log.error(f"Github discovery job failed with error: {e}")
-    update_sc_scheduled_job(services, job_name, False)
+    log.error(f"Github discovery job failed to update scheduled-jobs with error: {e}")
 
 if __name__ == '__main__':
   main()

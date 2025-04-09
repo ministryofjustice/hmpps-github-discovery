@@ -68,19 +68,18 @@ def main():
   services = Services(sc_params, gh_params, slack_params, log)
 
   log.info('Processing teams...')
-  # processed_teams = github_teams.process_github_teams(services)
-  # log.info('Finished processing teams.')
+  processed_teams = github_teams.process_github_teams(services)
+  log.info('Finished processing teams.')
 
-  # summary = summarize_processed_teams(processed_teams)
-  # services.slack.notify(summary)
-  # services.log.info(summary)
+  summary = summarize_processed_teams(processed_teams)
+  services.slack.notify(summary)
+  services.log.info(summary)
 
   try:
     update_sc_scheduled_job.process_sc_scheduled_jobs(services, job_name,True)
     log.info("Github teams discovery job completed successfully.")
   except Exception as e:
-    log.error(f"Github teams discovery job failed with error: {e}")
-    update_sc_scheduled_job(services, job_name, False)
+    log.error(f"Github teams discovery job failed to update scheduled-jobs with error: {e}")
 
 if __name__ == '__main__':
   main()

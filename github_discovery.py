@@ -127,19 +127,6 @@ def create_summary(
   services.slack.notify(summary)
   services.log.info(summary)
 
-def should_send_slack_notification(processed_messages):
-  for message in processed_messages:
-    if "processed" in message:
-      parts = message.split("processed")
-      if len(parts) > 1:
-        try:
-          count = int(parts[1].split()[0])
-          if count > 0:
-            return True
-        except ValueError:
-          continue
-  return False  # All categories have 0 processed
-
 def main():
   logging.basicConfig(
     format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level

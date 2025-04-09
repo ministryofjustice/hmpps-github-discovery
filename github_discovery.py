@@ -234,7 +234,7 @@ def main():
   create_summary(services, processed_components, processed_products, force_update)
 
   try:
-    update_sc_scheduled_job.process_sc_scheduled_jobs(services, job_name,True)
+    update_sc_scheduled_job.process_sc_scheduled_jobs(services, job_name, True)
     log.info("Github discovery job completed successfully.")
   except Exception as e:
     log.error(f"Github discovery job failed with error: {e}")

@@ -117,3 +117,31 @@ class GithubSession:
     except Exception as e:
       self.log.error(f'Error getting contents from file ({path}): {e}')
       return None
+
+  def api_get(self, api):
+    response_json = {}
+    self.log.debug(f'making API call: {api}')
+    # GitHub API URL to check security and analysis settings
+    url = f'https://api.github.com/{api}'
+    token = self.get_access_token()
+    self.log.debug(f'token is: {token}')
+    # Headers for the request
+    headers = {
+      'Authorization': f'token {token}',
+      'Accept': 'application/vnd.github.v3+json',
+    }
+    try:
+      # Make the request to check security and analysis settings
+
+      # Check the response status
+      response = requests.get(url, headers=headers)
+      if response.status_code == 200:
+        response_json = response.json()
+      else:
+        self.log.error(
+          f'Github API GET call failed with response code {response.status_code}'
+        )
+
+    except Exception as e:
+      self.log.error(f'Error when making Github API: {e}')
+    return response_json

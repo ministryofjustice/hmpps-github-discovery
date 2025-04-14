@@ -121,15 +121,16 @@ class ServiceCatalogue:
         f'{self.url}/v1/{table}{filter}', headers=self.api_headers, timeout=10
       )
       if r.status_code == 200:
-        json_data = r.json()['data'][0]
+        if len(r.json().get('data')) > 0:
+          json_data = r.json()['data'][0]
       else:
         raise Exception(
-          f'Received non-200 response from Service Catalogue when reading all records from {table}: {r.status_code}'
+          f'Received non-200 response from Service Catalogue while getting a record from {table}: {r.status_code}'
         )
 
     except Exception as e:
       self.log.error(
-        f'Problem with Service Catalogue API while reading all records from {table}. {e}'
+        f'Problem with Service Catalogue API while getting a record from {table}. {e}'
       )
     return json_data
 

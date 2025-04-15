@@ -188,12 +188,6 @@ def process_environments(
         log.info(
           f'Environment ID {env_id} found for environment name {env} associated with {component_name} ({component_id})'
         )
-      else:
-        if env_id := sc.get_id('environments', 'name', f'{component_name}-{env}'):
-          log.info(
-            f'Old (compound) environment ID {env_id} found for environment name {component_name}-{env}'
-          )
-
       if env_id:
         # Update the environment in the environment table if anything has changed
         log.info(

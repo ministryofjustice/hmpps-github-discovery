@@ -174,12 +174,25 @@ def process_environments(
       component_id = sc.get_id('components', 'name', component_name)
       environment_record['component'] = component_id
       # Add the environment name to the environment record
-      environment_record['name'] = f'{component_name}-{env}'
-      # Check to see if the environment record exists in the environment table
-      # With the name formatted as 'component_name-environment_name'
-      if env_id := sc.get_id('environments', 'name', f'{component_name}-{env}'):
+      environment_record['name'] = f'{env}'
+
+      # env_id fix starts here
+      env_id = None
+      # New logic to look for an environment name corresponding to a component_id
+      if env_id := services.sc.get_record(
+        services.sc.environments_get,
+        f'name][$eq]={env}&filters[component][id',
+        f'{component_id}',
+      ).get('id', ''):
+        # print(f'{json.dumps(env, indent=2)}')
+        log.info(
+          f'Environment ID {env_id} found for environment name {env} associated with {component_name} ({component_id})'
+        )
+      if env_id:
         # Update the environment in the environment table if anything has changed
-        log.info(f'Updating environment {env} in the environment table')
+        log.info(
+          f'Updating environment {env} for {component_name} in the environment table'
+        )
         log.debug(f'Environment_record: {environment_record}')
         if sc.update(sc.environments, env_id, environment_record):
           env_flags['env_updated'] = True
@@ -187,7 +200,9 @@ def process_environments(
           env_flags['env_error'] = True
       else:
         # Create the environment in the environment table
-        log.info(f'Environment not found - adding {env} to the environment table')
+        log.info(
+          f'Environment not found - adding {env} for {component_name} to the environment table'
+        )
         log.debug(f'Environment data: {environment_record}')
         if sc.add(sc.environments, environment_record):
           env_flags['env_added'] = True

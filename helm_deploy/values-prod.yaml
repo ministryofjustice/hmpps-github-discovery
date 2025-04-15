@@ -10,5 +10,5 @@ discoveryCronJob:
 
 cron:
   github_teams_discovery: "20 */6 * * *"
-  github_discovery: "45 0,4-22/2 * * *"
+  github_discovery: "45 0-6/2,10-22/2 * * *"
   github_discovery_full: "30 8 * * 1-5"

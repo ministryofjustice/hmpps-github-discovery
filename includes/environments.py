@@ -1,7 +1,8 @@
 # Environment specific functions
 # This will prepare data to be updated in the environment table
 # as well as returning data to be added to the component table (to be deprecated)
-from includes.utils import update_dict, env_mapping, get_existing_env_config
+from includes.utils import update_dict, get_existing_env_config
+from includes.values import env_mapping
 from includes import helm
 
 

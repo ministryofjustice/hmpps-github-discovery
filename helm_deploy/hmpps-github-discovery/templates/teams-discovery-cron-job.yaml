@@ -4,7 +4,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: hmpps-github-discovery-teams
+  name: hmpps-github-teams-discovery
 spec:
   schedule: "{{ .Values.cron.github_teams_discovery }}"
   concurrencyPolicy: Forbid
@@ -19,7 +19,7 @@ spec:
         spec:
           containers:
             - name: github-teams-discovery
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              image: "{{ .Values.image.repository }}:{{ .Values.version }}"
               command: ["python", "-u", "/app/github_teams_discovery.py"]
               env:
                 - name: PATH

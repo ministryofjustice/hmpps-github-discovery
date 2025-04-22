@@ -19,7 +19,7 @@ spec:
         spec:
           containers:
             - name: github-discovery
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              image: "{{ .Values.image.repository }}:{{ .Values.version }}"
               command: ["python", "-u", "/app/github_discovery.py", "-f"]
               env:
                 - name: PATH

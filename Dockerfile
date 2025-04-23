@@ -1,4 +1,4 @@
-FROM python:3.10 AS builder
+FROM python:3.13-slim AS builder
 COPY requirements.txt .
 
 RUN addgroup --gid 2000 --system appgroup && \
@@ -9,7 +9,7 @@ USER 2000
 # install dependencies to the local user directory
 RUN pip install --user -r requirements.txt
 
-FROM python:3.10-slim
+FROM python:3.13-slim
 WORKDIR /app
 
 RUN addgroup --gid 2000 --system appgroup && \
@@ -21,13 +21,12 @@ COPY includes includes
 COPY classes classes
 COPY processes processes
 COPY utilities utilities
+COPY models modules
 
 COPY ./github_discovery.py .
 COPY ./github_teams_discovery.py .
 COPY ./github_component_discovery.py .
 COPY ./requirements.txt .
-
-
 
 # update PATH environment variable
 ENV PATH=/home/appuser/.local:$PATH

@@ -12,10 +12,8 @@ from classes.alertmanager import AlertmanagerData
 from classes.slack import Slack
 
 # Standalone functions
-from includes import helm as helm
+from includes import helm, environments, standards
 from includes.utils import update_dict, get_dockerfile_data
-from includes import environments as environments
-
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 max_threads = 10
@@ -265,9 +263,14 @@ def process_changed_component(component, repo, services):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
+  # Get standards
+  if repo_standards := standards.get_standards_compliance(services, repo):
+    update_dict(data, 'standards_compliance', repo_standards)
+
   log.debug(
     f'Finished getting other repo information for {component_name}\ndata: {data}'
   )
+
   return data
 
 

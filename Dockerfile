@@ -21,7 +21,7 @@ COPY includes includes
 COPY classes classes
 COPY processes processes
 COPY utilities utilities
-COPY models modules
+COPY models models
 
 COPY ./github_discovery.py .
 COPY ./github_teams_discovery.py .

@@ -1,7 +1,7 @@
 import requests
 import logging
 import json
-
+from utilities.error_handling import log_critical, log_error
 
 class ServiceCatalogue:
   def __init__(self, params, log_level=logging.INFO):
@@ -42,6 +42,7 @@ class ServiceCatalogue:
     self.environments_get = (
       f'{self.environments}?populate[0]=component{pagination_page_size}{sort_filter}'
     )
+    self.scheduled_jobs='scheduled-jobs'
     self.connection_ok = self.test_connection()
 
   """
@@ -58,7 +59,7 @@ class ServiceCatalogue:
       )
       return True
     except Exception as e:
-      self.log.critical(f'Unable to connect to the Service Catalogue - {e}')
+      log_critical(f'Unable to connect to the Service Catalogue - {e}')
       return False
 
   """
@@ -101,7 +102,7 @@ class ServiceCatalogue:
           )
 
     except Exception as e:
-      self.log.error(
+      log_error(
         f'Problem with Service Catalogue API while reading all records from {table}. {e}'
       )
     return json_data
@@ -129,7 +130,7 @@ class ServiceCatalogue:
         )
 
     except Exception as e:
-      self.log.error(
+      log_error(
         f'Problem with Service Catalogue API while getting a record from {table}. {e}'
       )
     return json_data
@@ -158,7 +159,7 @@ class ServiceCatalogue:
           f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
-      self.log.error(
+      log_error(
         f'Error updating service catalogue for record id {element_id} in {table.split("/")[-1]}: {e}'
       )
     return success
@@ -183,7 +184,7 @@ class ServiceCatalogue:
           f'Received non-200 response from service catalogue to add a record to {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
-      self.log.error(
+      log_error(
         f'Error adding a record to {table.split("/")[-1]} in service catalogue: {e}'
       )
     return success
@@ -207,7 +208,7 @@ class ServiceCatalogue:
       )
       return None
     except Exception as e:
-      self.log.error(
+      log_error(
         f'Error getting Service Catalogue ID for {match_field}={match_string} in {match_table}: {e} - {r.status_code} {r.content}'
       )
       return None

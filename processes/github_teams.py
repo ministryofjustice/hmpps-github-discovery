@@ -7,6 +7,8 @@ from classes.github import GithubSession
 from classes.service_catalogue import ServiceCatalogue
 
 import includes.teams as teams
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.error_handling import log_error
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 

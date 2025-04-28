@@ -1,11 +1,11 @@
 import re
-
+from utilities.error_handling import log_error
 
 def fetch_gh_github_teams_data(gh, teamrepo, log):
   try:
     teams_data = gh.get_file_plain(teamrepo, 'terraform/teams.tf')
   except Exception as e:
-    log.error(f'Error fetching teams data from Github - {e}')
+    log_error(f'Error fetching teams data from Github - {e}')
     return []
 
   teams_json_data = extract_tf_teams(teams_data)

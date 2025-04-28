@@ -8,7 +8,8 @@ from processes import github_teams
 from classes.github import GithubSession
 from classes.service_catalogue import ServiceCatalogue
 from classes.slack import Slack
-
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.error_handling import log_error, job
 
 class Services:
   def __init__(self, sc_params, gh_params, slack_params, log):
@@ -63,16 +64,24 @@ def main():
   )
   log = logging.getLogger(__name__)
 
+  job.name = 'hmpps-github-teams-discovery'
   services = Services(sc_params, gh_params, slack_params, log)
+  slack = services.slack
 
   log.info('Processing teams...')
   processed_teams = github_teams.process_github_teams(services)
   log.info('Finished processing teams.')
 
   summary = summarize_processed_teams(processed_teams)
-  services.slack.notify(summary)
-  services.log.info(summary)
+  slack.notify(summary)
+  log.info(summary)
 
+  if job.error_messages:
+    sc_scheduled_job.update(services, 'Errors')
+    log.info("Github teams discovery job completed  with errors.")
+  else:
+    sc_scheduled_job.update(services, 'Succeeded')
+    log.info("Github teams discovery job completed successfully.")
 
 if __name__ == '__main__':
   main()

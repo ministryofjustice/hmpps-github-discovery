@@ -45,6 +45,8 @@ from classes.circleci import CircleCI
 # Components
 import processes.products as products
 import processes.components as components
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.error_handling import log_error, job
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -136,7 +138,10 @@ def main():
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
   if '-f' in os.sys.argv or '--force' in os.sys.argv:
+    job.name = 'hmpps-github-discovery-full'
     force_update = True
+  else:
+    job.name = 'hmpps-github-discovery-incremental'
 
   #### Create resources ####
 
@@ -176,23 +181,30 @@ def main():
   }
 
   services = Services(sc_params, gh_params, am_params, cc_params, slack_params, log)
+  slack = services.slack
+  cc = services.cc
+  sc = services.sc
+  gh = services.gh
 
   # Send some alerts if there are service issues
+  if not sc.connection_ok:
+    slack.alert('*Github Discovery failed*: Unable to connect to the Service Catalogue')
+    raise SystemExit()
+
   if not services.am.json_config_data:
-    services.slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
+    slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
+    log_error('*Github Discovery*: Unable to connect to Alertmanager')
 
-  if not services.cc.test_connection():
-    services.slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')
+  if not cc.test_connection():
+    slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')
+    log_error('*Github Discovery failed*: Unable to connect to CircleCI')
+    sc_scheduled_job.update(services, 'Failed')
     raise SystemExit()
 
-  if not services.sc.connection_ok:
-    services.slack.alert(
-      '*Github Discovery failed*: Unable to connect to the Service Catalogue'
-    )
-    raise SystemExit()
-
-  if not services.gh.org:
-    services.slack.alert('*Github Discovery*: Unable to connect to Github')
+  if not gh.org:
+    slack.alert('*Github Discovery*: Unable to connect to Github')
+    log_error('*Github Discovery*: Unable to connect to Github')
+    sc_scheduled_job.update(services, 'Failed')
     raise SystemExit()
 
   # Since we're running this on a schedule, this is of no further use to us
@@ -217,6 +229,12 @@ def main():
   # create_summary(services, processed_components, processed_products, processed_teams)
   create_summary(services, processed_components, processed_products, force_update)
 
+  if job.error_messages:
+    sc_scheduled_job.update(services, 'Errors')
+    log.info("Github discovery job completed  with errors.")
+  else:
+    sc_scheduled_job.update(services, 'Succeeded')
+    log.info("Github discovery job completed successfully.")
 
 if __name__ == '__main__':
   main()

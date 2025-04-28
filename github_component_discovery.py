@@ -41,6 +41,7 @@ from classes.circleci import CircleCI
 
 # Components
 import processes.components as components
+from utilities.error_handling import log_error
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -113,7 +114,7 @@ def main():
     )
     log.info(f'Processed component: {processed_components}')
   else:
-    log.error(f'Component {component_name} not found')
+    log_error(f'Component {component_name} not found')
 
 
 if __name__ == '__main__':

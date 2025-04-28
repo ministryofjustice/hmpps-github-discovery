@@ -4,6 +4,7 @@
 from includes.utils import update_dict, get_existing_env_config
 from includes.values import env_mapping
 from includes import helm
+from utilities.error_handling import log_error
 
 
 ################################################################################################
@@ -55,7 +56,7 @@ def get_environments(component, repo, bootstrap_projects, services):
   try:
     repo_envs = repo.get_environments()
   except Exception as e:
-    log.error(f'Error getting environments for {component_name}: {e}')
+    log_error(f'Error getting environments for {component_name}: {e}')
 
   if repo_envs and repo_envs.totalCount < 10:
     # workaround for a repo that has hundreds of environments

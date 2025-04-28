@@ -1,7 +1,7 @@
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import logging
-
+from utilities.error_handling import log_critical, log_error
 
 class Slack:
   def __init__(self, slack_params, log_level=logging.INFO):
@@ -19,7 +19,7 @@ class Slack:
     try:
       self.slack_client = WebClient(token=slack_params['token'])
     except Exception as e:
-      self.log.critical('Unable to connect to Slack.')
+      log_critical('Unable to connect to Slack.')
       return False
 
   def test_connection(self):
@@ -28,7 +28,7 @@ class Slack:
       self.log.info('Successfully conected to Slack.')
       return True
     except Exception as e:
-      self.log.critical('Unable to connect to Slack.')
+      log_critical('Unable to connect to Slack.')
       return None
 
   def get_slack_channel_name_by_id(self, slack_channel_id):
@@ -44,7 +44,7 @@ class Slack:
           f'Unable to update Slack channel name - {slack_channel_id} not found or private'
         )
       else:
-        self.log.error(f'Slack error: {e}')
+        log_error(f'Slack error: {e}')
     self.log.debug(f'Slack channel name for {slack_channel_id} is {slack_channel_name}')
     return slack_channel_name
 
@@ -58,11 +58,11 @@ class Slack:
         channel=self.notify_channel, text=f':information-source: {message}'
       )
     except SlackApiError as e:
-      self.log.error(f'Slack error: {e}')
+      log_error(f'Slack error: {e}')
 
   def alert(self, message):
     if not self.alert_channel:
-      self.log.error('No alert channel set in config')
+      log_error('No alert channel set in config')
       return
     self.log.debug(f'Sending alert to {self.alert_channel}')
     try:
@@ -70,4 +70,4 @@ class Slack:
         channel=self.alert_channel, text=f':warning_triangle: {message}'
       )
     except SlackApiError as e:
-      self.log.error(f'Slack error: {e}')
+      log_error(f'Slack error: {e}')

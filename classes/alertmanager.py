@@ -2,7 +2,7 @@ import requests
 import yaml
 import json
 import logging
-
+from utilities.error_handling import log_error
 
 class AlertmanagerData:
   def __init__(self, am_params, log_level=logging.INFO):
@@ -29,19 +29,19 @@ class AlertmanagerData:
         # )
         self.log.info('Successfully fetched Alertmanager data')
       else:
-        self.log.error(f'Error fetching Alertmanager data: {response.status_code}')
+        log_error(f'Error fetching Alertmanager data: {response.status_code}')
 
     except requests.exceptions.SSLError as e:
-      self.log.error(f'SSL Error: {e}')
+      log_error(f'Alertmanager SSL Error: {e}')
 
     except requests.exceptions.RequestException as e:
-      self.log.error(f'Request Error: {e}')
+      log_error(f'Alertmanager Request Error: {e}')
 
     except json.JSONDecodeError as e:
-      self.log.error(f'JSON Decode Error: {e}')
+      log_error(f'Alertmanager JSON Decode Error: {e}')
 
     except Exception as e:
-      self.log.error(f'Error getting data from Alertmanager: {e}')
+      log_error(f'Error getting data from Alertmanager: {e}')
 
   def isDataAvailable(self):
     return self.json_config_data is not None
@@ -73,5 +73,5 @@ class AlertmanagerData:
               self.log.debug(f'No slack_configs found for {receiver_name}')
               return None
     else:
-      self.log.error('No Alertmanager data available')
+      log_error('No Alertmanager data available')
       return None

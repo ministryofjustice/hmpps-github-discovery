@@ -2,7 +2,7 @@ import requests
 from dockerfile_parse import DockerfileParser
 import tempfile
 import re
-
+from utilities.error_handling import log_error
 
 # Cheeky little function to update a dictionary or add a new record if there isn't one
 def update_dict(this_dict, key, sub_dict):
@@ -122,7 +122,7 @@ def get_dockerfile_data(dockerfile_contents, log):
     docker_data['base_image'] = base_image
     log.debug(f'Found Dockerfile base image: {base_image}')
   except Exception as e:
-    log.error(f'Error parent/base image from Dockerfile: {e}')
+    log_error(f'Error parent/base image from Dockerfile: {e}')
   return docker_data
 
 

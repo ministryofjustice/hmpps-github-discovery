@@ -1,7 +1,7 @@
 import requests
 import logging
 from includes.utils import update_dict
-
+from utilities.error_handling import log_critical
 
 class CircleCI:
   def __init__(self, params, log_level=logging.INFO):
@@ -27,7 +27,7 @@ class CircleCI:
       self.log.info(f'CircleCI API: {response.status_code}')
       return True
     except Exception as e:
-      self.log.critical(f'Unable to connect to the CircleCI API: {e}')
+      log_critical(f'Unable to connect to the CircleCI API: {e}')
       return None
 
   def get_trivy_scan_json_data(self, project_name):

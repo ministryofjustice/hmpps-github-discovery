@@ -15,6 +15,9 @@ from classes.slack import Slack
 from includes import helm, environments, standards
 from includes.utils import update_dict, get_dockerfile_data
 
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.error_handling import log_error
+
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 max_threads = 10
 
@@ -58,7 +61,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags, log):
         for team in branch_protection_teams:
           branch_protection_restricted_teams.append(team.slug)
       except Exception as e:
-        log.error(f'Unable to get branch protection {repo.name}: {e}')
+        log_error(f'Unable to get branch protection {repo.name}: {e}')
         component_flags['app_disabled'] = True
 
     try:
@@ -83,7 +86,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags, log):
       data['github_enforce_admins_enabled'] = enforce_admins
 
     except Exception as e:
-      log.error(f'Unable to get teams/admin information {repo.name}: {e}')
+      log_error(f'Unable to get teams/admin information {repo.name}: {e}')
       component_flags['app_disabled'] = True
 
   return data
@@ -130,9 +133,7 @@ def process_independent_component(component, services):
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
     else:
-      log.error(
-        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
-      )
+      log_error(f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}')
       component_flags['app_disabled'] = True
 
   try:
@@ -377,7 +378,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):
-      log.error(f'Error updating component {component_name}')
+      log_error(f'Error updating component {component_name}')
       component_flags['update_error'] = True
 
   else:  # if the repo doesn't exist

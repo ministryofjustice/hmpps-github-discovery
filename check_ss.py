@@ -44,6 +44,7 @@ import processes.components as components
 
 # Standards
 from includes.standards import get_standards_compliance
+from utilities.error_handling import log_error
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -114,7 +115,7 @@ def main():
     data = get_standards_compliance(services, repo, component)
     log.info(f'data is: {data}')
   else:
-    log.error(f'Component {component_name} not found')
+    log_error_message(f'Component {component_name} not found')
 
 
 if __name__ == '__main__':

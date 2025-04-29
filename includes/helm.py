@@ -12,6 +12,7 @@ def get_helm_dirs(repo, component, log):
     if component['attributes'].get('part_of_monorepo')
     else '.'
   )
+  log.debug(f'component_project_dir: {component_project_dir}')
   helm_dir = (
     component['attributes'].get('path_to_helm_dir')
     or f'{component_project_dir}/helm_deploy'
@@ -192,16 +193,41 @@ def get_info_from_helm(component, repo, services):
             if 'host' in ingress_dict:
               update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})
             elif 'hosts' in ingress_dict:
+              last_host_record = ingress_dict.get('hosts')[-1]
+              log.debug(
+                f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
+              )
+              host = (
+                last_host_record.get('host', '')
+                if isinstance(last_host_record, dict)
+                else last_host_record
+              )
+              log.debug(f'host is: {host}')
               update_dict(
-                helm_envs, env, {'url': f'https://{ingress_dict["hosts"][-1]}'}
+                helm_envs,
+                env,
+                {'url': f'https://{host}'},
               )
         # ingress->host(s)
         elif 'ingress' in values:
-          if 'host' in values['ingress']:
-            update_dict(helm_envs, env, {'url': f'https://{values["ingress"]["host"]}'})
-          elif 'hosts' in values['ingress']:
+          ingress_dict = values.get('ingress')
+          if host := ingress_dict.get('host'):
+            update_dict(helm_envs, env, {'url': f'https://{host}'})
+          elif 'hosts' in ingress_dict:
+            last_host_record = ingress_dict.get('hosts')[-1]
+            log.debug(
+              f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
+            )
+            host = (
+              last_host_record.get('host', '')
+              if isinstance(last_host_record, dict)
+              else last_host_record
+            )
+            log.debug(f'host is: {host}')
             update_dict(
-              helm_envs, env, {'url': f'https://{values["ingress"]["hosts"][-1]}'}
+              helm_envs,
+              env,
+              {'url': f'https://{host}'},
             )
 
         # Container image alternative location

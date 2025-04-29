@@ -2,9 +2,9 @@ import re
 import includes.utils as utils
 from includes.utils import update_dict
 from includes.values import env_mapping
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
 
-
-def get_helm_dirs(repo, component, log):
+def get_helm_dirs(repo, component):
   component_name = component['attributes']['name']
 
   component_project_dir = (
@@ -16,7 +16,7 @@ def get_helm_dirs(repo, component, log):
     component['attributes'].get('path_to_helm_dir')
     or f'{component_project_dir}/helm_deploy'
   )
-  log.debug(f'helm_dir for {component_name} is {helm_dir}')
+  log_debug(f'helm_dir for {component_name} is {helm_dir}')
 
   try:
     helm_deploy_dir = repo.get_contents(
@@ -24,14 +24,13 @@ def get_helm_dirs(repo, component, log):
     )
   except Exception as e:
     helm_deploy_dir = None
-    log.warning(f'Unable to load the helm_deploy folder for {component_name}: {e}')
+    log_warning(f'Unable to load the helm_deploy folder for {component_name}: {e}')
   return (helm_dir, helm_deploy_dir)
 
 
 def get_envs_from_helm(component, repo, services):
-  log = services.log
   helm_environments = []
-  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dirs = get_helm_dirs(repo, component)
   helm_dir, helm_deploy_dir = helm_dirs
   if helm_deploy_dir:
     for helm_file in helm_deploy_dir:
@@ -44,7 +43,6 @@ def get_envs_from_helm(component, repo, services):
 def get_info_from_helm(component, repo, services):
   gh = services.gh
   am = services.am
-  log = services.log
   sc = services.sc
 
   # Shortcuts to make it easier to read
@@ -55,7 +53,7 @@ def get_info_from_helm(component, repo, services):
   helm_environments = []
   # environments is returned from helm as a dictionary
 
-  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dirs = get_helm_dirs(repo, component)
   helm_dir, helm_deploy_dir = helm_dirs
   if helm_deploy_dir:
     # variables used for implementation of findind IP allowlist in helm values files
@@ -120,7 +118,7 @@ def get_info_from_helm(component, repo, services):
       # Try to get the container image
       if container_image := helm_default_values.get('image', {}).get('repository', {}):
         data['container_image'] = container_image
-        log.debug(
+        log_debug(
           f'Container image found in image->repository for {component_name}: {container_image}'
         )
       if 'generic-service' in helm_default_values:
@@ -130,7 +128,7 @@ def get_info_from_helm(component, repo, services):
           .get('repository')
         ):
           data['container_image'] = container_image
-          log.debug(
+          log_debug(
             f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
           )
         # Try to get the productID
@@ -150,7 +148,7 @@ def get_info_from_helm(component, repo, services):
             .get(mod_security_type, None)
           )
       if not data.get('container_image'):
-        log.info(f'No container image found for {component_name}')
+        log_info(f'No container image found for {component_name}')
 
       # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
       # TODO: use the product_id from the repository variables?
@@ -184,7 +182,7 @@ def get_info_from_helm(component, repo, services):
         or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
         or None
       )
-      log.debug(f'helm values for {component_name} in {env}: {values}')
+      log_debug(f'helm values for {component_name} in {env}: {values}')
       if values:
         # generic service->ingress->host(s)
         if 'generic-service' in values:
@@ -224,7 +222,7 @@ def get_info_from_helm(component, repo, services):
             if mod_security_env_enabled := values['generic-service']['ingress'].get(
               mod_security_type[0]
             ):
-              log.debug(
+              log_debug(
                 f'Updating {mod_security_type[0]} to environment value: {mod_security_env_enabled}'
               )
               update_dict(
@@ -233,7 +231,7 @@ def get_info_from_helm(component, repo, services):
                 {mod_security_type[0]: mod_security_env_enabled},
               )
             elif mod_security_defaults.get(mod_security_type[0]):
-              log.debug(
+              log_debug(
                 f'Updating {mod_security_type[0]} to default value: {mod_security_defaults[mod_security_type[0]]}'
               )
               update_dict(
@@ -251,20 +249,20 @@ def get_info_from_helm(component, repo, services):
           if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
             alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
             if alert_severity_label:
-              log.debug(
+              log_debug(
                 f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
               )
-              log.debug(
+              log_debug(
                 f'Updating {env} alert_severity_label to {alert_severity_label}'
               )
 
           if not alert_severity_label and alert_severity_label_default:
-            log.info(
+            log_info(
               f'Alert severity label not found for {component_name} in {env} - setting to default'
             )
             alert_severity_label = alert_severity_label_default
           else:
-            log.info(
+            log_info(
               f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml'
             )
 
@@ -273,11 +271,11 @@ def get_info_from_helm(component, repo, services):
               alert_severity_label
             )
             if alerts_slack_channel:
-              log.debug(
+              log_debug(
                 f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}'
               )
             else:
-              log.warning(
+              log_warning(
                 f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}'
               )
 
@@ -285,7 +283,7 @@ def get_info_from_helm(component, repo, services):
             'alert_severity_label': alert_severity_label,
             'alerts_slack_channel': alerts_slack_channel,
           }
-          log.debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+          log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
           # Update the helm environment data with the outcome of this check
           update_dict(helm_envs, env, alertmanager_config)
 
@@ -300,16 +298,16 @@ def get_info_from_helm(component, repo, services):
           if 'sign-in' in env_url:
             health_path = '/auth/health'
             info_path = '/auth/info'
-          if utils.test_endpoint(env_url, health_path, log):
+          if utils.test_endpoint(env_url, health_path):
             update_dict(helm_envs, env, {'health_path': health_path})
-          if utils.test_endpoint(env_url, info_path, log):
+          if utils.test_endpoint(env_url, info_path):
             update_dict(helm_envs, env, {'info_path': info_path})
           # Test for API docs - and if found also test for SAR endpoint.
-          if utils.test_swagger_docs(env_url, log):
+          if utils.test_swagger_docs(env_url):
             update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
             data['api'] = True
             data['frontend'] = False
-            if utils.test_subject_access_request_endpoint(env_url, log):
+            if utils.test_subject_access_request_endpoint(env_url):
               update_dict(
                 helm_envs,
                 env,
@@ -351,5 +349,5 @@ def get_info_from_helm(component, repo, services):
       update_dict(data, 'environments', helm_envs)
     # End of helm environment checks
 
-  log.debug(f'Helm data for {component_name}: {data}')
+  log_debug(f'Helm data for {component_name}: {data}')
   return data

@@ -2,12 +2,9 @@
 # https://github.com/ministryofjustice/github-community/tree/main/app/projects/repository_standards/models
 
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
-
-logger = logging.getLogger(__name__)
-
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
 
 class RepositoryInfoFactory:
   @staticmethod
@@ -71,7 +68,7 @@ class RepositoryInfoFactory:
       )
     except Exception as e:
       default_branch_protection = None
-      logger.error('Error getting default branch protection: %s', e)
+      log_error('Error getting default branch protection: %s', e)
 
     return RepositoryInfo(
       basic=basic_info,

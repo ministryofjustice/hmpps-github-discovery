@@ -10,6 +10,7 @@
 from models.repository_info import (
   RepositoryInfoFactory,
 )
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 # Standards compliance checks
 # =====================================
@@ -69,7 +70,7 @@ standards = [
 
 def get_standards_compliance(services, repo):
   repo_details = RepositoryInfoFactory.from_github_repo(repo)
-  services.log.info(repo_details)
+  log_info(repo_details)
 
   data = {}
   for standard in standards:
@@ -78,7 +79,7 @@ def get_standards_compliance(services, repo):
     # drill down into the subfields to get the data
     for attr_parts in standard[1].split('.'):
       repo_attr = getattr(repo_attr, attr_parts)
-    services.log.debug(f'{standard} ({len(standard)}): {repo_attr}')
+    log_debug(f'{standard} ({len(standard)}): {repo_attr}')
     if len(standard) > 2:
       # If there is a value, validate against it
       if isinstance(repo_attr, int) and not isinstance(repo_attr, bool):

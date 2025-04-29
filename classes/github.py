@@ -4,17 +4,13 @@ import json
 import yaml
 from github import Auth, Github
 from github.GithubException import UnknownObjectException
-import logging
 from datetime import datetime, timedelta, timezone
 import jwt
-
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 class GithubSession:
-  def __init__(self, params, log_level=logging.INFO):
-    logging.basicConfig(
-      format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-    )
-    self.log = logging.getLogger(__name__)
+  def __init__(self, params):
     self.private_key = b64decode(params['app_private_key']).decode('ascii')
     self.app_id = params['app_id']
     self.app_installation_id = params['app_installation_id']
@@ -24,18 +20,18 @@ class GithubSession:
       try:
         rate_limit = self.session.get_rate_limit()
         self.core_rate_limit = rate_limit.core
-        self.log.info(f'Github API: {rate_limit}')
+        log_info(f'Github API: {rate_limit}')
         # test fetching organisation name
         self.org = self.session.get_organization('ministryofjustice')
       except Exception as e:
-        self.log.critical('Unable to get Github Organisation.')
+        log_critical('Unable to get Github Organisation.')
 
   def auth(self):
     try:
       auth = Auth.Token(self.get_access_token())
       self.session = Github(auth=auth, pool_size=50)
     except Exception as e:
-      self.log.critical('Unable to connect to the github API.')
+      log_critical('Unable to connect to the github API.')
 
   def get_access_token(self):
     now = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -57,12 +53,12 @@ class GithubSession:
     try:
       rate_limit = self.session.get_rate_limit()
       self.core_rate_limit = rate_limit.core
-      self.log.info(f'Github API: {rate_limit}')
+      log_info(f'Github API: {rate_limit}')
       # test fetching organisation name
       self.org = self.session.get_organization('ministryofjustice')
       return True
     except Exception as e:
-      self.log.critical('Unable to connect to the github API.')
+      log_critical('Unable to connect to the github API.')
       raise SystemExit(e) from e
       return None
 
@@ -71,7 +67,7 @@ class GithubSession:
       if self.session:
         return self.session.get_rate_limit().core
     except Exception as e:
-      self.log.error(f'Error getting rate limit: {e}')
+      log_error(f'Error getting rate limit: {e}')
       return None
 
   def get_org_repo(self, repo_name):
@@ -79,7 +75,7 @@ class GithubSession:
     try:
       repo = self.org.get_repo(repo_name)
     except Exception as e:
-      self.log.error(f'Error trying to get the repo {repo_name} from Github: {e}')
+      log_error(f'Error trying to get the repo {repo_name} from Github: {e}')
       return None
     return repo
 
@@ -90,9 +86,9 @@ class GithubSession:
       yaml_contents = yaml.safe_load(contents)
       return yaml_contents
     except UnknownObjectException:
-      self.log.debug(f'404 File not found {repo.name}:{path}')
+      log_debug(f'404 File not found {repo.name}:{path}')
     except Exception as e:
-      self.log.error(f'Error getting yaml file ({path}): {e}')
+      log_error(f'Error getting yaml file ({path}): {e}')
 
   def get_file_json(self, repo, path):
     try:
@@ -100,10 +96,10 @@ class GithubSession:
       json_contents = json.loads(b64decode(file_contents.content))
       return json_contents
     except UnknownObjectException:
-      self.log.debug(f'404 File not found {repo.name}:{path}')
+      log_debug(f'404 File not found {repo.name}:{path}')
       return None
     except Exception as e:
-      self.log.error(f'Error getting json file ({path}): {e}')
+      log_error(f'Error getting json file ({path}): {e}')
       return None
 
   def get_file_plain(self, repo, path):
@@ -112,19 +108,19 @@ class GithubSession:
       plain_contents = b64decode(file_contents.content).decode()
       return plain_contents
     except UnknownObjectException:
-      self.log.debug(f'404 File not found {repo.name}:{path}')
+      log_debug(f'404 File not found {repo.name}:{path}')
       return None
     except Exception as e:
-      self.log.error(f'Error getting contents from file ({path}): {e}')
+      log_error(f'Error getting contents from file ({path}): {e}')
       return None
 
   def api_get(self, api):
     response_json = {}
-    self.log.debug(f'making API call: {api}')
+    log_debug(f'making API call: {api}')
     # GitHub API URL to check security and analysis settings
     url = f'https://api.github.com/{api}'
     token = self.get_access_token()
-    self.log.debug(f'token is: {token}')
+    log_debug(f'token is: {token}')
     # Headers for the request
     headers = {
       'Authorization': f'token {token}',
@@ -138,10 +134,8 @@ class GithubSession:
       if response.status_code == 200:
         response_json = response.json()
       else:
-        self.log.error(
-          f'Github API GET call failed with response code {response.status_code}'
-        )
+        log_error(f'Github API GET call failed with response code {response.status_code}')
 
     except Exception as e:
-      self.log.error(f'Error when making Github API: {e}')
+      log_error(f'Error when making Github API: {e}')
     return response_json

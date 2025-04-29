@@ -29,7 +29,6 @@ Optional environment variables
 """
 
 import os
-import logging
 import argparse
 
 # Classes for the various parts of the script
@@ -41,29 +40,24 @@ from classes.circleci import CircleCI
 
 # Components
 import processes.components as components
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 
 class Services:
-  def __init__(self, sc_params, gh_params, am_params, cc_params, log):
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.gh = GithubSession(gh_params, log)
-    self.am = AlertmanagerData(am_params, log)
-    self.cc = CircleCI(cc_params, log_level)
-    self.log = log
+  def __init__(self, sc_params, gh_params, am_params, cc_params):
+    self.sc = ServiceCatalogue(sc_params)
+    self.gh = GithubSession(gh_params)
+    self.am = AlertmanagerData(am_params)
+    self.cc = CircleCI(cc_params)
 
 
 ###########################################################################################################
 # Single component discovery
 ###########################################################################################################
 def main():
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-  )
-  log = logging.getLogger(__name__)
 
   parser = argparse.ArgumentParser(description='Process a component.')
   parser.add_argument('component_name', help='The name of the component')
@@ -99,21 +93,21 @@ def main():
     )
   }
 
-  services = Services(sc_params, gh_params, am_params, cc_params, log)
+  services = Services(sc_params, gh_params, am_params, cc_params)
 
   component = services.sc.get_record(services.sc.components_get, 'name', component_name)
-  log.debug(f'Component: {component}')
+  log_debug(f'Component: {component}')
   if component:
-    log.info(f'Processing component {component_name}...')
+    log_info(f'Processing component {component_name}...')
     processed_components = components.process_sc_component(
       component,
       components.get_bootstrap_projects(services),
       services,
       force_update=True,
     )
-    log.info(f'Processed component: {processed_components}')
+    log_info(f'Processed component: {processed_components}')
   else:
-    log.error(f'Component {component_name} not found')
+    log_error(f'Component {component_name} not found')
 
 
 if __name__ == '__main__':

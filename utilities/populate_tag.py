@@ -1,13 +1,10 @@
 # Classes for the various parts of the script
 from classes.service_catalogue import ServiceCatalogue
 import os
-import logging
 import json
-
+from utilities.job_log_handling import log_debug, log_info
 
 def main():
-  logging.basicConfig(format='%(message)s', level='INFO')
-  log = logging.getLogger(__name__)
 
   # service catalogue parameters
   sc_dev_params = {
@@ -30,12 +27,12 @@ def main():
   dev_environments = sc_dev.get_all_records(sc_dev.environments)
 
   for component in prod_components:
-    log.info(f'Getting environment data for {component.get("attributes").get("name")}')
+    log_info(f'Getting environment data for {component.get("attributes").get("name")}')
     prod_attributes = component['attributes']
     if environments := prod_attributes.get('environments'):
       for env in environments:
         if build_image_tag := env.get('build_image_tag'):
-          log.info(
+          log_info(
             f'Copying build image tag {build_image_tag} from prod to dev for {component.get("attributes").get("name")}'
           )
           dev_component = next(
@@ -53,11 +50,11 @@ def main():
               for dev_env in dev_environments:
                 if dev_env.get('name') == env.get('name'):
                   dev_env['build_image_tag'] = build_image_tag
-                  log.info(f'Updated build image tag for {dev_env.get("name")}')
-              log.debug(
+                  log_info(f'Updated build image tag for {dev_env.get("name")}')
+              log_debug(
                 f'component environment data is now: {json.dumps(dev_environments, indent=2)}'
               )
-              log.info('updating dev component')
+              log_info('updating dev component')
               sc_dev.update(
                 sc_dev.environments,
                 dev_component['id'],
@@ -70,16 +67,16 @@ def main():
                   sc_dev.environments, 'id', dev_env['id']
                 ):
                   dev_env_data['build_image_tag'] = build_image_tag
-                  log.debug(
+                  log_debug(
                     f'envs environment data for {dev_env_data.get("attributes").get("name")} is now: {json.dumps(dev_env_data, indent=2)}'
                   )
-                  log.info('updating dev env')
+                  log_info('updating dev env')
                   sc_dev.update(
                     sc_dev.environments,
                     dev_env_data['id'],
                     {'build_image_tag': build_image_tag},
                   )
-        log.info('\n')
+        log_info('\n')
 
 
 if __name__ == '__main__':

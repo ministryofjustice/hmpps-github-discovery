@@ -32,7 +32,6 @@ Optional environment variables
 """
 
 import os
-import logging
 
 # Classes for the various parts of the script
 # from classes.health import HealthServer
@@ -45,20 +44,20 @@ from classes.circleci import CircleCI
 # Components
 import processes.products as products
 import processes.components as components
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 
 class Services:
-  def __init__(self, sc_params, gh_params, am_params, cc_params, slack_params, log):
-    self.slack = Slack(slack_params, log)
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.gh = GithubSession(gh_params, log)
-    self.am = AlertmanagerData(am_params, log)
-    self.cc = CircleCI(cc_params, log_level)
-    self.log = log
+  def __init__(self, sc_params, gh_params, am_params, cc_params, slack_params):
+    self.slack = Slack(slack_params)
+    self.sc = ServiceCatalogue(sc_params)
+    self.gh = GithubSession(gh_params)
+    self.am = AlertmanagerData(am_params)
+    self.cc = CircleCI(cc_params)
 
 
 # def create_summary(services, processed_components, processed_products, processed_teams):
@@ -124,19 +123,18 @@ def create_summary(
   # summary += summarize_processed_items(processed_teams, 'team', team_attributes)
 
   services.slack.notify(summary)
-  services.log.info(summary)
+  log_info(summary)
 
 
 def main():
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-  )
-  log = logging.getLogger(__name__)
 
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
   if '-f' in os.sys.argv or '--force' in os.sys.argv:
+    job.name = 'hmpps-github-discovery-full'
     force_update = True
+  else:
+    job.name = 'hmpps-github-discovery-incremental'
 
   #### Create resources ####
 
@@ -175,24 +173,32 @@ def main():
     )
   }
 
-  services = Services(sc_params, gh_params, am_params, cc_params, slack_params, log)
+  services = Services(sc_params, gh_params, am_params, cc_params, slack_params)
+  slack = services.slack
+  cc = services.cc
+  sc = services.sc
+  gh = services.gh
+  am = services.am
 
   # Send some alerts if there are service issues
-  if not services.am.json_config_data:
-    services.slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
-
-  if not services.cc.test_connection():
-    services.slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')
+  if not sc.connection_ok:
+    slack.alert('*Github Discovery failed*: Unable to connect to the Service Catalogue')
     raise SystemExit()
 
-  if not services.sc.connection_ok:
-    services.slack.alert(
-      '*Github Discovery failed*: Unable to connect to the Service Catalogue'
-    )
+  if not am.json_config_data:
+    slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
+    log_error('*Github Discovery*: Unable to connect to Alertmanager')
+
+  if not cc.test_connection():
+    slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')
+    log_error('*Github Discovery failed*: Unable to connect to CircleCI')
+    sc_scheduled_job.update(services, 'Failed')
     raise SystemExit()
 
-  if not services.gh.org:
-    services.slack.alert('*Github Discovery*: Unable to connect to Github')
+  if not gh.org:
+    slack.alert('*Github Discovery*: Unable to connect to Github')
+    log_error('*Github Discovery*: Unable to connect to Github')
+    sc_scheduled_job.update(services, 'Failed')
     raise SystemExit()
 
   # Since we're running this on a schedule, this is of no further use to us
@@ -201,22 +207,28 @@ def main():
   # httpHealth = threading.Thread(target=health_server.start, daemon=True)
   # httpHealth.start()
 
-  log.info('Batch processing components')
+  log_info('Batch processing components')
   processed_components = components.batch_process_sc_components(
     services, max_threads, force_update
   )
 
   # Process products
-  log.info('Batch processing products...')
+  log_info('Batch processing products...')
   processed_products = products.batch_process_sc_products(services, max_threads)
 
   # # Process Teams - carried out in a separate script now
-  # log.info('Processing teams...')
+  # log_info('Processing teams...')
   # processed_teams = github_teams.process_github_teams(services)
 
   # create_summary(services, processed_components, processed_products, processed_teams)
   create_summary(services, processed_components, processed_products, force_update)
 
+  if job.error_messages:
+    sc_scheduled_job.update(services, 'Errors')
+    log_info("Github discovery job completed  with errors.")
+  else:
+    sc_scheduled_job.update(services, 'Succeeded')
+    log_info("Github discovery job completed successfully.")
 
 if __name__ == '__main__':
   main()

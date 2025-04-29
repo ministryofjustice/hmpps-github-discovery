@@ -10,8 +10,7 @@ from utilities.job_log_handling import (
   log_warning,
 )
 
-
-def get_helm_dirs(repo, component, log):
+def get_helm_dirs(repo, component):
   component_name = component['attributes']['name']
 
   component_project_dir = (
@@ -37,9 +36,8 @@ def get_helm_dirs(repo, component, log):
 
 
 def get_envs_from_helm(component, repo, services):
-  log = services.log
   helm_environments = []
-  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dirs = get_helm_dirs(repo, component)
   helm_dir, helm_deploy_dir = helm_dirs
   if helm_deploy_dir:
     for helm_file in helm_deploy_dir:
@@ -52,7 +50,6 @@ def get_envs_from_helm(component, repo, services):
 def get_info_from_helm(component, repo, services):
   gh = services.gh
   am = services.am
-  log = services.log
   sc = services.sc
 
   # Shortcuts to make it easier to read
@@ -63,7 +60,7 @@ def get_info_from_helm(component, repo, services):
   helm_environments = []
   # environments is returned from helm as a dictionary
 
-  helm_dirs = get_helm_dirs(repo, component, log)
+  helm_dirs = get_helm_dirs(repo, component)
   helm_dir, helm_deploy_dir = helm_dirs
   if helm_deploy_dir:
     # variables used for implementation of findind IP allowlist in helm values files
@@ -333,16 +330,16 @@ def get_info_from_helm(component, repo, services):
           if 'sign-in' in env_url:
             health_path = '/auth/health'
             info_path = '/auth/info'
-          if utils.test_endpoint(env_url, health_path, log):
+          if utils.test_endpoint(env_url, health_path):
             update_dict(helm_envs, env, {'health_path': health_path})
-          if utils.test_endpoint(env_url, info_path, log):
+          if utils.test_endpoint(env_url, info_path):
             update_dict(helm_envs, env, {'info_path': info_path})
           # Test for API docs - and if found also test for SAR endpoint.
-          if utils.test_swagger_docs(env_url, log):
+          if utils.test_swagger_docs(env_url):
             update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
             data['api'] = True
             data['frontend'] = False
-            if utils.test_subject_access_request_endpoint(env_url, log):
+            if utils.test_subject_access_request_endpoint(env_url):
               update_dict(
                 helm_envs,
                 env,

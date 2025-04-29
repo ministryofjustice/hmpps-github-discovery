@@ -1,28 +1,25 @@
-import logging
 import threading
 import os
 from time import sleep
 from classes.slack import Slack
 from classes.service_catalogue import ServiceCatalogue
+from utilities.job_log_handling import log_debug, log_info, log_error, log_critical
 
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 max_threads = 10
 
 
 class Services:
-  def __init__(self, sc_params, slack_params, log):
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.slack = Slack(slack_params, log)
-    self.log = log
+  def __init__(self, sc_params, slack_params):
+    self.sc = ServiceCatalogue(sc_params)
+    self.slack = Slack(slack_params)
 
 
 # Processes Service Catalogue products
 def process_sc_product(product, services):
   sc = services.sc
   slack = services.slack
-  log = services.log
 
-  log.info(f'Processing product: {product["attributes"]["name"]}')
+  log_info(f'Processing product: {product["attributes"]["name"]}')
 
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
@@ -42,11 +39,10 @@ def process_sc_product(product, services):
 
 def batch_process_sc_products(services, max_threads=10):
   sc = services.sc
-  log = services.log
   threads = []
 
   products = sc.get_all_records(sc.products_get)
-  log.info(f'Processing batch of {len(products)} products...')
+  log_info(f'Processing batch of {len(products)} products...')
   for product in products:
     t_repo = threading.Thread(
       target=process_sc_product, args=(product, services), daemon=True
@@ -55,12 +51,12 @@ def batch_process_sc_products(services, max_threads=10):
     # Slack rate limits in esoteric ways. Hopefully 10 threads is fine
     # https://api.slack.com/apis/rate-limits#tiers
     while threading.active_count() > (max_threads - 1):
-      log.debug(f'Active Threads={threading.active_count()}, Max Threads={max_threads}')
+      log_debug(f'Active Threads={threading.active_count()}, Max Threads={max_threads}')
       sleep(5)
     threads.append(t_repo)
 
     t_repo.start()
-    log.info(
+    log_info(
       f'Started thread for product {product["attributes"]["p_id"]} ({product["attributes"]["name"]})'
     )
 
@@ -70,10 +66,6 @@ def batch_process_sc_products(services, max_threads=10):
 
 
 def main():
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-  )
-  log = logging.getLogger(__name__)
 
   # service catalogue parameters from environment variables
   sc_params = {
@@ -86,11 +78,11 @@ def main():
   slack_params = {
     'slack_bot_token': os.getenv('SLACK_BOT_TOKEN'),
   }
-  services = Services(sc_params, slack_params, log)
+  services = Services(sc_params, slack_params)
 
-  log.info('Processing products...')
+  log_info('Processing products...')
   qty = batch_process_sc_products(services, max_threads)
-  log.info(f'Finished processing {qty} products.')
+  log_info(f'Finished processing {qty} products.')
   return qty
 
 

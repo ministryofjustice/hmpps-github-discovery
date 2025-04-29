@@ -15,26 +15,26 @@ from classes.slack import Slack
 from includes import helm, environments, standards
 from includes.utils import update_dict, get_dockerfile_data
 
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+import processes.scheduled_jobs as sc_scheduled_job
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
+
 max_threads = 10
 
 
 class Services:
-  def __init__(self, sc_params, gh_params, am_params, cc_params, slack_params, log):
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.gh = GithubSession(gh_params, log)
-    self.am = AlertmanagerData(am_params, log)
-    self.cc = CircleCI(cc_params, log)
-    self.slack = Slack(slack_params, log)
-    self.log = log
+  def __init__(self, sc_params, gh_params, am_params, cc_params, slack_params):
+    self.sc = ServiceCatalogue(sc_params)
+    self.gh = GithubSession(gh_params)
+    self.am = AlertmanagerData(am_params)
+    self.cc = CircleCI(cc_params)
+    self.slack = Slack(slack_params)
 
 
 def get_bootstrap_projects(services):
   gh = services.gh
-  log = services.log
   # Get projects.json from bootstrap repo for namespaces data
   bootstrap_repo = gh.get_org_repo('hmpps-project-bootstrap')
-  log.info(f'Getting projects.json from {bootstrap_repo.name}')
+  log_info(f'Getting projects.json from {bootstrap_repo.name}')
   bootstrap_projects_json = services.gh.get_file_json(bootstrap_repo, 'projects.json')
   # Convert the project lists to a dictionary for easier lookup
   bootstrap_projects = {}
@@ -44,7 +44,7 @@ def get_bootstrap_projects(services):
 
 
 # Repo functions - teams and branch protection
-def get_repo_teams_info(repo, branch_protection, component_flags, log):
+def get_repo_teams_info(repo, branch_protection, component_flags):
   data = {}
   branch_protection_restricted_teams = []
   teams_write = []
@@ -58,7 +58,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags, log):
         for team in branch_protection_teams:
           branch_protection_restricted_teams.append(team.slug)
       except Exception as e:
-        log.error(f'Unable to get branch protection {repo.name}: {e}')
+        log_error(f'Unable to get branch protection {repo.name}: {e}')
         component_flags['app_disabled'] = True
 
     try:
@@ -83,7 +83,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags, log):
       data['github_enforce_admins_enabled'] = enforce_admins
 
     except Exception as e:
-      log.error(f'Unable to get teams/admin information {repo.name}: {e}')
+      log_error(f'Unable to get teams/admin information {repo.name}: {e}')
       component_flags['app_disabled'] = True
 
   return data
@@ -110,7 +110,6 @@ def get_repo_properties(repo, default_branch):
 
 def process_independent_component(component, services):
   gh = services.gh
-  log = services.log
   component_name = component['attributes']['name']
   github_repo = component['attributes']['github_repo']
 
@@ -125,33 +124,31 @@ def process_independent_component(component, services):
     default_branch = repo.get_branch(repo.default_branch)
     branch_protection = default_branch.get_protection()
     data.update(get_repo_properties(repo, default_branch))
-    data.update(get_repo_teams_info(repo, branch_protection, component_flags, log))
+    data.update(get_repo_teams_info(repo, branch_protection, component_flags))
   except Exception as e:
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
     else:
-      log.error(
-        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
-      )
+      log_error(f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}')
       component_flags['app_disabled'] = True
 
   try:
     data['github_topics'] = repo.get_topics()
   except Exception as e:
-    log.warning(f'Unable to get topics for {repo.name}: {e}')
+    log_warning(f'Unable to get topics for {repo.name}: {e}')
 
   if re.search(
     r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
     f'{component_name} {repo.description}',
   ):
-    log.debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
+    log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data['frontend'] = True
 
   if repo.archived:
-    log.debug('Repo is archived')
+    log_debug('Repo is archived')
     component_flags['archived'] = True
 
-  log.debug(
+  log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
   )
   return data, component_flags
@@ -160,7 +157,6 @@ def process_independent_component(component, services):
 def process_changed_component(component, repo, services):
   gh = services.gh
   cc = services.cc
-  log = services.log
 
   # Shortcuts to make it easier to read
   component_name = component['attributes']['name']
@@ -183,12 +179,12 @@ def process_changed_component(component, repo, services):
   #   - Alertmanager configuration
   #   - Endpoint URLs
 
-  log.debug(f'Getting information for {component_name} from Helm config')
+  log_debug(f'Getting information for {component_name} from Helm config')
   if helm_data := helm.get_info_from_helm(component, repo, services):
-    log.debug(f'Found Helm data for record id {component_name} - {helm_data}')
+    log_debug(f'Found Helm data for record id {component_name} - {helm_data}')
     data.update(helm_data)
 
-  log.debug(
+  log_debug(
     f'Finished getting information from helm for {component_name}\ndata: {data}'
   )
 
@@ -203,14 +199,14 @@ def process_changed_component(component, repo, services):
         data['trivy_scan_summary'] = trivy_scan_json
         data['trivy_last_completed_scan_date'] = trivy_scan_json.get('CreatedAt')
     except Exception:
-      log.debug('Unable to get CircleCI trivy scan results')
+      log_debug('Unable to get CircleCI trivy scan results')
 
     # CircleCI Orb version
     update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
 
   else:
     # Placeholder for GH Trivy scan business
-    log.debug('No CircleCI config found')
+    log_debug('No CircleCI config found')
 
   # App insights cloud_RoleName
   if repo.language == 'Kotlin' or repo.language == 'Java':
@@ -244,7 +240,7 @@ def process_changed_component(component, repo, services):
       hmpps_gradle_spring_boot_version = re.search(
         regex, build_gradle_config_content, re.MULTILINE
       )[1]
-      log.debug(
+      log_debug(
         f'Found hmpps gradle-spring-boot version: {hmpps_gradle_spring_boot_version}'
       )
       update_dict(
@@ -259,7 +255,7 @@ def process_changed_component(component, repo, services):
   if dockerfile_contents := gh.get_file_plain(
     repo, f'{component_project_dir}/Dockerfile'
   ):
-    if docker_data := get_dockerfile_data(dockerfile_contents, log):
+    if docker_data := get_dockerfile_data(dockerfile_contents):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
@@ -267,7 +263,7 @@ def process_changed_component(component, repo, services):
   if repo_standards := standards.get_standards_compliance(services, repo):
     update_dict(data, 'standards_compliance', repo_standards)
 
-  log.debug(
+  log_debug(
     f'Finished getting other repo information for {component_name}\ndata: {data}'
   )
 
@@ -292,28 +288,27 @@ def process_changed_component(component, repo, services):
 def process_sc_component(component, bootstrap_projects, services, force_update=False):
   sc = services.sc
   gh = services.gh
-  log = services.log
 
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
   component_flags = {}
   component_name = component['attributes']['name']
-  log.info(f'Processing component: {component_name}')
+  log_info(f'Processing component: {component_name}')
 
   # Get the latest commit from the SC
-  log.debug(f'Getting latest commit from SC for {component_name}')
+  log_debug(f'Getting latest commit from SC for {component_name}')
   if latest_commit := component['attributes'].get('latest_commit'):
     if sha := latest_commit.get('sha'):
       sc_latest_commit = sha
   else:
     sc_latest_commit = None
-  log.debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
+  log_debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
   repo = gh.get_org_repo(f'{component["attributes"]["github_repo"]}')
   if repo:
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
-    log.debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
+    log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
 
-    log.info(f'Processing main branch independent components for: {component_name}')
+    log_info(f'Processing main branch independent components for: {component_name}')
     # Get the fields that aren't updated by a commit to main
     independent_components, component_flags = process_independent_component(
       component, services
@@ -328,7 +323,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
     # Check if the commit has changed:
     if sc_latest_commit and sc_latest_commit != gh_latest_commit:
       component_flags['main_changed'] = True
-      log.info(f'Main commit has changed for {component_name}')
+      log_info(f'Main commit has changed for {component_name}')
     else:
       component_flags['main_changed'] = False
 
@@ -338,10 +333,10 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
     if not (
       component_flags['main_changed'] or component_flags['env_changed'] or force_update
     ):
-      log.info(f'No main branch or environment changes for {component_name}')
+      log_info(f'No main branch or environment changes for {component_name}')
     else:
       # process_changed_component function returns a dictionary of further changed fields
-      log.info(f'Processing changed components for: {component_name}')
+      log_info(f'Processing changed components for: {component_name}')
       data.update(process_changed_component(component, repo, services))
 
       ###########################################################################################################
@@ -353,7 +348,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
       # It will need to be combined with environments found in bootstrap/Github
       # Then updated in components (once it's been turned into a list)
       if helm_environments := data.get('environments'):
-        log.debug(
+        log_debug(
           f'Helm environment data for {component_name}: {json.dumps(helm_environments, indent=2)}'
         )
       else:
@@ -365,7 +360,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
       # since Service Catalogue doesn't like an empty list
       if component_env_data:
         data['environments'] = component_env_data
-        log.debug(
+        log_debug(
           f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
         )
       else:  # if there's no data, remove the environments key
@@ -377,7 +372,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):
-      log.error(f'Error updating component {component_name}')
+      log_error(f'Error updating component {component_name}')
       component_flags['update_error'] = True
 
   else:  # if the repo doesn't exist
@@ -390,7 +385,6 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
 # Main batch dispatcher - this is the process that's called by github_discovery
 ###########################################################################################################
 def batch_process_sc_components(services, max_threads, force_update=False):
-  log = services.log
   sc = services.sc
 
   processed_components = []
@@ -399,7 +393,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
 
   components = sc.get_all_records(sc.components_get)
 
-  log.info(f'Processing batch of {len(components)} components...')
+  log_info(f'Processing batch of {len(components)} components...')
 
   threads = []
   component_count = 0
@@ -407,10 +401,10 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     component_count += 1
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()
-    log.info(
+    log_info(
       f'{component_count}/{len(components)} - preparing to process {component["attributes"]["name"]} ({int(component_count / len(components) * 100)}% complete)'
     )
-    log.info(
+    log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
     while cur_rate_limit.remaining < 500:
@@ -418,7 +412,7 @@ def batch_process_sc_components(services, max_threads, force_update=False):
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:
-        log.info(
+        log_info(
           f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )
         sleep(
@@ -445,11 +439,11 @@ def batch_process_sc_components(services, max_threads, force_update=False):
 
     # Apply limit on total active threads, avoid github secondary API rate limit
     while threading.active_count() > (max_threads - 1):
-      log.debug(f'Active Threads={threading.active_count()}, Max Threads={max_threads}')
+      log_debug(f'Active Threads={threading.active_count()}, Max Threads={max_threads}')
       sleep(10)
 
     t_repo.start()
-    log.info(f'Started thread for component {component["attributes"]["name"]}')
+    log_info(f'Started thread for component {component["attributes"]["name"]}')
 
   # wait until all the threads are finished
   for t in threads:

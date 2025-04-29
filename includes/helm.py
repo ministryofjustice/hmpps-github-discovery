@@ -2,6 +2,13 @@ import re
 import includes.utils as utils
 from includes.utils import update_dict
 from includes.values import env_mapping
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_warning,
+)
 
 
 def get_helm_dirs(repo, component, log):
@@ -12,12 +19,12 @@ def get_helm_dirs(repo, component, log):
     if component['attributes'].get('part_of_monorepo')
     else '.'
   )
-  log.debug(f'component_project_dir: {component_project_dir}')
+  log_debug(f'component_project_dir: {component_project_dir}')
   helm_dir = (
     component['attributes'].get('path_to_helm_dir')
     or f'{component_project_dir}/helm_deploy'
   )
-  log.debug(f'helm_dir for {component_name} is {helm_dir}')
+  log_debug(f'helm_dir for {component_name} is {helm_dir}')
 
   try:
     helm_deploy_dir = repo.get_contents(
@@ -25,7 +32,7 @@ def get_helm_dirs(repo, component, log):
     )
   except Exception as e:
     helm_deploy_dir = None
-    log.warning(f'Unable to load the helm_deploy folder for {component_name}: {e}')
+    log_warning(f'Unable to load the helm_deploy folder for {component_name}: {e}')
   return (helm_dir, helm_deploy_dir)
 
 
@@ -121,7 +128,7 @@ def get_info_from_helm(component, repo, services):
       # Try to get the container image
       if container_image := helm_default_values.get('image', {}).get('repository', {}):
         data['container_image'] = container_image
-        log.debug(
+        log_debug(
           f'Container image found in image->repository for {component_name}: {container_image}'
         )
       if 'generic-service' in helm_default_values:
@@ -131,7 +138,7 @@ def get_info_from_helm(component, repo, services):
           .get('repository')
         ):
           data['container_image'] = container_image
-          log.debug(
+          log_debug(
             f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
           )
         # Try to get the productID
@@ -151,7 +158,7 @@ def get_info_from_helm(component, repo, services):
             .get(mod_security_type, None)
           )
       if not data.get('container_image'):
-        log.info(f'No container image found for {component_name}')
+        log_info(f'No container image found for {component_name}')
 
       # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
       # TODO: use the product_id from the repository variables?
@@ -185,7 +192,7 @@ def get_info_from_helm(component, repo, services):
         or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
         or None
       )
-      log.debug(f'helm values for {component_name} in {env}: {values}')
+      log_debug(f'helm values for {component_name} in {env}: {values}')
       if values:
         # generic service->ingress->host(s)
         if 'generic-service' in values:
@@ -194,7 +201,7 @@ def get_info_from_helm(component, repo, services):
               update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})
             elif 'hosts' in ingress_dict:
               last_host_record = ingress_dict.get('hosts')[-1]
-              log.debug(
+              log_debug(
                 f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
               )
               host = (
@@ -202,7 +209,7 @@ def get_info_from_helm(component, repo, services):
                 if isinstance(last_host_record, dict)
                 else last_host_record
               )
-              log.debug(f'host is: {host}')
+              log_debug(f'host is: {host}')
               update_dict(
                 helm_envs,
                 env,
@@ -215,7 +222,7 @@ def get_info_from_helm(component, repo, services):
             update_dict(helm_envs, env, {'url': f'https://{host}'})
           elif 'hosts' in ingress_dict:
             last_host_record = ingress_dict.get('hosts')[-1]
-            log.debug(
+            log_debug(
               f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
             )
             host = (
@@ -223,7 +230,7 @@ def get_info_from_helm(component, repo, services):
               if isinstance(last_host_record, dict)
               else last_host_record
             )
-            log.debug(f'host is: {host}')
+            log_debug(f'host is: {host}')
             update_dict(
               helm_envs,
               env,
@@ -250,7 +257,7 @@ def get_info_from_helm(component, repo, services):
             if mod_security_env_enabled := values['generic-service']['ingress'].get(
               mod_security_type[0]
             ):
-              log.debug(
+              log_debug(
                 f'Updating {mod_security_type[0]} to environment value: {mod_security_env_enabled}'
               )
               update_dict(
@@ -259,7 +266,7 @@ def get_info_from_helm(component, repo, services):
                 {mod_security_type[0]: mod_security_env_enabled},
               )
             elif mod_security_defaults.get(mod_security_type[0]):
-              log.debug(
+              log_debug(
                 f'Updating {mod_security_type[0]} to default value: {mod_security_defaults[mod_security_type[0]]}'
               )
               update_dict(
@@ -277,20 +284,20 @@ def get_info_from_helm(component, repo, services):
           if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
             alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
             if alert_severity_label:
-              log.debug(
+              log_debug(
                 f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
               )
-              log.debug(
+              log_debug(
                 f'Updating {env} alert_severity_label to {alert_severity_label}'
               )
 
           if not alert_severity_label and alert_severity_label_default:
-            log.info(
+            log_info(
               f'Alert severity label not found for {component_name} in {env} - setting to default'
             )
             alert_severity_label = alert_severity_label_default
           else:
-            log.info(
+            log_info(
               f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml'
             )
 
@@ -299,11 +306,11 @@ def get_info_from_helm(component, repo, services):
               alert_severity_label
             )
             if alerts_slack_channel:
-              log.debug(
+              log_debug(
                 f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}'
               )
             else:
-              log.warning(
+              log_warning(
                 f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}'
               )
 
@@ -311,7 +318,7 @@ def get_info_from_helm(component, repo, services):
             'alert_severity_label': alert_severity_label,
             'alerts_slack_channel': alerts_slack_channel,
           }
-          log.debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+          log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
           # Update the helm environment data with the outcome of this check
           update_dict(helm_envs, env, alertmanager_config)
 
@@ -377,5 +384,5 @@ def get_info_from_helm(component, repo, services):
       update_dict(data, 'environments', helm_envs)
     # End of helm environment checks
 
-  log.debug(f'Helm data for {component_name}: {data}')
+  log_debug(f'Helm data for {component_name}: {data}')
   return data

@@ -1,7 +1,6 @@
 import requests
 import logging
 from includes.utils import update_dict
-import os
 from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_level
 
 class CircleCI:

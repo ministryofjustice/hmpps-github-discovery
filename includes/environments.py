@@ -4,7 +4,7 @@
 from includes.utils import update_dict, get_existing_env_config
 from includes.values import env_mapping
 from includes import helm
-from utilities.error_handling import log_error
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 
 ################################################################################################
@@ -13,18 +13,17 @@ from utilities.error_handling import log_error
 # from the bootstrap projects json file and Github repo environments
 ################################################################################################
 def get_environments(component, repo, bootstrap_projects, services):
-  log = services.log
   sc = services.sc
 
   component_name = component['attributes']['name']  # for short
   envs = {}  # using a dictionary to avoid duplicates
 
-  log.debug(f'Getting environments for {component_name} from bootstrap/Github')
+  log_debug(f'Getting environments for {component_name} from bootstrap/Github')
   # Check bootstrap first
   if project := bootstrap_projects.get(component['attributes']['github_repo']):
-    log.debug(f'Found bootstrap project data for {component_name} - {project}')
+    log_debug(f'Found bootstrap project data for {component_name} - {project}')
     if 'circleci_project_k8s_namespace' in project:
-      log.debug(f'Found CircleCI dev namespace for{component_name}')
+      log_debug(f'Found CircleCI dev namespace for{component_name}')
       update_dict(
         envs,
         'dev',
@@ -38,7 +37,7 @@ def get_environments(component, repo, bootstrap_projects, services):
       )
     if 'circleci_context_k8s_namespaces' in project:
       for circleci_env in project['circleci_context_k8s_namespaces']:
-        log.debug(
+        log_debug(
           f'Found CircleCI environment {circleci_env["env_name"]} and namespace {circleci_env["namespace"]} for {component_name}'
         )
         if env_type := env_mapping.get(circleci_env.get('env_type')):
@@ -61,14 +60,14 @@ def get_environments(component, repo, bootstrap_projects, services):
   if repo_envs and repo_envs.totalCount < 10:
     # workaround for a repo that has hundreds of environments
     for repo_env in repo_envs:
-      log.debug(
+      log_debug(
         f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
       )
       env_vars = None
       try:
         env_vars = repo_env.get_variables()
       except Exception as e:
-        log.debug(f'Unable to get environment variables for {repo_env.name}: {e}')
+        log_debug(f'Unable to get environment variables for {repo_env.name}: {e}')
 
       # there are some non-standard environments in some of the repos
       # so only process the ones that map to the env_mapping list
@@ -81,7 +80,7 @@ def get_environments(component, repo, bootstrap_projects, services):
             var
           ) in env_vars:  # We should populate these for all namespaces where possible
             if var.name == 'KUBE_NAMESPACE':
-              log.info(f'Found namespace {var.value} for {component_name}')
+              log_info(f'Found namespace {var.value} for {component_name}')
               namespace = var.value
               ns_id = sc.get_id('namespaces', 'name', var.value)
 
@@ -99,13 +98,13 @@ def get_environments(component, repo, bootstrap_projects, services):
   # the build_image_tag, so loop through the environments and get them from the existing records
   if envs:
     for env in envs:
-      log.debug(f'Updating non-discovery fields for environment {env}')
+      log_debug(f'Updating non-discovery fields for environment {env}')
       if build_image_tag := get_existing_env_config(
         component, env, 'build_image_tag', services
       ):
         envs[env]['build_image_tag'] = build_image_tag
-        log.debug(f'Added build_image_tag {build_image_tag} to environment {env}')
-    log.info(
+        log_debug(f'Added build_image_tag {build_image_tag} to environment {env}')
+    log_info(
       f'Environments found in bootstrap/Github for {component_name}: {len(envs)}'
     )
 
@@ -123,10 +122,9 @@ def process_environments(
   component, repo, helm_environments, bootstrap_projects, services
 ):
   sc = services.sc
-  log = services.log
 
   component_name = component['attributes']['name']
-  log.debug(f'Processing environments for {component_name}')
+  log_debug(f'Processing environments for {component_name}')
   env_flags = {}
 
   # This is the final result that will be returned - it's a list of dictionaries
@@ -148,14 +146,14 @@ def process_environments(
   if environment_data := get_environments(
     component, repo, bootstrap_projects, services
   ):
-    log.debug(f'Found environments from bootstrap/Github: {environment_data}')
+    log_debug(f'Found environments from bootstrap/Github: {environment_data}')
     # The helm environments are used as the primary source of truth for environments
     # since they define the enviroments to which the app can be deployed.
     for helm_env in helm_environments:
       for k, v in environment_data.items():
         if helm_env == k:
-          log.debug(f'Found environment {k} in helm environments')
-          log.debug(f'Environment data: {v}')
+          log_debug(f'Found environment {k} in helm environments')
+          log_debug(f'Environment data: {v}')
           helm_environments[helm_env].update(v)
           break
 
@@ -166,9 +164,9 @@ def process_environments(
       'namespace'
     ):
       if not helm_environments[env].get('type'):
-        log.info(f'Skipping environment {env} as it has no type')
+        log_info(f'Skipping environment {env} as it has no type')
       if not helm_environments[env].get('namespace'):
-        log.info(f'Skipping environment {env} as it has no namespace')
+        log_info(f'Skipping environment {env} as it has no namespace')
     else:
       # Prepare the environment record with the basic data
       environment_record = helm_environments[env]
@@ -187,25 +185,25 @@ def process_environments(
         f'{component_id}',
       ).get('id', ''):
         # print(f'{json.dumps(env, indent=2)}')
-        log.info(
+        log_info(
           f'Environment ID {env_id} found for environment name {env} associated with {component_name} ({component_id})'
         )
       if env_id:
         # Update the environment in the environment table if anything has changed
-        log.info(
+        log_info(
           f'Updating environment {env} for {component_name} in the environment table'
         )
-        log.debug(f'Environment_record: {environment_record}')
+        log_debug(f'Environment_record: {environment_record}')
         if sc.update(sc.environments, env_id, environment_record):
           env_flags['env_updated'] = True
         else:
           env_flags['env_error'] = True
       else:
         # Create the environment in the environment table
-        log.info(
+        log_info(
           f'Environment not found - adding {env} for {component_name} to the environment table'
         )
-        log.debug(f'Environment data: {environment_record}')
+        log_debug(f'Environment data: {environment_record}')
         if sc.add(sc.environments, environment_record):
           env_flags['env_added'] = True
         else:
@@ -219,14 +217,13 @@ def process_environments(
         helm_environments[env]['id'] = env_id
       component_env_data.append(helm_environments[env])
 
-  log.debug(f'Component environment data to be added: {component_env_data}')
+  log_debug(f'Component environment data to be added: {component_env_data}')
   return component_env_data, env_flags
 
 
 # Logic to check if the branch specific components need to be processed
 def check_env_change(component, repo, bootstrap_projects, services):
   env_changed = False
-  log = services.log
   component_name = component['attributes']['name']
   current_envs = []
   # Current envs are the combination of helm environments and the bootstrap/Github environments
@@ -238,14 +235,14 @@ def check_env_change(component, repo, bootstrap_projects, services):
     if helm_env in config_envs:
       current_envs.append(helm_env)
 
-  log.debug(f'Current environments for {component_name}: {current_envs}')
+  log_debug(f'Current environments for {component_name}: {current_envs}')
   # Get the environments from the service catalogue
   sc_envs = component['attributes']['environments']
-  log.debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
+  log_debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
 
   # Check if the environments have changed
   if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
     env_changed = True
-    log.info(f'Environments have changed for {component_name}')
+    log_info(f'Environments have changed for {component_name}')
 
   return env_changed

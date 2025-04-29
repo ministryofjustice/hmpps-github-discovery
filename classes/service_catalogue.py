@@ -1,13 +1,9 @@
 import requests
-import logging
 import json
-from utilities.error_handling import log_critical, log_error
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
 
 class ServiceCatalogue:
-  def __init__(self, params, log_level=logging.INFO):
-    logging.basicConfig(
-      format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-    )
+  def __init__(self, params):
     # default variables
     page_size = 10
     pagination_page_size = f'&pagination[pageSize]={page_size}'
@@ -15,7 +11,6 @@ class ServiceCatalogue:
     # sort_filter='&sort=updatedAt:asc'
     sort_filter = ''
 
-    self.log = logging.getLogger(__name__)
     self.url = params['url']
     self.key = params['key']
 
@@ -52,9 +47,9 @@ class ServiceCatalogue:
   def test_connection(self):
     # Test connection to Service Catalogue
     try:
-      self.log.info(f'Testing connection to the Service Catalogue - {self.url}')
+      log_info(f'Testing connection to the Service Catalogue - {self.url}')
       r = requests.head(f'{self.url}', headers=self.api_headers, timeout=10)
-      self.log.info(
+      log_info(
         f'Successfully connected to the Service Catalogue - {self.url}. {r.status_code}'
       )
       return True
@@ -68,14 +63,14 @@ class ServiceCatalogue:
 
   def get_all_records(self, table):
     json_data = []
-    self.log.info(
+    log_info(
       f'Getting all records from table {table} in Service Catalogue using URL: {self.url}/v1/{table}'
     )
     try:
       r = requests.get(f'{self.url}/v1/{table}', headers=self.api_headers, timeout=10)
       if r.status_code == 200:
         j_meta = r.json()['meta']['pagination']
-        self.log.debug(f'Got result page: {j_meta["page"]} from Service Catalogue')
+        log_debug(f'Got result page: {j_meta["page"]} from Service Catalogue')
         json_data.extend(r.json()['data'])
       else:
         raise Exception(
@@ -94,7 +89,7 @@ class ServiceCatalogue:
         )
         if r.status_code == 200:
           j_meta = r.json()['meta']['pagination']
-          self.log.debug(f'Got result page: {j_meta["page"]} from SC')
+          log_debug(f'Got result page: {j_meta["page"]} from SC')
           json_data.extend(r.json()['data'])
         else:
           raise Exception(
@@ -142,7 +137,7 @@ class ServiceCatalogue:
   def update(self, table, element_id, data):
     success = False
     try:
-      self.log.debug(f'data to be uploaded: {json.dumps(data, indent=2)}')
+      log_debug(f'data to be uploaded: {json.dumps(data, indent=2)}')
       x = requests.put(
         f'{self.url}/v1/{table}/{element_id}',
         headers=self.api_headers,
@@ -150,12 +145,12 @@ class ServiceCatalogue:
         timeout=10,
       )
       if x.status_code == 200:
-        self.log.info(
+        log_info(
           f'Successfully updated record {element_id} in {table.split("/")[-1]}: {x.status_code}'
         )
         success = True
       else:
-        self.log.info(
+        log_info(
           f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
@@ -167,7 +162,7 @@ class ServiceCatalogue:
   def add(self, table, data):
     success = False
     try:
-      self.log.debug(data)
+      log_debug(data)
       x = requests.post(
         f'{self.url}/v1/{table}',
         headers=self.api_headers,
@@ -175,12 +170,12 @@ class ServiceCatalogue:
         timeout=10,
       )
       if x.status_code == 200:
-        self.log.info(
+        log_info(
           f'Successfully added {(data["team_name"] if "team_name" in data else data["name"])} to {table.split("/")[-1]}: {x.status_code}'
         )
         success = True
       else:
-        self.log.info(
+        log_info(
           f'Received non-200 response from service catalogue to add a record to {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
@@ -199,11 +194,11 @@ class ServiceCatalogue:
       )
       if r.status_code == 200 and r.json()['data']:
         sc_id = r.json()['data'][0]['id']
-        self.log.debug(
+        log_debug(
           f'Successfully found Service Catalogue ID for {match_field}={match_string} in {match_table}: {sc_id}'
         )
         return sc_id
-      self.log.warning(
+      log_warning(
         f'Could not find Service Catalogue ID for {match_field}={match_string} in {match_table}'
       )
       return None
@@ -218,11 +213,11 @@ class ServiceCatalogue:
     for env_data in component['attributes'].get('environments'):
       if env_data['name'] == env:
         env_id = env_data['id']
-        self.log.debug(
+        log_debug(
           f'Found existing environment ID for {env} in component {component["attributes"]["name"]}: {env_id}'
         )
     if not env_id:
-      self.log.debug(
+      log_debug(
         f'No existing environment ID found for {env} in component {component["attributes"]["name"]}'
       )
     return env_id

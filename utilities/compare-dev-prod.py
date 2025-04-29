@@ -1,12 +1,9 @@
 # Classes for the various parts of the script
 from classes.service_catalogue import ServiceCatalogue
 import os
-import logging
+from utilities.job_log_handling import log_debug, log_info, log_error, log_critical
 
-
-def compare_attributes(prod_attributes, dev_attributes, log=None):
-  if log is None:
-    log = logging.getLogger(__name__)
+def compare_attributes(prod_attributes, dev_attributes):
   differences = []
 
   # Get the union of keys from both dictionaries
@@ -36,8 +33,6 @@ def compare_attributes(prod_attributes, dev_attributes, log=None):
 
 
 def main():
-  logging.basicConfig(format='%(message)s', level='INFO')
-  log = logging.getLogger(__name__)
 
   # service catalogue parameters
   sc_dev_params = {
@@ -65,8 +60,8 @@ def main():
       for x in dev_data
       if x['attributes']['name'] == prod_attributes['name']
     ][0]
-    log.info(f'{prod_attributes["name"]}')
-    log.info('=======================')
+    log_info(f'{prod_attributes["name"]}')
+    log_info('=======================')
     differences = compare_attributes(prod_attributes, dev_attributes)
     for diff in differences:
       if diff['key'] == 'environments':
@@ -97,14 +92,14 @@ def main():
               prod_env['ip_allow_list_enabled'] = dev_env['ip_allow_list_enabled']
 
           if prod_env != dev_env:
-            log.info(f'    Environment {env_name}:')
-            log.info(f'      PROD: {prod_env}')
-            log.info(f'      DEV: {dev_env}')
+            log_info(f'    Environment {env_name}:')
+            log_info(f'      PROD: {prod_env}')
+            log_info(f'      DEV: {dev_env}')
       else:
-        log.info(
+        log_info(
           f'  {diff["key"]}: PROD: {diff["prod_value"]} DEV: {diff["dev_value"]}'
         )
-      log.info('\n')
+      log_info('\n')
 
 
 if __name__ == '__main__':

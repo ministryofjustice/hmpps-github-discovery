@@ -2,21 +2,19 @@
 """Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue"""
 
 import os
-import logging
 
 from processes import github_teams
 from classes.github import GithubSession
 from classes.service_catalogue import ServiceCatalogue
 from classes.slack import Slack
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.error_handling import log_error, job
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
 
 class Services:
-  def __init__(self, sc_params, gh_params, slack_params, log):
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.gh = GithubSession(gh_params, log)
-    self.slack = Slack(slack_params, log)
-    self.log = log
+  def __init__(self, sc_params, gh_params, slack_params):
+    self.sc = ServiceCatalogue(sc_params)
+    self.gh = GithubSession(gh_params)
+    self.slack = Slack(slack_params)
 
 
 def summarize_processed_teams(processed_teams):
@@ -58,30 +56,24 @@ def main():
     'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
   }
 
-  logging.basicConfig(
-    format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s',
-    level=os.getenv('LOG_LEVEL', 'INFO').upper(),
-  )
-  log = logging.getLogger(__name__)
-
   job.name = 'hmpps-github-teams-discovery'
-  services = Services(sc_params, gh_params, slack_params, log)
+  services = Services(sc_params, gh_params, slack_params)
   slack = services.slack
 
-  log.info('Processing teams...')
+  log_info('Processing teams...')
   processed_teams = github_teams.process_github_teams(services)
-  log.info('Finished processing teams.')
+  log_info('Finished processing teams.')
 
   summary = summarize_processed_teams(processed_teams)
   slack.notify(summary)
-  log.info(summary)
+  log_info(summary)
 
   if job.error_messages:
     sc_scheduled_job.update(services, 'Errors')
-    log.info("Github teams discovery job completed  with errors.")
+    log_info("Github teams discovery job completed  with errors.")
   else:
     sc_scheduled_job.update(services, 'Succeeded')
-    log.info("Github teams discovery job completed successfully.")
+    log_info("Github teams discovery job completed successfully.")
 
 if __name__ == '__main__':
   main()

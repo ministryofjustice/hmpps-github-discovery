@@ -2,7 +2,7 @@ import requests
 from dockerfile_parse import DockerfileParser
 import tempfile
 import re
-from utilities.error_handling import log_error
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 # Cheeky little function to update a dictionary or add a new record if there isn't one
 def update_dict(this_dict, key, sub_dict):
@@ -12,7 +12,7 @@ def update_dict(this_dict, key, sub_dict):
 
 
 # Various endoint tests
-def test_endpoint(url, endpoint, log):
+def test_endpoint(url, endpoint):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
@@ -20,14 +20,14 @@ def test_endpoint(url, endpoint, log):
     )
     # Test if json is returned
     if r.json() and r.status_code != 404:
-      log.debug(f'Found endpoint: {url}{endpoint} ')
+      log_debug(f'Found endpoint: {url}{endpoint} ')
       return True
   except Exception as e:
-    log.info(f'Could not connect to endpoint {url}{endpoint} - {e}')
+    log_info(f'Could not connect to endpoint {url}{endpoint} - {e}')
     return False
 
 
-def test_swagger_docs(url, log):
+def test_swagger_docs(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
@@ -38,14 +38,14 @@ def test_swagger_docs(url, log):
       '/swagger-ui/index.html' in r.headers['Location']
       or 'api-docs/index.html' in r.headers['Location']
     ):
-      log.debug(f'Found swagger docs: {url}/swagger-ui.html')
+      log_debug(f'Found swagger docs: {url}/swagger-ui.html')
       return True
   except Exception as e:
-    log.debug(f"Couldn't connect to {url}/swagger-ui.html - {e}")
+    log_debug(f"Couldn't connect to {url}/swagger-ui.html - {e}")
     return False
 
 
-def test_subject_access_request_endpoint(url, log):
+def test_subject_access_request_endpoint(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
@@ -54,16 +54,16 @@ def test_subject_access_request_endpoint(url, log):
     if r.status_code == 200:
       try:
         if r.json()['paths']['/subject-access-request']:
-          log.debug(f'Found SAR endpoint at: {url}/v3/api-docs')
+          log_debug(f'Found SAR endpoint at: {url}/v3/api-docs')
           return True
       except KeyError:
-        log.debug('No SAR endpoint found.')
+        log_debug('No SAR endpoint found.')
         return False
   except TimeoutError:
-    log.debug(f'Timed out connecting to: {url}/v3/api-docs')
+    log_debug(f'Timed out connecting to: {url}/v3/api-docs')
     return False
   except Exception as e:
-    log.debug(f"Couldn't connect to {url}/v3/api-docs: {e}")
+    log_debug(f"Couldn't connect to {url}/v3/api-docs: {e}")
     return False
 
 
@@ -104,7 +104,7 @@ def is_ipallowList_enabled(yaml_data):
   return ip_allow_list_enabled
 
 
-def get_dockerfile_data(dockerfile_contents, log):
+def get_dockerfile_data(dockerfile_contents):
   dockerfile = DockerfileParser(fileobj=tempfile.NamedTemporaryFile())
   dockerfile.content = dockerfile_contents
 
@@ -120,7 +120,7 @@ def get_dockerfile_data(dockerfile_contents, log):
     # Get the last element in the array, which should be the base image of the final stage.
     base_image = parent_images[-1]
     docker_data['base_image'] = base_image
-    log.debug(f'Found Dockerfile base image: {base_image}')
+    log_debug(f'Found Dockerfile base image: {base_image}')
   except Exception as e:
     log_error(f'Error parent/base image from Dockerfile: {e}')
   return docker_data
@@ -132,16 +132,15 @@ def get_dockerfile_data(dockerfile_contents, log):
 # to prevent it being overwritten by blank entries
 def get_existing_env_config(component, env_name, config, services):
   config_value = None
-  log = services.log
   if envs := component['attributes'].get('environments'):
     env_data = next(
       (env for env in envs if env.get('name') == env_name),
       {},
     )
     if config_value := env_data.get(config):
-      log.debug(f'Existing config: {config}, {config_value}')
+      log_debug(f'Existing config: {config}, {config_value}')
     else:
-      log.debug(f'No existing value found for {config}')
+      log_debug(f'No existing value found for {config}')
 
   return config_value
 

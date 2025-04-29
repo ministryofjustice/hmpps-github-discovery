@@ -1,16 +1,10 @@
 import requests
 import yaml
 import json
-import logging
-from utilities.error_handling import log_error
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_level
 
 class AlertmanagerData:
-  def __init__(self, am_params, log_level=logging.INFO):
-    # Needs custom logging because of a bit of a mess later on
-    logging.basicConfig(
-      format='[%(asctime)s] %(levelname)s %(threadName)s %(message)s', level=log_level
-    )
-    self.log = logging.getLogger(__name__)
+  def __init__(self, am_params):
     self.url = am_params['url']
     self.get_alertmanager_data()
 
@@ -24,10 +18,10 @@ class AlertmanagerData:
         formatted_config_data = config_data['original'].replace('\\n', '\n')
         yaml_config_data = yaml.safe_load(formatted_config_data)
         self.json_config_data = json.loads(json.dumps(yaml_config_data))
-        # self.log.debug(
+        # log_debug(
         #   f'Alertmanager data:\n=================\n\n{json.dumps(self.json_config_data, indent=2)}\n\n'
         # )
-        self.log.info('Successfully fetched Alertmanager data')
+        log_info('Successfully fetched Alertmanager data')
       else:
         log_error(f'Error fetching Alertmanager data: {response.status_code}')
 
@@ -50,11 +44,11 @@ class AlertmanagerData:
     # Find the receiver name for the given severity
     receiver_name = ''
     if self.isDataAvailable():
-      self.log.debug(f'Looking for a route for {alert_severity_label}')
+      log_debug(f'Looking for a route for {alert_severity_label}')
       for route in self.json_config_data['route']['routes']:
         if route['match'].get('severity') == alert_severity_label:
           receiver_name = route['receiver']
-          self.log.debug(
+          log_debug(
             f'Found route for {alert_severity_label} - receiver_name: {receiver_name}'
           )
           break
@@ -62,15 +56,15 @@ class AlertmanagerData:
       if receiver_name:
         for receiver in self.json_config_data['receivers']:
           if receiver['name'] == receiver_name:
-            self.log.debug(f'Found receiver for {receiver_name}')
+            log_debug(f'Found receiver for {receiver_name}')
             slack_configs = receiver.get('slack_configs', [])
             if slack_configs:
-              self.log.info(
+              log_info(
                 f'Found slack_channel for {receiver_name} - {slack_configs[0].get("channel")}'
               )
               return slack_configs[0].get('channel')
             else:
-              self.log.debug(f'No slack_configs found for {receiver_name}')
+              log_debug(f'No slack_configs found for {receiver_name}')
               return None
     else:
       log_error('No Alertmanager data available')

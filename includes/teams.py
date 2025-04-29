@@ -1,7 +1,7 @@
 import re
-from utilities.error_handling import log_error
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
-def fetch_gh_github_teams_data(gh, teamrepo, log):
+def fetch_gh_github_teams_data(gh, teamrepo):
   try:
     teams_data = gh.get_file_plain(teamrepo, 'terraform/teams.tf')
   except Exception as e:
@@ -9,7 +9,7 @@ def fetch_gh_github_teams_data(gh, teamrepo, log):
     return []
 
   teams_json_data = extract_tf_teams(teams_data)
-  log.info(f'Found {len(teams_json_data)} teams in the terraform file')
+  log_info(f'Found {len(teams_json_data)} teams in the terraform file')
 
   parent_teams_pattern = re.compile(r'parent_teams\s*=\s*\[(.*?)\]', re.DOTALL)
   sub_teams_pattern = re.compile(r'sub_teams\s*=\s*\[(.*?)\]', re.DOTALL)
@@ -37,7 +37,7 @@ def fetch_gh_github_teams_data(gh, teamrepo, log):
     {'name': team[0], 'parent': team[1], 'description': team[2]}
     for team in combined_teams
   ]
-  log.info(f'Number of teams in terraform file: {len(teams_json)}')
+  log_info(f'Number of teams in terraform file: {len(teams_json)}')
   return teams_json
 
 

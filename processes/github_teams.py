@@ -2,41 +2,35 @@
 """Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue"""
 
 import os
-import logging
 from classes.github import GithubSession
 from classes.service_catalogue import ServiceCatalogue
 
 import includes.teams as teams
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.error_handling import log_error
-
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
-
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 class Services:
-  def __init__(self, sc_params, gh_params, log):
-    self.sc = ServiceCatalogue(sc_params, log)
-    self.gh = GithubSession(gh_params, log)
-    self.log = log
+  def __init__(self, sc_params, gh_params):
+    self.sc = ServiceCatalogue(sc_params)
+    self.gh = GithubSession(gh_params)
 
 
 def process_github_teams(services):
-  log = services.log
   sc = services.sc
   gh = services.gh
 
   processed_teams = []
 
   # Get the github teams data from SC
-  log.info('Retrieving Github teams data ...')
+  log_info('Retrieving Github teams data ...')
   sc_teams = sc.get_all_records(sc.github_teams)
   # Get the github teams refenered in admin, manintain and write teams from SC
-  log.info('Getting Github teams references in components')
+  log_info('Getting Github teams references in components')
   all_repo_ref_gh_teams = sc.find_all_teams_ref_in_sc()
   # Get the data from GH for teams from terraform files
-  log.info('Retrieving Github teams terraform data...')
+  log_info('Retrieving Github teams terraform data...')
   tf_teamrepo = gh.get_org_repo('hmpps-github-teams')
-  tf_teams = teams.fetch_gh_github_teams_data(gh, tf_teamrepo, log)
+  tf_teams = teams.fetch_gh_github_teams_data(gh, tf_teamrepo)
   tf_team_names = [team['name'] for team in tf_teams]
 
   combined_team_names = set(tf_team_names).union(all_repo_ref_gh_teams)
@@ -58,9 +52,9 @@ def process_github_teams(services):
       'members': [member.login for member in gh.org.get_team(gh_team.id).get_members()],
     }
 
-    log.debug(f'team_data: {team_data}')
+    log_debug(f'team_data: {team_data}')
     # Looks wthin Service Catalogue Github Teams for a matching team_name
-    log.debug(f'Looking for {team_name} in the service catalogue..')
+    log_debug(f'Looking for {team_name} in the service catalogue..')
     if sc_team := next(
       (team for team in sc_teams if team['attributes'].get('team_name') == team_name),
       None,
@@ -70,7 +64,7 @@ def process_github_teams(services):
       # Update the team in SC if anything has changed
       for key in team_data:
         if key in sc_team['attributes'] and team_data[key] != sc_team_attributes[key]:
-          log.info(f'Updating team {team_name} in the service catalogue')
+          log_info(f'Updating team {team_name} in the service catalogue')
           if sc.update(sc.github_teams, sc_team_id, team_data):
             team_flags['team_updated'] = True
           else:
@@ -79,7 +73,7 @@ def process_github_teams(services):
 
     # Create the team in SC
     else:
-      log.info(f'Team not found - adding {team_name} to the service catalogue')
+      log_info(f'Team not found - adding {team_name} to the service catalogue')
       if sc.add(sc.github_teams, team_data):
         team_flags['team_added'] = True
       else:

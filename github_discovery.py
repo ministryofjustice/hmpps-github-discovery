@@ -178,13 +178,14 @@ def main():
   cc = services.cc
   sc = services.sc
   gh = services.gh
+  am = services.am
 
   # Send some alerts if there are service issues
   if not sc.connection_ok:
     slack.alert('*Github Discovery failed*: Unable to connect to the Service Catalogue')
     raise SystemExit()
 
-  if not services.am.json_config_data:
+  if not am.json_config_data:
     slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
     log_error('*Github Discovery*: Unable to connect to Alertmanager')
 

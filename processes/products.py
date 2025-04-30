@@ -25,9 +25,8 @@ def process_sc_product(product, services):
   data = {}
 
   # Update Slack Channel name if necessary:
-  p_slack_channel_id = product['attributes']['slack_channel_id']
-  p_slack_channel_name = product['attributes']['slack_channel_name']
-  if p_slack_channel_id != '':
+  if p_slack_channel_id := product['attributes']['slack_channel_id']:
+    p_slack_channel_name = product['attributes']['slack_channel_name']
     if slack_channel_name := slack.get_slack_channel_name_by_id(p_slack_channel_id):
       if p_slack_channel_name != slack_channel_name:
         data['slack_channel_name'] = slack_channel_name

@@ -14,3 +14,15 @@ env_mapping = {
   'production': 'prod',
   'prod': 'prod',
 }
+
+actions_whitelist = [
+  '^\\./\\.github',
+  '^\\.github\\/',
+  '^ministryofjustice\\/',
+  '^docker\\/',
+  '^actions\\/',
+  '^slackapi\\/',
+  '^github\\/',
+  '^aquasecurity\\/',
+  '^azure\\/',
+]

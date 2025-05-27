@@ -158,7 +158,8 @@ def process_independent_component(component, services):
   for workflow in workflows:
     if workflow.state != "active":
       disabled_workflows.append(workflow.name)
-      component_flags['disabled_workflows'] = True
+  if disabled_workflows:
+    component_flags['workflows_disabled'] = True
   data['workflows_disabled'] = disabled_workflows
   return data, component_flags
 

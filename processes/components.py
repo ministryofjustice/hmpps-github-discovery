@@ -151,6 +151,15 @@ def process_independent_component(component, services):
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
   )
+
+  workflows = gh.get_workflows(repo)
+  disabled_workflows = []
+  component_flags['workflows_disabled'] = False
+  for workflow in workflows:
+    if workflow.state != "active":
+      disabled_workflows.append(workflow.name)
+      component_flags['disabled_workflows'] = True
+  data['workflows_disabled'] = disabled_workflows
   return data, component_flags
 
 

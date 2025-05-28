@@ -102,6 +102,7 @@ def create_summary(
     'update_error': 'with update errors',
     'not_found': 'not found / not accessible in Github',
     'app_disabled': 'requiring Github App to be enabled',
+    'workflows_disabled': 'with workflows disabled',
     'branch_protection_disabled': 'with branch protection disabled',
     'archived': 'archived (monitoring disabled)',
     'env_added': 'environment(s) added',

@@ -321,7 +321,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
       log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
     else:
       log_debug(f'No disabled workflows in {component_name}')
-    data['workflows_disabled'] = disabled_workflows
+    data['disabled_workflows'] = disabled_workflows
     log_info(f'Processing main branch independent components for: {component_name}')
     # Get the fields that aren't updated by a commit to main
     independent_components, component_flags = process_independent_component(

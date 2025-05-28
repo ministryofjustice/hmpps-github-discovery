@@ -296,6 +296,7 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
   log_info(f'Processing component: {component_name}')
 
   # Check if workflows are disabled
+  log_debug(f'Checking workflows for {component_name}')
   workflows = gh.get_workflows(repo)
   disabled_workflows = []
   component_flags['workflows_disabled'] = False
@@ -304,8 +305,11 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
       disabled_workflows.append(workflow.name)
   if disabled_workflows:
     component_flags['workflows_disabled'] = True
+    log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
+  else:
+    log_debug(f'No disabled workflows in {component_name}')
   data['workflows_disabled'] = disabled_workflows
-  
+
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
   if latest_commit := component['attributes'].get('latest_commit'):

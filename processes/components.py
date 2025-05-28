@@ -132,6 +132,24 @@ def process_independent_component(component, services):
       log_error(f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}')
       component_flags['app_disabled'] = True
 
+  # Check if workflows are disabled
+  log_debug(f'Checking workflows for {component_name}')
+  try:
+    workflows = repo.get_workflows()
+    disabled_workflows = []
+    component_flags['workflows_disabled'] = False
+    for workflow in workflows:
+      if workflow.state != "active":
+        disabled_workflows.append(workflow.name)
+    if disabled_workflows:
+      component_flags['workflows_disabled'] = True
+      log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
+    else:
+      log_debug(f'No disabled workflows in {component_name}')
+    data['disabled_workflows'] = disabled_workflows
+  except Exception as e:
+    log_error(f'Unable to get workflows for {repo.name}: {e}')
+
   try:
     data['github_topics'] = repo.get_topics()
   except Exception as e:
@@ -308,20 +326,6 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
     log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
 
-    # Check if workflows are disabled
-    log_debug(f'Checking workflows for {component_name}')
-    workflows = repo.get_workflows()
-    disabled_workflows = []
-    component_flags['workflows_disabled'] = False
-    for workflow in workflows:
-      if workflow.state != "active":
-        disabled_workflows.append(workflow.name)
-    if disabled_workflows:
-      component_flags['workflows_disabled'] = True
-      log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
-    else:
-      log_debug(f'No disabled workflows in {component_name}')
-    data['disabled_workflows'] = disabled_workflows
     log_info(f'Processing main branch independent components for: {component_name}')
     # Get the fields that aren't updated by a commit to main
     independent_components, component_flags = process_independent_component(

@@ -151,16 +151,6 @@ def process_independent_component(component, services):
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
   )
-
-  workflows = gh.get_workflows(repo)
-  disabled_workflows = []
-  component_flags['workflows_disabled'] = False
-  for workflow in workflows:
-    if workflow.state != "active":
-      disabled_workflows.append(workflow.name)
-  if disabled_workflows:
-    component_flags['workflows_disabled'] = True
-  data['workflows_disabled'] = disabled_workflows
   return data, component_flags
 
 
@@ -305,6 +295,17 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
   component_name = component['attributes']['name']
   log_info(f'Processing component: {component_name}')
 
+  # Check if workflows are disabled
+  workflows = gh.get_workflows(repo)
+  disabled_workflows = []
+  component_flags['workflows_disabled'] = False
+  for workflow in workflows:
+    if workflow.state != "active":
+      disabled_workflows.append(workflow.name)
+  if disabled_workflows:
+    component_flags['workflows_disabled'] = True
+  data['workflows_disabled'] = disabled_workflows
+  
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
   if latest_commit := component['attributes'].get('latest_commit'):

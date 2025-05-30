@@ -16,7 +16,13 @@ from includes import helm, environments, standards
 from includes.utils import update_dict, get_dockerfile_data
 
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_warning,
+)
 
 max_threads = 10
 
@@ -129,7 +135,9 @@ def process_independent_component(component, services):
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
     else:
-      log_error(f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}')
+      log_error(
+        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      )
       component_flags['app_disabled'] = True
 
   try:
@@ -209,6 +217,8 @@ def process_changed_component(component, repo, services):
     log_debug('No CircleCI config found')
 
   # App insights cloud_RoleName
+  #############################
+
   if repo.language == 'Kotlin' or repo.language == 'Java':
     app_insights_config = gh.get_file_json(
       repo, f'{component_project_dir}/applicationinsights.json'
@@ -225,6 +235,8 @@ def process_changed_component(component, repo, services):
           data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
 
   # Gradle config
+  ###############
+
   build_gradle_config_content = False
   if repo.language == 'Kotlin' or repo.language == 'Java':
     build_gradle_kts_config = gh.get_file_plain(repo, 'build.gradle.kts')
@@ -251,7 +263,9 @@ def process_changed_component(component, repo, services):
     except TypeError:
       pass
 
-  # Parse Dockerfile
+  # Information from Dockerfile
+  #############################
+
   if dockerfile_contents := gh.get_file_plain(
     repo, f'{component_project_dir}/Dockerfile'
   ):
@@ -259,9 +273,20 @@ def process_changed_component(component, repo, services):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
-  # Get standards
+  # Repository Standards
+  #############################
+
   if repo_standards := standards.get_standards_compliance(services, repo):
     update_dict(data, 'standards_compliance', repo_standards)
+
+  # Codescanning Alerts
+  #####################
+
+  if codescanning_summary := gh.get_codescanning_summary(repo):
+    update_dict(data, 'codescanning_summary', codescanning_summary)
+
+  # End of other component information
+  ####################################
 
   log_debug(
     f'Finished getting other repo information for {component_name}\ndata: {data}'

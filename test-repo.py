@@ -30,37 +30,33 @@ Optional environment variables
 
 import os
 import argparse
+import json
 
 # Classes for the various parts of the script
 # from classes.health import HealthServer
 from classes.service_catalogue import ServiceCatalogue
 from classes.github import GithubSession
-from classes.alertmanager import AlertmanagerData
-from classes.circleci import CircleCI
 
 # Components
 import processes.components as components
 
 # Standards
-from includes.standards import get_standards_compliance
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
+from utilities.job_log_handling import log_debug, log_error, log_info, log_warning
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
 
+
 class Services:
-  def __init__(self, sc_params, gh_params, am_params, cc_params):
+  def __init__(self, sc_params, gh_params):
     self.sc = ServiceCatalogue(sc_params)
     self.gh = GithubSession(gh_params)
-    self.am = AlertmanagerData(am_params)
-    self.cc = CircleCI(cc_params)
 
 
 ###########################################################################################################
 # Single component discovery
 ###########################################################################################################
 def main():
-
   parser = argparse.ArgumentParser(description='Process a component.')
   parser.add_argument('component_name', help='The name of the component')
   args = parser.parse_args()
@@ -80,22 +76,7 @@ def main():
     'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
   }
 
-  cc_params = {
-    'url': os.getenv(
-      'CIRCLECI_API_ENDPOINT',
-      'https://circleci.com/api/v1.1/project/gh/ministryofjustice/',
-    ),
-    'token': os.getenv('CIRCLECI_TOKEN'),
-  }
-
-  am_params = {
-    'url': os.getenv(
-      'ALERTMANAGER_ENDPOINT',
-      'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status',
-    )
-  }
-
-  services = Services(sc_params, gh_params, am_params, cc_params)
+  services = Services(sc_params, gh_params)
 
   component = services.sc.get_record(services.sc.components_get, 'name', component_name)
   log_debug(f'Component: {component}')
@@ -104,8 +85,7 @@ def main():
     log_info(f'Getting secrets business for {repo_name}')
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
-    data = get_standards_compliance(services, repo, component)
-    log_info(f'data is: {data}')
+
   else:
     log_error(f'Component {component_name} not found')
 

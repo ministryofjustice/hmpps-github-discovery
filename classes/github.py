@@ -7,7 +7,14 @@ from github.GithubException import UnknownObjectException
 from datetime import datetime, timedelta, timezone
 import jwt
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_warning,
+)
+
 
 class GithubSession:
   def __init__(self, params):
@@ -134,8 +141,66 @@ class GithubSession:
       if response.status_code == 200:
         response_json = response.json()
       else:
-        log_error(f'Github API GET call failed with response code {response.status_code}')
+        log_error(
+          f'Github API GET call failed with response code {response.status_code}'
+        )
 
     except Exception as e:
       log_error(f'Error when making Github API: {e}')
     return response_json
+
+  def get_codescanning_summary(self, repo):
+    summary = {}
+    try:
+      data = repo.get_codescan_alerts()
+    except Exception as e:
+      log_warning(f'Unable to retrieve codescanning data: {e}')
+
+    if data:
+      alerts = []
+      for alert in (a for a in data if a.state != 'fixed'):
+        log_debug(
+          f'\n\nalert is: {json.dumps(alert.raw_data, indent=2)}\n============================'
+        )
+        # some alerts don't have severity levels
+        if alert.rule.security_severity_level:
+          severity = alert.rule.security_severity_level.upper()
+        else:
+          severity = ''
+        alert_data = {
+          'tool': alert.tool.name,
+          'cve': alert.rule.id,
+          'severity': severity,
+          'url': alert.html_url,
+        }
+        alerts.append(alert_data)
+
+        log_debug(f'{json.dumps(alert_data)}')
+
+      # Dictionary to store the best severity per CVE
+      unique_cves = {}
+
+      for entry in alerts:
+        cve = entry['cve']
+        severity = entry['severity']
+        if cve not in unique_cves or (severity and not unique_cves[cve]):
+          unique_cves[cve] = severity
+
+      log_info(f'unique cves: {json.dumps(unique_cves, indent=2)}')
+
+      # Count severities (adding empty ones to 'UNKNOWN')
+      counts = {}
+      for severity in unique_cves.values():
+        if severity:  # Skip empty severities
+          counts[severity] = counts.get(severity, 0) + 1
+        else:
+          counts['UNKNOWN'] = counts.get('UNKNOWN', 0) + 1
+
+      log_info(f'counts: {json.dumps(counts, indent=2)}')
+
+      summary = {
+        'counts': counts,
+        'alerts': alerts,
+        'unique_cves': unique_cves,
+      }
+    return summary

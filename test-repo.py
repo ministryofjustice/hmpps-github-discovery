@@ -85,7 +85,7 @@ def main():
     log_info(f'Getting secrets business for {repo_name}')
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
-
+    log_info(json.dumps(services.gh.get_codescanning_summary(repo), indent=2))
   else:
     log_error(f'Component {component_name} not found')
 

@@ -1,6 +1,13 @@
 import requests
 import json
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_warning,
+)
+
 
 class ServiceCatalogue:
   def __init__(self, params):
@@ -37,7 +44,7 @@ class ServiceCatalogue:
     self.environments_get = (
       f'{self.environments}?populate[0]=component{pagination_page_size}{sort_filter}'
     )
-    self.scheduled_jobs='scheduled-jobs'
+    self.scheduled_jobs = 'scheduled-jobs'
     self.connection_ok = self.test_connection()
 
   """
@@ -204,7 +211,7 @@ class ServiceCatalogue:
       return None
     except Exception as e:
       log_error(
-        f'Error getting Service Catalogue ID for {match_field}={match_string} in {match_table}: {e} - {r.status_code} {r.content}'
+        f'Error getting Service Catalogue ID for {match_field}={match_string} in {match_table}: {e}'
       )
       return None
 

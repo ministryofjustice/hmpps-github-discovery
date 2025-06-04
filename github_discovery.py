@@ -128,7 +128,6 @@ def create_summary(
 
 
 def main():
-
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
   if '-f' in os.sys.argv or '--force' in os.sys.argv:
@@ -226,10 +225,11 @@ def main():
 
   if job.error_messages:
     sc_scheduled_job.update(services, 'Errors')
-    log_info("Github discovery job completed  with errors.")
+    log_info('Github discovery job completed  with errors.')
   else:
     sc_scheduled_job.update(services, 'Succeeded')
-    log_info("Github discovery job completed successfully.")
+    log_info('Github discovery job completed successfully.')
+
 
 if __name__ == '__main__':
   main()

@@ -196,3 +196,86 @@ class GithubSession:
     except Exception as e:
       log_error(f'Error when making Github API: {e}')
     return response_json
+
+  def get_codescanning_summary(self, repo):
+    summary = {}
+    alerts = []
+    try:
+      data = repo.get_codescan_alerts()
+      if data:
+        for alert in (a for a in data if a.state != 'fixed'):
+          # log_debug(
+          #   f'\n\nalert is: {json.dumps(alert.raw_data, indent=2)}\n============================'
+          # )
+          # some alerts don't have severity levels
+          if alert.rule.security_severity_level:
+            severity = alert.rule.security_severity_level.upper()
+          else:
+            severity = ''
+          alert_data = {
+            'tool': alert.tool.name,
+            'cve': alert.rule.id,
+            'severity': severity,
+            'url': alert.html_url,
+          }
+          alerts.append(alert_data)
+
+          log_debug(f'Alert data is:\n{json.dumps(alert_data, indent=2)}')
+    except Exception as e:
+      log_warning(f'Unable to retrieve codescanning data: {e}')
+      # Dictionary to store the best severity per CVE
+    vulnerabilities = {}
+
+    log_debug(f'Full alert list:\n{json.dumps(alerts, indent=2)}')
+    if alerts:
+      # Loop through the alerts
+      for alert in alerts:
+        cve = alert['cve']
+        severity = alert['severity']
+        url = alert['url']
+
+        if cve not in vulnerabilities:
+          vulnerabilities[cve] = {
+            'severity': severity if severity else 'UNKNOWN',
+            'url': url,
+          }
+        else:
+          if severity and (
+            vulnerabilities[cve]['severity'] == 'UNKNOWN'
+            or severity > vulnerabilities[cve]['severity']
+          ):
+            vulnerabilities[cve] = {'severity': severity, 'url': url}
+
+      log_info(f'vulnerabilities: {json.dumps(vulnerabilities, indent=2)}')
+
+      # Define severity ranking
+      severity_order = {'UNKNOWN': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+
+      # Function to get severity rank
+      def get_severity_order(severity):
+        return severity_order.get(severity, 0)
+
+      # Sort the CVEs by severity
+      sorted_vulnerabilities = {}
+      for vulnerability in sorted(
+        vulnerabilities.items(),
+        key=lambda item: get_severity_order(item[1]['severity']),
+        reverse=True,
+      ):
+        sorted_vulnerabilities[vulnerability[0]] = vulnerability[1]
+
+      # Count severities (adding empty ones to 'UNKNOWN')
+      counts = {}
+      for vulnerability in vulnerabilities.values():
+        if severity := vulnerability.get('severity'):  # Skip empty severities
+          counts[severity] = counts.get(severity, 0) + 1
+        else:
+          counts['UNKNOWN'] = counts.get('UNKNOWN', 0) + 1
+
+      log_info(f'counts: {json.dumps(counts, indent=2)}')
+
+      summary = {
+        'counts': counts,
+        'vulnerabilities': sorted_vulnerabilities,
+      }
+    return summary

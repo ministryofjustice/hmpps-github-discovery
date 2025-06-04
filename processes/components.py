@@ -16,7 +16,13 @@ from includes import helm, environments, standards
 from includes.utils import update_dict, get_dockerfile_data
 
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_warning,
+)
 
 max_threads = 10
 
@@ -129,8 +135,28 @@ def process_independent_component(component, services):
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
     else:
-      log_error(f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}')
+      log_error(
+        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      )
       component_flags['app_disabled'] = True
+
+  # Check if workflows are disabled
+  log_debug(f'Checking workflows for {component_name}')
+  try:
+    workflows = repo.get_workflows()
+    disabled_workflows = []
+    component_flags['workflows_disabled'] = False
+    for workflow in workflows:
+      if workflow.state != 'active' and workflow.name:
+        disabled_workflows.append(workflow.name)
+    if disabled_workflows:
+      component_flags['workflows_disabled'] = True
+      log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
+    else:
+      log_debug(f'No disabled workflows in {component_name}')
+    data['disabled_workflows'] = disabled_workflows
+  except Exception as e:
+    log_error(f'Unable to get workflows for {repo.name}: {e}')
 
   try:
     data['github_topics'] = repo.get_topics()
@@ -209,22 +235,45 @@ def process_changed_component(component, repo, services):
     log_debug('No CircleCI config found')
 
   # App insights cloud_RoleName
+  #############################
+
+  log_debug('Looking for application insights cloud role name')
   if repo.language == 'Kotlin' or repo.language == 'Java':
+    log_debug(
+      f'Detected Kotlin/Java - looking in {component_project_dir}/applicationinsights.json'
+    )
     app_insights_config = gh.get_file_json(
       repo, f'{component_project_dir}/applicationinsights.json'
     )
     if app_insights_config:
-      app_insights_cloud_role_name = app_insights_config['role']['name']
-      data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      if app_insights_cloud_role_name := app_insights_config.get('role', {}).get(
+        'name'
+      ):
+        data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      else:
+        log_debug('Role name not found in the expected place (role.name)')
+    else:
+      log_warning('No applicationinsights.json file found')
 
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
-    package_json = gh.get_file_json(repo, f'{component_project_dir}/package.json')
-    if package_json:
+    log_debug(
+      f'Detected JavaScript/TypeScript - looking in {component_project_dir}/package.json'
+    )
+    if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
       if app_insights_cloud_role_name := package_json.get('name'):
         if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
           data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+          log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
+        else:
+          log_debug('Role name not valid - not setting it')
+      else:
+        log_debug('Role name not found in the expected place (name)')
+    else:
+      log_warning('No package.json file found')
 
   # Gradle config
+  ###############
+
   build_gradle_config_content = False
   if repo.language == 'Kotlin' or repo.language == 'Java':
     build_gradle_kts_config = gh.get_file_plain(repo, 'build.gradle.kts')
@@ -251,7 +300,9 @@ def process_changed_component(component, repo, services):
     except TypeError:
       pass
 
-  # Parse Dockerfile
+  # Information from Dockerfile
+  #############################
+
   if dockerfile_contents := gh.get_file_plain(
     repo, f'{component_project_dir}/Dockerfile'
   ):
@@ -259,9 +310,20 @@ def process_changed_component(component, repo, services):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
-  # Get standards
+  # Repository Standards
+  #############################
+
   if repo_standards := standards.get_standards_compliance(services, repo):
     update_dict(data, 'standards_compliance', repo_standards)
+
+  # Codescanning Alerts
+  #####################
+
+  if codescanning_summary := gh.get_codescanning_summary(repo):
+    update_dict(data, 'codescanning_summary', codescanning_summary)
+
+  # End of other component information
+  ####################################
 
   log_debug(
     f'Finished getting other repo information for {component_name}\ndata: {data}'

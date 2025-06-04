@@ -147,7 +147,7 @@ def process_independent_component(component, services):
     disabled_workflows = []
     component_flags['workflows_disabled'] = False
     for workflow in workflows:
-      if workflow.state != "active" and workflow.name:
+      if workflow.state != 'active' and workflow.name:
         disabled_workflows.append(workflow.name)
     if disabled_workflows:
       component_flags['workflows_disabled'] = True
@@ -237,20 +237,39 @@ def process_changed_component(component, repo, services):
   # App insights cloud_RoleName
   #############################
 
+  log_debug('Looking for application insights cloud role name')
   if repo.language == 'Kotlin' or repo.language == 'Java':
+    log_debug(
+      f'Detected Kotlin/Java - looking in {component_project_dir}/applicationinsights.json'
+    )
     app_insights_config = gh.get_file_json(
       repo, f'{component_project_dir}/applicationinsights.json'
     )
     if app_insights_config:
-      app_insights_cloud_role_name = app_insights_config['role']['name']
-      data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      if app_insights_cloud_role_name := app_insights_config.get('role', {}).get(
+        'name'
+      ):
+        data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      else:
+        log_debug('Role name not found in the expected place (role.name)')
+    else:
+      log_warning('No applicationinsights.json file found')
 
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
-    package_json = gh.get_file_json(repo, f'{component_project_dir}/package.json')
-    if package_json:
+    log_debug(
+      f'Detected JavaScript/TypeScript - looking in {component_project_dir}/package.json'
+    )
+    if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
       if app_insights_cloud_role_name := package_json.get('name'):
         if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
           data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+          log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
+        else:
+          log_debug('Role name not valid - not setting it')
+      else:
+        log_debug('Role name not found in the expected place (name)')
+    else:
+      log_warning('No package.json file found')
 
   # Gradle config
   ###############

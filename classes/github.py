@@ -151,37 +151,35 @@ class GithubSession:
 
   def get_codescanning_summary(self, repo):
     summary = {}
+    alerts = []
     try:
       data = repo.get_codescan_alerts()
+      if data:
+        for alert in (a for a in data if a.state != 'fixed'):
+          # log_debug(
+          #   f'\n\nalert is: {json.dumps(alert.raw_data, indent=2)}\n============================'
+          # )
+          # some alerts don't have severity levels
+          if alert.rule.security_severity_level:
+            severity = alert.rule.security_severity_level.upper()
+          else:
+            severity = ''
+          alert_data = {
+            'tool': alert.tool.name,
+            'cve': alert.rule.id,
+            'severity': severity,
+            'url': alert.html_url,
+          }
+          alerts.append(alert_data)
+
+          log_debug(f'Alert data is:\n{json.dumps(alert_data, indent=2)}')
     except Exception as e:
       log_warning(f'Unable to retrieve codescanning data: {e}')
-
-    if data:
-      alerts = []
-      for alert in (a for a in data if a.state != 'fixed'):
-        # log_debug(
-        #   f'\n\nalert is: {json.dumps(alert.raw_data, indent=2)}\n============================'
-        # )
-        # some alerts don't have severity levels
-        if alert.rule.security_severity_level:
-          severity = alert.rule.security_severity_level.upper()
-        else:
-          severity = ''
-        alert_data = {
-          'tool': alert.tool.name,
-          'cve': alert.rule.id,
-          'severity': severity,
-          'url': alert.html_url,
-        }
-        alerts.append(alert_data)
-
-        log_debug(f'Alert data is:\n{json.dumps(alert_data, indent=2)}')
-
       # Dictionary to store the best severity per CVE
-      vulnerabilities = {}
+    vulnerabilities = {}
 
-      log_debug(f'Full alert list:\n{json.dumps(alerts, indent=2)}')
-
+    log_debug(f'Full alert list:\n{json.dumps(alerts, indent=2)}')
+    if alerts:
       # Loop through the alerts
       for alert in alerts:
         cve = alert['cve']

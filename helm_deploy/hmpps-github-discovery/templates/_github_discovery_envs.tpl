@@ -1,8 +1,8 @@
-{{- define "github-discovery.envs" -}}
-{{- if or .github-discovery.namespace_secrets .github-discovery.env -}}
+{{- define "github_discovery.envs" -}}
+{{- if or .github_discovery.namespace_secrets .github_discovery.env -}}
 env:
-{{- if .github-discovery.namespace_secrets -}}
-{{- range $secret, $envs := .github-discovery.namespace_secrets }}
+{{- if .github_discovery.namespace_secrets -}}
+{{- range $secret, $envs := .github_discovery.namespace_secrets }}
   {{- range $key, $val := $envs }}
   - name: {{ $key }}
     valueFrom:
@@ -12,8 +12,8 @@ env:
         optional: true{{ end }}  {{- end }}
 {{- end }}
 {{- end }}
-{{- if .github-discovery.env -}}
-{{- range $key, $val := .github-discovery.env }}
+{{- if .github_discovery.env -}}
+{{- range $key, $val := .github_discovery.env }}
   - name: {{ $key }}
     value: {{ quote $val }}
 {{- end }}

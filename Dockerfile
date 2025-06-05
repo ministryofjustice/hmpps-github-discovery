@@ -23,9 +23,8 @@ COPY processes processes
 COPY utilities utilities
 COPY models models
 
-COPY ./github_discovery.py .
-COPY ./github_teams_discovery.py .
-COPY ./github_component_discovery.py .
+# Copy the Python goodness
+COPY ./*.py .
 COPY ./requirements.txt .
 
 # update PATH environment variable

@@ -6,7 +6,7 @@ image:
 generic-prometheus-alerts:
   targetApplication: hmpps-github-discovery
 
-discoveryCronJob:
+github_discovery:
   namespace_secrets:
     hmpps-github-discovery:
       SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"

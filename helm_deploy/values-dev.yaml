@@ -23,5 +23,5 @@ teamsCronJob:
 securityCronJob:
   enabled: true
   cron:
-    github_discovery_security: "45 10 * * *"
+    github_discovery_security: "55 10 * * *"
 

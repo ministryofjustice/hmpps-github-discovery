@@ -31,7 +31,7 @@ from classes.github import GithubSession
 from classes.slack import Slack
 
 # Components
-import processes.components as components
+import processes.security as security
 import processes.scheduled_jobs as sc_scheduled_job
 from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
 
@@ -122,8 +122,8 @@ def main():
   # httpHealth.start()
 
   log_info('Batch processing components')
-  processed_components = components.batch_process_sc_components(
-    services, max_threads, security_only=True
+  processed_components = security.batch_process_sc_security_components(
+    services, max_threads
   )
 
   create_summary(services, processed_components)

@@ -12,7 +12,7 @@ from classes.alertmanager import AlertmanagerData
 from classes.slack import Slack
 
 # Standalone functions
-from includes import helm, environments, standards
+from includes import helm, environments
 from includes.utils import update_dict, get_dockerfile_data
 
 import processes.scheduled_jobs as sc_scheduled_job
@@ -436,59 +436,10 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
   return component_flags
 
 
-##############################################################
-# Component Security Scanning section - only runs once per day
-##############################################################
-
-
-def process_sc_component_security(component, services):
-  # Set some convenient defaults
-  sc = services.sc
-  gh = services.gh
-  component_name = component['attributes']['name']
-  github_repo = component['attributes']['github_repo']
-
-  # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
-  component_flags = {}
-
-  try:
-    repo = gh.get_org_repo(f'{github_repo}')
-  except Exception as e:
-    log_error(
-      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
-    )
-
-  # Codescanning Alerts
-  #####################
-
-  if codescanning_summary := gh.get_codescanning_summary(repo):
-    update_dict(data, 'codescanning_summary', codescanning_summary)
-    component_flags['repos_with_vulnerabilities'] = (
-      component_flags.get('repos_with_vulnerabilities', 0) + 1
-    )
-
-  # Repository Standards
-  #############################
-
-  if repo_standards := standards.get_standards_compliance(services, repo):
-    update_dict(data, 'standards_compliance', repo_standards)
-
-  # Update component with all results in data dictionary if there's data to do so
-  if data:
-    if not sc.update(sc.components, component['id'], data):
-      log_error(f'Error updating component {component_name}')
-      component_flags['update_error'] = True
-
-  return component_flags
-
-
 #############################################################################################################
 # Main batch dispatcher - this is the process that's called by github_discovery and github_security_discovery
 #############################################################################################################
-def batch_process_sc_components(
-  services, max_threads, force_update=False, security_only=False
-):
+def batch_process_sc_components(services, max_threads, force_update=False):
   sc = services.sc
 
   processed_components = []
@@ -526,20 +477,17 @@ def batch_process_sc_components(
     # Mini function to process the component and store the result
     # because the threading needs to target a function
     def process_component_and_store_result(
-      component, bootstrap_projects, services, force_update, security_only
+      component, bootstrap_projects, services, force_update
     ):
-      if security_only:
-        result = process_sc_component_security(component, services)
-      else:
-        result = process_sc_component(
-          component, bootstrap_projects, services, force_update
-        )
+      result = process_sc_component(
+        component, bootstrap_projects, services, force_update
+      )
       processed_components.append((component['attributes']['name'], result))
 
     # Create a thread for each component
     t_repo = threading.Thread(
       target=process_component_and_store_result,
-      args=(component, bootstrap_projects, services, force_update, security_only),
+      args=(component, bootstrap_projects, services, force_update),
       daemon=True,
     )
     threads.append(t_repo)

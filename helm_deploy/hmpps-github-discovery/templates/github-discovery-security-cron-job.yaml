@@ -1,4 +1,4 @@
-{{- if .Values.discoveryCronJob.enabled -}}
+{{- if .Values.securityCronJob.enabled -}}
 
 ---
 apiVersion: batch/v1
@@ -6,7 +6,7 @@ kind: CronJob
 metadata:
   name: hmpps-github-discovery-security
 spec:
-  schedule: "{{ .Values.cron.github_discovery_security }}"
+  schedule: "{{ .Values.securityCronJob.cron.github_discovery_security }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600
@@ -32,6 +32,6 @@ spec:
                 allowPrivilegeEscalation: false
                 seccompProfile:
                   type: RuntimeDefault
-      {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
+      {{- include "securityCronJob.envs" .Values | nindent 14 }}
           restartPolicy: Never
 {{- end }}

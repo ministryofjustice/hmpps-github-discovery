@@ -7,9 +7,21 @@ discoveryCronJob:
   enabled: true
   env:
     LOG_LEVEL: info
+  cron:
+    github_discovery: "45 0-4/2,10-22/2 * * *"
+    github_discovery_full: "30 8 * * 1-5"
 
-cron:
-  github_teams_discovery: "20 */6 * * *"
-  github_discovery: "45 0-4/2,10-22/2 * * *"
-  github_discovery_full: "30 8 * * 1-5"
-  # github_discovery_security: "30 6 * * *"
+teamsCronJob:
+  enabled: true
+  env:
+    LOG_LEVEL: info
+  cron:
+    github_teams_discovery: "20 */6 * * *"
+
+securityCronJob:
+  enabled: false
+  env: 
+    LOG_LEVEL: info
+  cron:
+    github_discovery_security: "30 6 * * *"
+

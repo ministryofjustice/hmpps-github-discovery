@@ -6,7 +6,7 @@ kind: CronJob
 metadata:
   name: hmpps-github-discovery-incremental
 spec:
-  schedule: "{{ .Values.cron.github_discovery }}"
+  schedule: "{{ .Values.securityCronJob.cron.github_discovery }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600

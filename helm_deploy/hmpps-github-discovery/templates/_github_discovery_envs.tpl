@@ -1,8 +1,8 @@
-{{- define "discoveryCronJob.envs" -}}
-{{- if or .discoveryCronJob.namespace_secrets .discoveryCronJob.env -}}
+{{- define "github-discovery.envs" -}}
+{{- if or .github-discovery.namespace_secrets .github-discovery.env -}}
 env:
-{{- if .discoveryCronJob.namespace_secrets -}}
-{{- range $secret, $envs := .discoveryCronJob.namespace_secrets }}
+{{- if .github-discovery.namespace_secrets -}}
+{{- range $secret, $envs := .github-discovery.namespace_secrets }}
   {{- range $key, $val := $envs }}
   - name: {{ $key }}
     valueFrom:
@@ -12,8 +12,8 @@ env:
         optional: true{{ end }}  {{- end }}
 {{- end }}
 {{- end }}
-{{- if .discoveryCronJob.env -}}
-{{- range $key, $val := .discoveryCronJob.env }}
+{{- if .github-discovery.env -}}
+{{- range $key, $val := .github-discovery.env }}
   - name: {{ $key }}
     value: {{ quote $val }}
 {{- end }}

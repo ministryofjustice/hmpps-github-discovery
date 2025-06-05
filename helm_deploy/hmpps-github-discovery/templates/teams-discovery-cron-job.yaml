@@ -32,6 +32,6 @@ spec:
                 allowPrivilegeEscalation: false
                 seccompProfile:
                   type: RuntimeDefault
-      {{- include "teamsCronJob.envs" .Values | nindent 14 }}
+      {{- include "github-discovery.envs" .Values | nindent 14 }}
           restartPolicy: Never
 {{- end }}

@@ -5,7 +5,7 @@ generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-nonprod
 
 discoveryCronJob:
-  enabled: false
+  enabled: true
   env:
     LOG_LEVEL: debug
     SC_FILTER: "SC_FILTER"
@@ -14,4 +14,4 @@ cron:
 #   github_teams_discovery: "20 2 * * *"
 #   github_discovery: "45 */6 * * *"
 #   github_discovery_full: "45 2 * * *"
-  github_discovery_security: "30 6 * * *"
+  github_discovery_security: "30 10 * * *"

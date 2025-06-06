@@ -56,10 +56,10 @@ def create_summary(services, processed_components):
     for attr, desc in attributes.items():
       filtered_items = [item for item in items if item[1].get(attr)]
       summary += f'- {len(filtered_items)} {desc}\n'
-      if filtered_items and 'update' not in desc and 'add' not in desc:
-        for item in filtered_items:
-          summary += f'  {item[0]}\n'
-        summary += '\n'
+      # if filtered_items and 'update' not in desc and 'add' not in desc:
+      #   for item in filtered_items:
+      #     summary += f'  {item[0]}\n'
+      #   summary += '\n'
     return summary
 
   component_attributes = {

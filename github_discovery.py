@@ -209,7 +209,7 @@ def main():
 
   log_info('Batch processing components')
   processed_components = components.batch_process_sc_components(
-    services, max_threads, force_update
+    services, max_threads, force_update=force_update
   )
 
   # Process products

@@ -1,7 +1,9 @@
 import threading
-import os
+import sys
 import re
 import json
+import importlib
+
 from time import sleep
 from datetime import datetime, timezone
 
@@ -340,7 +342,7 @@ def process_changed_component(component, repo, services):
 # - Return the flags for the component
 
 
-def process_sc_component(component, bootstrap_projects, services, force_update=False):
+def process_sc_component(component, services, bootstrap_projects, force_update=False):
   sc = services.sc
   gh = services.gh
 
@@ -436,10 +438,18 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
   return component_flags
 
 
-#############################################################################################################
-# Main batch dispatcher - this is the process that's called by github_discovery and github_security_discovery
-#############################################################################################################
-def batch_process_sc_components(services, max_threads, force_update=False):
+##############################################################################################################
+# Main batch dispatcher - this is the process that's called by github_discovery, and github_security_discovery
+# By default it runs the function 'process_sc_component' - this can be overridden by a custom function
+# (eg. process_sc_security_component)
+##############################################################################################################
+def batch_process_sc_components(
+  services,
+  max_threads,
+  module='processes.components',
+  function='process_sc_component',
+  force_update=False,
+):
   sc = services.sc
 
   processed_components = []
@@ -477,17 +487,32 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     # Mini function to process the component and store the result
     # because the threading needs to target a function
     def process_component_and_store_result(
-      component, bootstrap_projects, services, force_update
+      component,
+      services,
+      module,
+      function,
+      bootstrap_projects,
+      force_update,
     ):
-      result = process_sc_component(
-        component, bootstrap_projects, services, force_update
-      )
-      processed_components.append((component['attributes']['name'], result))
+      log_debug(f'Function is {function}')
+      mod = importlib.import_module(module)
+      func = getattr(mod, function)
+      if callable(func):
+        result = func(
+          component,
+          services,
+          bootstrap_projects=bootstrap_projects,
+          force_update=force_update,
+        )
+        processed_components.append((component['attributes']['name'], result))
+      else:
+        log_error(f'Unable to call {function}')
+        sys.exit(1)
 
     # Create a thread for each component
     t_repo = threading.Thread(
       target=process_component_and_store_result,
-      args=(component, bootstrap_projects, services, force_update),
+      args=(component, services, module, function, bootstrap_projects, force_update),
       daemon=True,
     )
     threads.append(t_repo)

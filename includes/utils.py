@@ -4,6 +4,7 @@ import tempfile
 import re
 from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
+
 # Cheeky little function to update a dictionary or add a new record if there isn't one
 def update_dict(this_dict, key, sub_dict):
   if key not in this_dict:
@@ -146,3 +147,19 @@ def get_existing_env_config(component, env_name, config, services):
 
 
 ################################################################################################
+
+
+def find_matching_keys(data, search_key):
+  found_values = []
+
+  if isinstance(data, dict):
+    for key, value in data.items():
+      if key == search_key:
+        found_values.append(value)
+      else:
+        found_values.extend(find_matching_keys(value, search_key))
+  elif isinstance(data, list):
+    for item in data:
+      found_values.extend(find_matching_keys(item, search_key))
+
+  return found_values

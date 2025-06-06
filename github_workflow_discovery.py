@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""Github security - a separate script that interrogates github API for security info
-   about hmpps components and stores the results in the service catalogue
+"""Github workflows - a script that creates a catalogue of non-standard workflows
+   within hmpps component repositories and stores the results in the service catalogue
 
 Required environment variables
 ------------------------------
@@ -29,6 +29,7 @@ import os
 from classes.service_catalogue import ServiceCatalogue
 from classes.github import GithubSession
 from classes.slack import Slack
+
 
 # Components - to loop through each component and initiate batch jobs
 import processes.components as components
@@ -63,10 +64,10 @@ def create_summary(services, processed_components):
     return summary
 
   component_attributes = {
-    'repos_with_vulnerabilities': 'repositories with vulnerabilities',
+    'qty_repos': 'repositories with non-core workflows:',
   }
 
-  summary = 'Github Security Discovery completed OK\n'
+  summary = 'Github Workflow Discovery completed OK\n'
   summary += summarize_processed_components(
     processed_components, 'component', component_attributes
   )
@@ -77,7 +78,7 @@ def create_summary(services, processed_components):
 
 def main():
   #### Create resources ####
-  job.name = 'hmpps-github-discovery-security'
+  job.name = 'hmpps-github-discovery-workflows'
 
   # service catalogue parameters
   sc_params = {
@@ -125,8 +126,8 @@ def main():
   processed_components = components.batch_process_sc_components(
     services,
     max_threads,
-    module='processes.security',
-    function='process_sc_component_security',
+    module='processes.workflows',
+    function='process_sc_component_workflows',
   )
 
   create_summary(services, processed_components)

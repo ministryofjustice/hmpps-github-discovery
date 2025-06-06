@@ -38,7 +38,7 @@ from classes.service_catalogue import ServiceCatalogue
 from classes.github import GithubSession
 
 # Components
-import processes.components as components
+import processes.workflows as workflows
 
 # Standards
 from utilities.job_log_handling import log_debug, log_error, log_info, log_warning
@@ -82,10 +82,10 @@ def main():
   log_debug(f'Component: {component}')
   if component:
     repo_name = component.get('attributes').get('github_repo')
-    log_info(f'Getting secrets business for {repo_name}')
+    log_info(f'Getting workflow business for {repo_name}')
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
-    log_info(json.dumps(services.gh.get_codescanning_summary(repo), indent=2))
+    log_info(workflows.process_sc_component_workflows(component, services))
   else:
     log_error(f'Component {component_name} not found')
 

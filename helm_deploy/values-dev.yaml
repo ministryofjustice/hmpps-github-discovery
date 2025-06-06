@@ -16,7 +16,7 @@ discoveryCronJob:
   #   github_discovery_full: "45 2 * * *"
 
 teamsCronJob:
-  # enabled: false
+  enabled: false
   # cron:
   #   github_teams_discovery: "20 2 * * *"
 

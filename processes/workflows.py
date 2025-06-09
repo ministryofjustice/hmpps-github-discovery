@@ -30,11 +30,14 @@ def get_non_core_actions(yml_data, actions, path):
           repo, version = rest.split('@')
           action = {'owner': owner, 'repo': repo, 'version': version}
           log_debug(f'Action found: {action}')
-          actions.append(action)
+          if action not in actions:
+            actions.append(action)
         except ValueError:
           log_debug(f'Invalid format for action: {value}')
 
-  return actions
+  sorted_actions = sorted(actions, key=lambda x: x['owner'])
+
+  return sorted_actions
 
 
 ######################################################

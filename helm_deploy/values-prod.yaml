@@ -7,6 +7,7 @@ github-discovery:
   env:
     LOG_LEVEL: info
 
+# Run the Cronjob every 2 hours except 06:xx
 discoveryCronJob:
   enabled: true
   cron:
@@ -19,12 +20,12 @@ teamsCronJob:
     github_teams_discovery: "20 */6 * * *"
 
 securityCronJob:
-  enabled: false
+  enabled: true
   cron:
-    # github_discovery_security: "30 06 * * 1-5"
+    github_discovery_security: "30 06 * * 1-5"
 
 workflowsCronJob:
-  enabled: false
+  enabled: true
   cron:
-    # github_discovery_workflows: "30 06 * * 0"
+    github_discovery_workflows: "30 06 * * 0"
 

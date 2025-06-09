@@ -21,11 +21,11 @@ teamsCronJob:
   #   github_teams_discovery: "20 2 * * *"
 
 securityCronJob:
-  enabled: true
-  cron:
-    github_discovery_security: "30 06 * * 1-5"
+  enabled: false
+  # cron:
+  #   github_discovery_security: "30 06 * * 1-5"
 
 workflowsCronJob:
-  enabled: true
-  cron:
-    github_discovery_workflows: "15 10 * * 1"
+  enabled: false
+  # cron:
+  #   github_discovery_workflows: "15 10 * * 1"

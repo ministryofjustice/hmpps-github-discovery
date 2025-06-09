@@ -27,8 +27,8 @@ def get_non_core_actions(yml_data, actions, path):
         log_debug(f'value: {value} (type: {type(value)})')
         try:
           owner, rest = value.split('/', 1)
-          repo, version = rest.split('@')
-          action = {'owner': owner, 'repo': repo, 'version': version}
+          repo, ref = rest.split('@')
+          action = {'owner': owner, 'repo': repo, 'ref': ref}
           log_debug(f'Action found: {action}')
           if action not in actions:
             actions.append(action)

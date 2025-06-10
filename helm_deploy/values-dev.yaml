@@ -28,4 +28,4 @@ securityCronJob:
 workflowsCronJob:
   enabled: true
   cron:
-    github_discovery_workflows: "55 10 * * 2"
+    github_discovery_workflows: "30 7 * * 3"

@@ -21,9 +21,6 @@ spec:
             - name: github-discovery
               image: "{{ .Values.image.repository }}:{{ .Values.version }}"
               command: ["python", "-u", "/app/github_workflows_discovery.py"]
-              # env:
-              #   - name: PATH
-              #     value: "/home/appuser/.local:/usr/local/bin:$PATH"
               securityContext:
                 capabilities:
                   drop:

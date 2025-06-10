@@ -1,12 +1,12 @@
-{{- if .Values.discoveryCronJob.enabled -}}
+{{- if .Values.securityCronJob.enabled -}}
 
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: hmpps-github-discovery-full
+  name: hmpps-github-discovery-security
 spec:
-  schedule: "{{ .Values.discoveryCronJob.cron.github_discovery_full }}"
+  schedule: "{{ .Values.securityCronJob.cron.github_discovery_security }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600
@@ -20,7 +20,7 @@ spec:
           containers:
             - name: github-discovery
               image: "{{ .Values.image.repository }}:{{ .Values.version }}"
-              command: ["python", "-u", "/app/github_discovery.py", "-f"]
+              command: ["python", "-u", "/app/github_security_discovery.py"]
               securityContext:
                 capabilities:
                   drop:

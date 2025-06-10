@@ -6,7 +6,7 @@ kind: CronJob
 metadata:
   name: hmpps-github-discovery-incremental
 spec:
-  schedule: "{{ .Values.cron.github_discovery }}"
+  schedule: "{{ .Values.discoveryCronJob.cron.github_discovery }}"
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 5
   startingDeadlineSeconds: 600
@@ -21,9 +21,6 @@ spec:
             - name: github-discovery
               image: "{{ .Values.image.repository }}:{{ .Values.version }}"
               command: ["python", "-u", "/app/github_discovery.py"]
-              env:
-                - name: PATH
-                  value: "/home/appuser/.local:/usr/local/bin:$PATH"
               securityContext:
                 capabilities:
                   drop:
@@ -32,6 +29,6 @@ spec:
                 allowPrivilegeEscalation: false
                 seccompProfile:
                   type: RuntimeDefault
-      {{- include "discoveryCronJob.envs" .Values | nindent 14 }}
+      {{- include "github_discovery.envs" .Values | nindent 14 }}
           restartPolicy: Never
 {{- end }}

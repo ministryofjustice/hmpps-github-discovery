@@ -1,7 +1,9 @@
 import threading
-import os
+import sys
 import re
 import json
+import importlib
+
 from time import sleep
 from datetime import datetime, timezone
 
@@ -12,7 +14,7 @@ from classes.alertmanager import AlertmanagerData
 from classes.slack import Slack
 
 # Standalone functions
-from includes import helm, environments, standards
+from includes import helm, environments
 from includes.utils import update_dict, get_dockerfile_data
 
 import processes.scheduled_jobs as sc_scheduled_job
@@ -36,6 +38,8 @@ class Services:
     self.slack = Slack(slack_params)
 
 
+# Read the projects.json from the bootstrap project into a dictionary
+#####################################################################
 def get_bootstrap_projects(services):
   gh = services.gh
   # Get projects.json from bootstrap repo for namespaces data
@@ -49,7 +53,8 @@ def get_bootstrap_projects(services):
   return bootstrap_projects
 
 
-# Repo functions - teams and branch protection
+# Github repo functions - teams and branch protection
+#####################################################
 def get_repo_teams_info(repo, branch_protection, component_flags):
   data = {}
   branch_protection_restricted_teams = []
@@ -95,6 +100,8 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
   return data
 
 
+# Github repo functions - basic properties
+##########################################
 def get_repo_properties(repo, default_branch):
   return {
     'language': repo.language,
@@ -108,12 +115,9 @@ def get_repo_properties(repo, default_branch):
   }
 
 
-# This is the main function that processes each component in turn
-# 1. Get Github repo data that may change without a commit
-# 2. For all components that have a different commit to the SC, get Github repo data that may have changed
-#    2a. Then get ancillary stuff like Helm data, alertmanager data, security scan results etc
-
-
+##################################################################################
+# Independent Component Function - runs every time the scan takes place
+##################################################################################
 def process_independent_component(component, services):
   gh = services.gh
   component_name = component['attributes']['name']
@@ -180,6 +184,9 @@ def process_independent_component(component, services):
   return data, component_flags
 
 
+#################################################¢¢¢¢¢############################
+# Changed Component Function - only runs if main branch or environment has changed
+##################################################################################
 def process_changed_component(component, repo, services):
   gh = services.gh
   cc = services.cc
@@ -193,7 +200,10 @@ def process_changed_component(component, repo, services):
   )
 
   # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
+  # Include the existing versions
+  data = {
+    'versions': component.get('attributes', {}).get('versions', {})
+  }  # dictionary to hold all the updated data for the component
 
   # Information from Helm config
   ################################
@@ -310,18 +320,6 @@ def process_changed_component(component, repo, services):
       update_dict(data, 'versions', {'dockerfile': docker_data})
   # All done with the branch dependent components
 
-  # Repository Standards
-  #############################
-
-  if repo_standards := standards.get_standards_compliance(services, repo):
-    update_dict(data, 'standards_compliance', repo_standards)
-
-  # Codescanning Alerts
-  #####################
-
-  if codescanning_summary := gh.get_codescanning_summary(repo):
-    update_dict(data, 'codescanning_summary', codescanning_summary)
-
   # End of other component information
   ####################################
 
@@ -347,7 +345,7 @@ def process_changed_component(component, repo, services):
 # - Return the flags for the component
 
 
-def process_sc_component(component, bootstrap_projects, services, force_update=False):
+def process_sc_component(component, services, bootstrap_projects, force_update=False):
   sc = services.sc
   gh = services.gh
 
@@ -443,10 +441,18 @@ def process_sc_component(component, bootstrap_projects, services, force_update=F
   return component_flags
 
 
-###########################################################################################################
-# Main batch dispatcher - this is the process that's called by github_discovery
-###########################################################################################################
-def batch_process_sc_components(services, max_threads, force_update=False):
+##############################################################################################################
+# Main batch dispatcher - this is the process that's called by github_discovery, and github_security_discovery
+# By default it runs the function 'process_sc_component' - this can be overridden by a custom function
+# (eg. process_sc_security_component)
+##############################################################################################################
+def batch_process_sc_components(
+  services,
+  max_threads,
+  module='processes.components',
+  function='process_sc_component',
+  force_update=False,
+):
   sc = services.sc
 
   processed_components = []
@@ -484,17 +490,32 @@ def batch_process_sc_components(services, max_threads, force_update=False):
     # Mini function to process the component and store the result
     # because the threading needs to target a function
     def process_component_and_store_result(
-      component, bootstrap_projects, services, force_update
+      component,
+      services,
+      module,
+      function,
+      bootstrap_projects,
+      force_update,
     ):
-      result = process_sc_component(
-        component, bootstrap_projects, services, force_update
-      )
-      processed_components.append((component['attributes']['name'], result))
+      log_debug(f'Function is {function}')
+      mod = importlib.import_module(module)
+      func = getattr(mod, function)
+      if callable(func):
+        result = func(
+          component,
+          services,
+          bootstrap_projects=bootstrap_projects,
+          force_update=force_update,
+        )
+        processed_components.append((component['attributes']['name'], result))
+      else:
+        log_error(f'Unable to call {function}')
+        sys.exit(1)
 
     # Create a thread for each component
     t_repo = threading.Thread(
       target=process_component_and_store_result,
-      args=(component, bootstrap_projects, services, force_update),
+      args=(component, services, module, function, bootstrap_projects, force_update),
       daemon=True,
     )
     threads.append(t_repo)

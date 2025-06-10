@@ -85,9 +85,29 @@ def main():
     log_info(f'Getting workflow business for {repo_name}')
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
-    log_info(workflows.process_sc_component_workflows(component, services))
+    # enter your process here
   else:
     log_error(f'Component {component_name} not found')
+
+  # environments bits
+  # environments = services.sc.get_all_records('environments?populate=component')
+  # env_list = []
+  # for env in environments:
+  #   attrs = env.get('attributes', {})
+  #   env_list.append(
+  #     f'{attrs.get("component", {}).get("data", {}).get("attributes", {}).get("name")}-{
+  #       attrs.get("name")
+  #     }'
+  #   )
+
+  # env_list.sort()
+
+  # for env in env_list:
+  #   log_debug(f'{env}')
+
+  # for item in env_list:
+  #   if env_list.count(item) > 1:
+  #     log_debug(f'{item}: {env_list.count(item)}')
 
 
 if __name__ == '__main__':

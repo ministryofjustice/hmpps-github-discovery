@@ -200,7 +200,10 @@ def process_changed_component(component, repo, services):
   )
 
   # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
+  # Include the existing versions
+  data = {
+    'versions': component.get('attributes', {}).get('versions', {})
+  }  # dictionary to hold all the updated data for the component
 
   # Information from Helm config
   ################################

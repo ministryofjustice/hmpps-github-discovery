@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import threading
 import yaml
 import re
+import json
 
 # Standalone functions
 from includes import standards
@@ -18,7 +19,8 @@ from utilities.job_log_handling import (
 
 
 # get non-standard actions (based on whitelist in values.py)
-def get_non_core_actions(yml_data, actions, path):
+# This will return an ever growing dictionary of potentially duplicate actions
+def get_non_local_actions(yml_data, actions, path):
   if uses := find_matching_keys(yml_data, 'uses'):
     log_debug(f'qty of uses in {path}: {len(uses)}')
 
@@ -26,18 +28,14 @@ def get_non_core_actions(yml_data, actions, path):
       if not any(re.match(regex, value) for regex in actions_whitelist):
         log_debug(f'value: {value} (type: {type(value)})')
         try:
-          owner, rest = value.split('/', 1)
-          repo, ref = rest.split('@')
-          action = {'owner': owner, 'repo': repo, 'ref': ref}
+          name, ref = value.split('@')
+          action = {name: {'ref': ref, 'path': path}}
           log_debug(f'Action found: {action}')
-          if action not in actions:
-            actions.append(action)
+          actions.update(action)
         except ValueError:
           log_debug(f'Invalid format for action: {value}')
 
-  sorted_actions = sorted(actions, key=lambda x: x['owner'])
-
-  return sorted_actions
+  return actions
 
 
 ######################################################
@@ -55,7 +53,7 @@ def process_sc_component_workflows(component, services, **kwargs):
   # Reset the data ready for updating
   data = {}  # dictionary to hold all the updated data for the component
   component_flags = {}
-  non_core_actions = []
+  non_local_actions = {}
 
   try:
     repo = gh.get_org_repo(f'{github_repo}')
@@ -87,25 +85,23 @@ def process_sc_component_workflows(component, services, **kwargs):
         print(f'Error parsing {file_content.path}: {e}')
       if yml_data:
         # get non-standard actions
-        non_core_actions = get_non_core_actions(
-          yml_data, non_core_actions, file_content.path
+        non_local_actions = get_non_local_actions(
+          yml_data, non_local_actions, file_content.path
         )
   # now the actions have been found, compare them with the existing actions stored in components
-  if non_core_actions:
-    cur_actions = component.get('attributes', {}).get('actions')
-    if cur_actions:
-      cur_actions_list = {
-        (a['owner'], a['repo']): a['id']
-        for a in component.get('attributes', {}).get('actions')
-      }
-      for action in non_core_actions:
-        key = (action['owner'], action['repo'])
-        if key in cur_actions_list:
-          action['id'] = cur_actions[key]
+  if non_local_actions:
+    # get the current versions list
+    versions = component.get('attributes', {}).get('versions')
+
+    log_debug(f'non_local_actions: {json.dumps(non_local_actions, indent=2)}')
+    # Deduplicate the actions
+
+    versions['actions'] = non_local_actions
     component_flags['qty_repos'] = True
 
-  log_debug(f'Final non-standard actions list: {non_core_actions}')
-  data['non_core_actions'] = non_core_actions
+    log_debug(f'Final versions list: {versions}')
+
+    data['versions'] = versions
 
   # Update component with all results in data dictionary if there's data to do so
   if data:

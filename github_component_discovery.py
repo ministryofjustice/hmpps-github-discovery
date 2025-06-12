@@ -58,7 +58,6 @@ class Services:
 # Single component discovery
 ###########################################################################################################
 def main():
-
   parser = argparse.ArgumentParser(description='Process a component.')
   parser.add_argument('component_name', help='The name of the component')
   args = parser.parse_args()
@@ -101,8 +100,8 @@ def main():
     log_info(f'Processing component {component_name}...')
     processed_components = components.process_sc_component(
       component,
-      components.get_bootstrap_projects(services),
       services,
+      components.get_bootstrap_projects(services),
       force_update=True,
     )
     log_info(f'Processed component: {processed_components}')

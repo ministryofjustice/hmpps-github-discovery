@@ -66,11 +66,11 @@ standards = [
 actions_whitelist = [
   '^\\./\\.github',
   '^\\.github\\/',
-  '^ministryofjustice\\/',
-  '^docker\\/',
-  '^actions\\/',
-  '^slackapi\\/',
-  '^github\\/',
-  '^aquasecurity\\/',
-  '^azure\\/',
+  # '^ministryofjustice\\/',
+  # '^docker\\/',
+  # '^actions\\/',
+  # '^slackapi\\/',
+  # '^github\\/',
+  # '^aquasecurity\\/',
+  # '^azure\\/',
 ]

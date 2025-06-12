@@ -128,13 +128,20 @@ def process_independent_component(component, services):
     'app_disabled': False,
     'branch_protection_disabled': False,
   }
+  branch_protection = None
 
   try:
     repo = gh.get_org_repo(f'{github_repo}')
     default_branch = repo.get_branch(repo.default_branch)
-    branch_protection = default_branch.get_protection()
     data.update(get_repo_properties(repo, default_branch))
-    data.update(get_repo_teams_info(repo, branch_protection, component_flags))
+  except Exception as e:
+    log_error(
+      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+    )
+    component_flags['app_disabled'] = True
+
+  try:
+    branch_protection = default_branch.get_protection()
   except Exception as e:
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
@@ -143,6 +150,8 @@ def process_independent_component(component, services):
         f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
       )
       component_flags['app_disabled'] = True
+
+  data.update(get_repo_teams_info(repo, branch_protection, component_flags))
 
   # Check if workflows are disabled
   log_debug(f'Checking workflows for {component_name}')

@@ -237,15 +237,6 @@ def process_changed_component(component, repo, services):
   ################################
 
   if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
-    # Trivy Scan summary - this will be superceded by hmpps-trivy-discovery
-    try:
-      if trivy_scan_json := cc.get_trivy_scan_json_data(component_name):
-        # Add trivy scan result to final data dictionary
-        data['trivy_scan_summary'] = trivy_scan_json
-        data['trivy_last_completed_scan_date'] = trivy_scan_json.get('CreatedAt')
-    except Exception:
-      log_debug('Unable to get CircleCI trivy scan results')
-
     # CircleCI Orb version
     update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
 

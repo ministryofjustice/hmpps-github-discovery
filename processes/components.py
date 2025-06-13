@@ -90,8 +90,8 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
         branch_protection_restricted_teams
       )
 
-      enforce_admins = branch_protection.enforce_admins
-      data['github_enforce_admins_enabled'] = enforce_admins
+      if enforce_admins := branch_protection.enforce_admins:
+        data['github_enforce_admins_enabled'] = enforce_admins
 
     except Exception as e:
       log_error(f'Unable to get teams/admin information {repo.name}: {e}')
@@ -210,7 +210,10 @@ def process_changed_component(component, repo, services):
   )
 
   # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
+  # Include the existing versions
+  data = {
+    'versions': component.get('attributes', {}).get('versions', {})
+  }  # dictionary to hold all the updated data for the component
 
   # versions may have extant data which has been populated by other processes
   # so populate it now

@@ -1,7 +1,14 @@
 import requests
 import logging
 from includes.utils import update_dict
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_level
+from utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  log_level,
+)
+
 
 class CircleCI:
   def __init__(self, params):
@@ -73,7 +80,11 @@ class CircleCI:
       for key, value in cirleci_orbs.items():
         if 'ministryofjustice/hmpps' in value:
           hmpps_orb_version = value.split('@')[1]
-          update_dict(versions_data, 'circleci', {'hmpps_orb': hmpps_orb_version})
+          update_dict(
+            versions_data,
+            'circleci',
+            {'hmpps_orb': {'ref': hmpps_orb_version, 'path': '.circleci/config.yml'}},
+          )
           log_debug(f'hmpps orb version: {hmpps_orb_version}')
     except Exception:
       log_debug('No hmpps orb version found')

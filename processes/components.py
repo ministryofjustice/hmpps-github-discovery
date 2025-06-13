@@ -63,7 +63,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
   teams_maintain = []
 
   if not component_flags['app_disabled']:
-    if not component_flags['branch_protection_disabled']:
+    if branch_protection:
       try:
         branch_protection_teams = branch_protection.get_team_push_restrictions() or []
         for team in branch_protection_teams:
@@ -103,6 +103,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
 # Github repo functions - basic properties
 ##########################################
 def get_repo_properties(repo, default_branch):
+  log_debug('get_repo_properties running')
   return {
     'language': repo.language,
     'description': f'{"[ARCHIVED] " if repo.archived and "ARCHIVED" not in repo.description else ""}{repo.description}',
@@ -214,6 +215,10 @@ def process_changed_component(component, repo, services):
     'versions': component.get('attributes', {}).get('versions', {})
   }  # dictionary to hold all the updated data for the component
 
+  # versions may have extant data which has been populated by other processes
+  # so populate it now
+  data['versions'] = component.get('attributes').get('versions')
+
   # Information from Helm config
   ################################
 
@@ -321,12 +326,15 @@ def process_changed_component(component, repo, services):
 
   # Information from Dockerfile
   #############################
-
-  if dockerfile_contents := gh.get_file_plain(
-    repo, f'{component_project_dir}/Dockerfile'
-  ):
+  dockerfile_path = f'{component_project_dir}/Dockerfile'
+  if dockerfile_contents := gh.get_file_plain(repo, dockerfile_path):
     if docker_data := get_dockerfile_data(dockerfile_contents):
-      update_dict(data, 'versions', {'dockerfile': docker_data})
+      # Reprocess the dictionary to include the path name
+      docker_versions = {}
+      for key, value in docker_data.items():
+        docker_versions[key] = {'ref': value, 'path': dockerfile_path}
+
+      update_dict(data, 'versions', {'dockerfile': docker_versions})
   # All done with the branch dependent components
 
   # End of other component information

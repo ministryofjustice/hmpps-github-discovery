@@ -111,7 +111,7 @@ def get_dockerfile_data(dockerfile_contents):
 
   docker_data = {}
   if re.search(r'rsds-ca-2019-root\.pem', dockerfile.content, re.MULTILINE):
-    docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+    docker_data['rds_ca_cert'] = {'rds-ca-2019-root.pem'}
   if re.search(r'global-bundle\.pem', dockerfile.content, re.MULTILINE):
     docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
 

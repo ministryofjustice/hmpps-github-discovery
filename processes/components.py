@@ -252,7 +252,10 @@ def process_changed_component(component, repo, services):
       log_debug('Unable to get CircleCI trivy scan results')
 
     # CircleCI Orb version
-    update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
+    if circleci_orb_version := cc.get_circleci_orb_version(cirlcleci_config):
+      update_dict(data, 'versions', circleci_orb_version)
+    else:
+      log_debug('No CircleCI orb')
 
   else:
     # Placeholder for GH Trivy scan business

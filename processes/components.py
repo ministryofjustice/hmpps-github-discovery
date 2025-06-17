@@ -72,6 +72,9 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
         log_error(f'Unable to get branch protection {repo.name}: {e}')
         component_flags['app_disabled'] = True
 
+      if enforce_admins := branch_protection.enforce_admins:
+        data['github_enforce_admins_enabled'] = enforce_admins
+
     try:
       teams = repo.get_teams()
       for team in teams:
@@ -89,9 +92,6 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
       data['github_project_branch_protection_restricted_teams'] = (
         branch_protection_restricted_teams
       )
-
-      if enforce_admins := branch_protection.enforce_admins:
-        data['github_enforce_admins_enabled'] = enforce_admins
 
     except Exception as e:
       log_error(f'Unable to get teams/admin information {repo.name}: {e}')

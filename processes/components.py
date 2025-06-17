@@ -55,47 +55,47 @@ def get_bootstrap_projects(services):
 
 # Github repo functions - teams and branch protection
 #####################################################
-def get_repo_teams_info(repo, branch_protection, component_flags):
+def get_repo_teams_info(repo, branch_protection):
   data = {}
   branch_protection_restricted_teams = []
   teams_write = []
   teams_admin = []
   teams_maintain = []
 
-  if not component_flags['app_disabled']:
-    if branch_protection:
-      try:
-        branch_protection_teams = branch_protection.get_team_push_restrictions() or []
-        for team in branch_protection_teams:
-          branch_protection_restricted_teams.append(team.slug)
-      except Exception as e:
-        log_error(f'Unable to get branch protection {repo.name}: {e}')
-        component_flags['app_disabled'] = True
-
-      if enforce_admins := branch_protection.enforce_admins:
-        data['github_enforce_admins_enabled'] = enforce_admins
+  if branch_protection:
+    try:
+      branch_protection_teams = branch_protection.get_team_push_restrictions() or []
+      for team in branch_protection_teams:
+        branch_protection_restricted_teams.append(team.slug)
+    except Exception as e:
+      log_warning(f'Unable to get branch protection teams for {repo.name}: {e}')
 
     try:
-      teams = repo.get_teams()
-      for team in teams:
-        team_permissions = team.get_repo_permission(repo)
-        if team_permissions.admin:
-          teams_admin.append(team.slug)
-        elif team_permissions.maintain:
-          teams_maintain.append(team.slug)
-        elif team_permissions.push:
-          teams_write.append(team.slug)
-
-      data['github_project_teams_admin'] = teams_admin
-      data['github_project_teams_maintain'] = teams_maintain
-      data['github_project_teams_write'] = teams_write
-      data['github_project_branch_protection_restricted_teams'] = (
-        branch_protection_restricted_teams
-      )
-
+      if enforce_admins := branch_protection.enforce_admins:
+        data['github_enforce_admins_enabled'] = enforce_admins
     except Exception as e:
-      log_error(f'Unable to get teams/admin information {repo.name}: {e}')
-      component_flags['app_disabled'] = True
+      log_warning(f'Unable to get enforce admins details for {repo.name}: {e}')
+
+  try:
+    teams = repo.get_teams()
+    for team in teams:
+      team_permissions = team.get_repo_permission(repo)
+      if team_permissions.admin:
+        teams_admin.append(team.slug)
+      elif team_permissions.maintain:
+        teams_maintain.append(team.slug)
+      elif team_permissions.push:
+        teams_write.append(team.slug)
+
+    data['github_project_teams_admin'] = teams_admin
+    data['github_project_teams_maintain'] = teams_maintain
+    data['github_project_teams_write'] = teams_write
+    data['github_project_branch_protection_restricted_teams'] = (
+      branch_protection_restricted_teams
+    )
+
+  except Exception as e:
+    log_warning(f'Unable to get teams/admin information {repo.name}: {e}')
 
   return data
 
@@ -116,6 +116,18 @@ def get_repo_properties(repo, default_branch):
   }
 
 
+# Repo default branch properties
+def get_repo_default_branch(repo):
+  try:
+    default_branch = repo.get_branch(repo.default_branch)
+  except Exception as e:
+    log_warning(
+      f'Unable to get branch details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+    )
+    return None
+  return default_branch
+
+
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
@@ -127,32 +139,37 @@ def process_independent_component(component, services):
   data = {}
   component_flags = {
     'app_disabled': False,
-    'branch_protection_disabled': False,
+    'branch_protection_disabled': None,
   }
-  branch_protection = None
 
   try:
     repo = gh.get_org_repo(f'{github_repo}')
-    default_branch = repo.get_branch(repo.default_branch)
-    data.update(get_repo_properties(repo, default_branch))
   except Exception as e:
     log_warning(
-      f'Unable to get branch details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+      f'Unable to get details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
     )
     component_flags['app_disabled'] = True
+    return
 
-  try:
-    branch_protection = default_branch.get_protection()
-  except Exception as e:
-    if 'Branch not protected' in f'{e}':
-      component_flags['branch_protection_disabled'] = True
-    else:
-      log_warning(
-        f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
-      )
-      component_flags['app_disabled'] = True
+  # Default branch attributes
+  if default_branch := get_repo_default_branch(repo):
+    data.update(get_repo_properties(repo, default_branch))
+    try:
+      branch_protection = default_branch.get_protection()
+    except Exception as e:
+      if 'Branch not protected' in f'{e}':
+        component_flags['branch_protection_disabled'] = True
+      else:
+        log_warning(
+          f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+        )
+        component_flags['app_disabled'] = True
+      branch_protection = None
 
-  data.update(get_repo_teams_info(repo, branch_protection, component_flags))
+    data.update(get_repo_teams_info(repo, branch_protection))
+  # If the app can't read the default branch, it's probably not allowed to see the repo
+  else:
+    component_flags['app_disabled'] = True
 
   # Check if workflows are disabled
   log_debug(f'Checking workflows for {component_name}')
@@ -170,13 +187,15 @@ def process_independent_component(component, services):
       log_debug(f'No disabled workflows in {component_name}')
     data['disabled_workflows'] = disabled_workflows
   except Exception as e:
-    log_error(f'Unable to get workflows for {repo.name}: {e}')
+    log_warning(f'Unable to get workflows for {repo.name}: {e}')
 
+  # Get the repo topics
   try:
     data['github_topics'] = repo.get_topics()
   except Exception as e:
     log_warning(f'Unable to get topics for {repo.name}: {e}')
 
+  # Check to see if the repo is a frontend one (based on the name)
   if re.search(
     r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
     f'{component_name} {repo.description}',
@@ -184,6 +203,7 @@ def process_independent_component(component, services):
     log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data['frontend'] = True
 
+  # Check to see if the repo is a archived
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True

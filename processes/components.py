@@ -128,28 +128,39 @@ def get_repo_default_branch(repo):
   return default_branch
 
 
+# Repo disabled workflows
+def get_repo_disabled_workflows(repo):
+  disabled_workflows = []
+  log_debug(f'Checking workflows for {repo.name}')
+
+  try:
+    workflows = repo.get_workflows()
+    for workflow in workflows:
+      if workflow.state != 'active' and workflow.name:
+        disabled_workflows.append(workflow.name)
+    if disabled_workflows:
+      log_info(f'Workflows disabled for {repo.name}: {disabled_workflows}')
+    else:
+      log_debug(f'No disabled workflows in {repo.name}')
+
+  except Exception as e:
+    log_warning(f'Unable to get workflows for {repo.name}: {e}')
+    return None
+
+  return disabled_workflows
+
+
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
-def process_independent_component(component, services):
-  gh = services.gh
+def process_independent_component(component, repo):
   component_name = component['attributes']['name']
-  github_repo = component['attributes']['github_repo']
 
   data = {}
   component_flags = {
     'app_disabled': False,
     'branch_protection_disabled': None,
   }
-
-  try:
-    repo = gh.get_org_repo(f'{github_repo}')
-  except Exception as e:
-    log_warning(
-      f'Unable to get details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
-    )
-    component_flags['app_disabled'] = True
-    return
 
   # Default branch attributes
   if default_branch := get_repo_default_branch(repo):
@@ -172,22 +183,11 @@ def process_independent_component(component, services):
     component_flags['app_disabled'] = True
 
   # Check if workflows are disabled
-  log_debug(f'Checking workflows for {component_name}')
-  try:
-    workflows = repo.get_workflows()
-    disabled_workflows = []
-    component_flags['workflows_disabled'] = False
-    for workflow in workflows:
-      if workflow.state != 'active' and workflow.name:
-        disabled_workflows.append(workflow.name)
-    if disabled_workflows:
-      component_flags['workflows_disabled'] = True
-      log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
-    else:
-      log_debug(f'No disabled workflows in {component_name}')
+  if disabled_workflows := get_repo_disabled_workflows(repo):
     data['disabled_workflows'] = disabled_workflows
-  except Exception as e:
-    log_warning(f'Unable to get workflows for {repo.name}: {e}')
+    component_flags['workflows_disabled'] = True
+  else:
+    component_flags['workflows_disabled'] = False
 
   # Get the repo topics
   try:
@@ -408,10 +408,12 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
     log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
 
+    ##############################################################################
+    # Process branch / environment independent components (incremental + full)
+    ##############################################################################
     log_info(f'Processing main branch independent components for: {component_name}')
-    # Get the fields that aren't updated by a commit to main
     independent_components, component_flags = process_independent_component(
-      component, services
+      component, repo
     )
 
     data.update(independent_components)
@@ -427,22 +429,21 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
     else:
       component_flags['main_changed'] = False
 
-    ###########################################################################################################
-    # Anything after this point is only processed if the repo has been updated (component_flags will have data)
-    ###########################################################################################################
     if not (
       component_flags['main_changed'] or component_flags['env_changed'] or force_update
     ):
       log_info(f'No main branch or environment changes for {component_name}')
     else:
-      # process_changed_component function returns a dictionary of further changed fields
+      ######################################################################################################
+      # Process component attributes that only change if main branch / environments have changed (full only)
+      ######################################################################################################
       log_info(f'Processing changed components for: {component_name}')
       data.update(process_changed_component(component, repo, services))
 
-      ###########################################################################################################
+      ###############################################################################################
       # Processing the environment data - updating the Environments table with information from above
-      # Which is basically the environments from the helm charts
-      ###########################################################################################################
+      # (basically the environments from the helm charts)
+      ###############################################################################################
       component_env_data = []
       # Some environment data may already have been populated from helm
       # It will need to be combined with environments found in bootstrap/Github

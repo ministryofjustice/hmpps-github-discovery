@@ -136,8 +136,8 @@ def process_independent_component(component, services):
     default_branch = repo.get_branch(repo.default_branch)
     data.update(get_repo_properties(repo, default_branch))
   except Exception as e:
-    log_error(
-      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+    log_warning(
+      f'Unable to get branch details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
     )
     component_flags['app_disabled'] = True
 
@@ -147,8 +147,8 @@ def process_independent_component(component, services):
     if 'Branch not protected' in f'{e}':
       component_flags['branch_protection_disabled'] = True
     else:
-      log_error(
-        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      log_warning(
+        f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
       )
       component_flags['app_disabled'] = True
 

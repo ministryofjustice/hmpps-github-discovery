@@ -1,6 +1,6 @@
 import re
 import includes.utils as utils
-from includes.utils import update_dict
+from includes.utils import update_dict, remove_version
 from includes.values import env_mapping
 from utilities.job_log_handling import (
   log_debug,
@@ -103,6 +103,8 @@ def get_info_from_helm(component, repo, services):
 
     if helm_dep_versions:
       update_dict(data, 'versions', {'helm_dependencies': helm_dep_versions})
+    else:
+      remove_version(data, 'helm_dependencies')
 
     # DEFAULT VALUES SECTION
     # ----------------------

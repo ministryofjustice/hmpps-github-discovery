@@ -15,7 +15,7 @@ from classes.slack import Slack
 
 # Standalone functions
 from includes import helm, environments
-from includes.utils import update_dict, get_dockerfile_data
+from includes.utils import update_dict, get_dockerfile_data, remove_version
 
 import processes.scheduled_jobs as sc_scheduled_job
 from utilities.job_log_handling import (
@@ -228,16 +228,13 @@ def process_changed_component(component, repo, services):
     if component['attributes']['part_of_monorepo']
     else '.'
   )
+  log_debug(f'Component project directory is: {component_project_dir}')
 
   # Reset the data ready for updating
   # Include the existing versions
   data = {
     'versions': component.get('attributes', {}).get('versions', {})
   }  # dictionary to hold all the updated data for the component
-
-  # versions may have extant data which has been populated by other processes
-  # so populate it now
-  data['versions'] = component.get('attributes').get('versions')
 
   # Information from Helm config
   ################################
@@ -275,11 +272,12 @@ def process_changed_component(component, repo, services):
     if circleci_orb_version := cc.get_circleci_orb_version(cirlcleci_config):
       update_dict(data, 'versions', circleci_orb_version)
     else:
-      log_debug('No CircleCI orb')
+      log_debug('No HMPPS CircleCI orb found')
 
   else:
     # Placeholder for GH Trivy scan business
     log_debug('No CircleCI config found')
+    remove_version(data, 'circleci')
 
   # App insights cloud_RoleName
   #############################
@@ -345,19 +343,25 @@ def process_changed_component(component, repo, services):
         {'gradle': {'hmpps_gradle_spring_boot': hmpps_gradle_spring_boot_version}},
       )
     except TypeError:
+      remove_version(data, 'gradle')
       pass
 
   # Information from Dockerfile
   #############################
+  docker_versions = {}
   dockerfile_path = f'{component_project_dir}/Dockerfile'
+  log_debug(f'Looking for Dockerfile at {dockerfile_path}')
   if dockerfile_contents := gh.get_file_plain(repo, dockerfile_path):
     if docker_data := get_dockerfile_data(dockerfile_contents):
       # Reprocess the dictionary to include the path name
-      docker_versions = {}
       for key, value in docker_data.items():
         docker_versions[key] = {'ref': value, 'path': dockerfile_path}
 
-      update_dict(data, 'versions', {'dockerfile': docker_versions})
+  if docker_versions:
+    update_dict(data, 'versions', {'dockerfile': docker_versions})
+  else:
+    remove_version(data, 'dockerfile')
+
   # All done with the branch dependent components
 
   # End of other component information

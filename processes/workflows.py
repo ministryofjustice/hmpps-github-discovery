@@ -91,9 +91,12 @@ def process_sc_component_workflows(component, services, **kwargs):
   # now the actions have been found, compare them with the existing actions stored in components
   if non_local_actions:
     # get the current versions list
-    versions = component.get('attributes', {}).get('versions')
 
-    log_debug(f'non_local_actions: {json.dumps(non_local_actions, indent=2)}')
+    versions = component.get('attributes', {}).get('versions') or {}
+
+    log_debug(
+      f'non_local_actions for {component_name}: {json.dumps(non_local_actions, indent=2)}'
+    )
     # Deduplicate the actions
 
     versions['actions'] = non_local_actions

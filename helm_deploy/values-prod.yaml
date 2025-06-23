@@ -25,7 +25,7 @@ securityCronJob:
     github_discovery_security: "30 06 * * 1-5"
 
 workflowsCronJob:
-  enabled: false
-  # cron:
-  #   github_discovery_workflows: "30 06 * * 0"
+  enabled: true
+  cron:
+    github_discovery_workflows: "30 06 * * 0"
 

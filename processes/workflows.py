@@ -25,7 +25,7 @@ def get_non_local_actions(yml_data, actions, path):
     log_debug(f'qty of uses in {path}: {len(uses)}')
 
     for value in uses:
-      if not any(re.match(regex, value) for regex in actions_whitelist):
+      if not any(re.match(regex, value) for regex in actions_allowlist):
         log_debug(f'value: {value} (type: {type(value)})')
         try:
           name, ref = value.split('@')

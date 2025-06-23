@@ -63,7 +63,7 @@ standards = [
 ]
 
 # A list of whitelisted Github Actions providers - any that are not in this list will be included in the scan output.
-actions_whitelist = [
+actions_allowlist = [
   '^\\./\\.github',
   '^\\.github\\/',
   # '^ministryofjustice\\/',

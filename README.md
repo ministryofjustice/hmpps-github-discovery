@@ -6,7 +6,7 @@ A suite of Python discovery apps that query Github for information about hmpps p
 
 This includes:
 - **components** - (`github_discovery.py`) - Github repository parameters to update the Components collection within the Service Catalogue
-- **products** - (also run as part of `github_discovery.py`) - product data extracted from the Github repository to update the Products collection within the Service Catalogue
+- **products** - (also run as part of `github_discovery.py`) - processes and updates slack channel names for each product.
 - **security** - (`github_security_discovery.py`) - security information (eg. Codescanning alerts) extracted from the Github repository
 - **workflows** - (`github_workflows_discovery.py`) - Github Workflows extracted from the Github repository
 - **teams** - (`github_teams_discovery.py`) - Github teams associated with repositories and the [hmpps-github-teams](https://github.com/ministryofjustice/hmpps-github-teams) Terraform managed repository

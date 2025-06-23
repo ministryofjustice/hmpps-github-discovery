@@ -8,7 +8,7 @@ import json
 # Standalone functions
 from includes import standards
 from includes.utils import update_dict, find_matching_keys
-from includes.values import actions_whitelist
+from includes.values import actions_allowlist
 from utilities.job_log_handling import (
   log_debug,
   log_error,

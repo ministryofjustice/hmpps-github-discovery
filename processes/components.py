@@ -15,7 +15,7 @@ from classes.slack import Slack
 
 # Standalone functions
 from includes import helm, environments
-from includes.utils import update_dict, get_dockerfile_data
+from includes.utils import update_dict, get_dockerfile_data, remove_version
 
 import processes.scheduled_jobs as sc_scheduled_job
 from utilities.job_log_handling import (
@@ -55,47 +55,47 @@ def get_bootstrap_projects(services):
 
 # Github repo functions - teams and branch protection
 #####################################################
-def get_repo_teams_info(repo, branch_protection, component_flags):
+def get_repo_teams_info(repo, branch_protection):
   data = {}
   branch_protection_restricted_teams = []
   teams_write = []
   teams_admin = []
   teams_maintain = []
 
-  if not component_flags['app_disabled']:
-    if not component_flags['branch_protection_disabled']:
-      try:
-        branch_protection_teams = branch_protection.get_team_push_restrictions() or []
-        for team in branch_protection_teams:
-          branch_protection_restricted_teams.append(team.slug)
-      except Exception as e:
-        log_error(f'Unable to get branch protection {repo.name}: {e}')
-        component_flags['app_disabled'] = True
+  if branch_protection:
+    try:
+      branch_protection_teams = branch_protection.get_team_push_restrictions() or []
+      for team in branch_protection_teams:
+        branch_protection_restricted_teams.append(team.slug)
+    except Exception as e:
+      log_warning(f'Unable to get branch protection teams for {repo.name}: {e}')
 
     try:
-      teams = repo.get_teams()
-      for team in teams:
-        team_permissions = team.get_repo_permission(repo)
-        if team_permissions.admin:
-          teams_admin.append(team.slug)
-        elif team_permissions.maintain:
-          teams_maintain.append(team.slug)
-        elif team_permissions.push:
-          teams_write.append(team.slug)
-
-      data['github_project_teams_admin'] = teams_admin
-      data['github_project_teams_maintain'] = teams_maintain
-      data['github_project_teams_write'] = teams_write
-      data['github_project_branch_protection_restricted_teams'] = (
-        branch_protection_restricted_teams
-      )
-
       if enforce_admins := branch_protection.enforce_admins:
         data['github_enforce_admins_enabled'] = enforce_admins
-
     except Exception as e:
-      log_error(f'Unable to get teams/admin information {repo.name}: {e}')
-      component_flags['app_disabled'] = True
+      log_warning(f'Unable to get enforce admins details for {repo.name}: {e}')
+
+  try:
+    teams = repo.get_teams()
+    for team in teams:
+      team_permissions = team.get_repo_permission(repo)
+      if team_permissions.admin:
+        teams_admin.append(team.slug)
+      elif team_permissions.maintain:
+        teams_maintain.append(team.slug)
+      elif team_permissions.push:
+        teams_write.append(team.slug)
+
+    data['github_project_teams_admin'] = teams_admin
+    data['github_project_teams_maintain'] = teams_maintain
+    data['github_project_teams_write'] = teams_write
+    data['github_project_branch_protection_restricted_teams'] = (
+      branch_protection_restricted_teams
+    )
+
+  except Exception as e:
+    log_warning(f'Unable to get teams/admin information {repo.name}: {e}')
 
   return data
 
@@ -103,6 +103,7 @@ def get_repo_teams_info(repo, branch_protection, component_flags):
 # Github repo functions - basic properties
 ##########################################
 def get_repo_properties(repo, default_branch):
+  log_debug('get_repo_properties running')
   return {
     'language': repo.language,
     'description': f'{"[ARCHIVED] " if repo.archived and "ARCHIVED" not in repo.description else ""}{repo.description}',
@@ -115,67 +116,86 @@ def get_repo_properties(repo, default_branch):
   }
 
 
-##################################################################################
-# Independent Component Function - runs every time the scan takes place
-##################################################################################
-def process_independent_component(component, services):
-  gh = services.gh
-  component_name = component['attributes']['name']
-  github_repo = component['attributes']['github_repo']
-
-  data = {}
-  component_flags = {
-    'app_disabled': False,
-    'branch_protection_disabled': False,
-  }
-  branch_protection = None
-
+# Repo default branch properties
+def get_repo_default_branch(repo):
   try:
-    repo = gh.get_org_repo(f'{github_repo}')
     default_branch = repo.get_branch(repo.default_branch)
-    data.update(get_repo_properties(repo, default_branch))
   except Exception as e:
-    log_error(
-      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+    log_warning(
+      f'Unable to get branch details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
     )
-    component_flags['app_disabled'] = True
+    return None
+  return default_branch
 
-  try:
-    branch_protection = default_branch.get_protection()
-  except Exception as e:
-    if 'Branch not protected' in f'{e}':
-      component_flags['branch_protection_disabled'] = True
-    else:
-      log_error(
-        f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
-      )
-      component_flags['app_disabled'] = True
 
-  data.update(get_repo_teams_info(repo, branch_protection, component_flags))
+# Repo disabled workflows
+def get_repo_disabled_workflows(repo):
+  disabled_workflows = []
+  log_debug(f'Checking workflows for {repo.name}')
 
-  # Check if workflows are disabled
-  log_debug(f'Checking workflows for {component_name}')
   try:
     workflows = repo.get_workflows()
-    disabled_workflows = []
-    component_flags['workflows_disabled'] = False
     for workflow in workflows:
       if workflow.state != 'active' and workflow.name:
         disabled_workflows.append(workflow.name)
     if disabled_workflows:
-      component_flags['workflows_disabled'] = True
-      log_info(f'Workflows disabled for {component_name}: {disabled_workflows}')
+      log_info(f'Workflows disabled for {repo.name}: {disabled_workflows}')
     else:
-      log_debug(f'No disabled workflows in {component_name}')
-    data['disabled_workflows'] = disabled_workflows
-  except Exception as e:
-    log_error(f'Unable to get workflows for {repo.name}: {e}')
+      log_debug(f'No disabled workflows in {repo.name}')
 
+  except Exception as e:
+    log_warning(f'Unable to get workflows for {repo.name}: {e}')
+    return None
+
+  return disabled_workflows
+
+
+##################################################################################
+# Independent Component Function - runs every time the scan takes place
+##################################################################################
+def process_independent_component(component, repo):
+  component_name = component['attributes']['name']
+
+  data = {}
+  component_flags = {
+    'app_disabled': False,
+    'branch_protection_disabled': None,
+  }
+
+  # Default branch attributes
+  if default_branch := get_repo_default_branch(repo):
+    data.update(get_repo_properties(repo, default_branch))
+    try:
+      branch_protection = default_branch.get_protection()
+    except Exception as e:
+      if 'Branch not protected' in f'{e}':
+        component_flags['branch_protection_disabled'] = True
+      else:
+        log_warning(
+          f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+        )
+        component_flags['app_disabled'] = True
+      branch_protection = None
+
+    data.update(get_repo_teams_info(repo, branch_protection))
+  # If the app can't read the default branch, it's probably not allowed to see the repo
+  else:
+    component_flags['app_disabled'] = True
+
+  # Check if workflows are disabled
+  if disabled_workflows := get_repo_disabled_workflows(repo):
+    data['disabled_workflows'] = disabled_workflows
+    component_flags['workflows_disabled'] = True
+  else:
+    component_flags['workflows_disabled'] = False
+
+  # Get the repo topics
   try:
     data['github_topics'] = repo.get_topics()
   except Exception as e:
     log_warning(f'Unable to get topics for {repo.name}: {e}')
 
+  # Check to see if the repo is a frontend one (based on the name)
   if re.search(
     r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
     f'{component_name} {repo.description}',
@@ -183,6 +203,7 @@ def process_independent_component(component, services):
     log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
     data['frontend'] = True
 
+  # Check to see if the repo is a archived
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True
@@ -207,6 +228,7 @@ def process_changed_component(component, repo, services):
     if component['attributes']['part_of_monorepo']
     else '.'
   )
+  log_debug(f'Component project directory is: {component_project_dir}')
 
   # Reset the data ready for updating
   # Include the existing versions
@@ -238,11 +260,15 @@ def process_changed_component(component, repo, services):
 
   if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
     # CircleCI Orb version
-    update_dict(data, 'versions', cc.get_circleci_orb_version(cirlcleci_config))
+    if circleci_orb_version := cc.get_circleci_orb_version(cirlcleci_config):
+      update_dict(data, 'versions', circleci_orb_version)
+    else:
+      log_debug('No HMPPS CircleCI orb found')
 
   else:
     # Placeholder for GH Trivy scan business
     log_debug('No CircleCI config found')
+    remove_version(data, 'circleci')
 
   # App insights cloud_RoleName
   #############################
@@ -308,16 +334,25 @@ def process_changed_component(component, repo, services):
         {'gradle': {'hmpps_gradle_spring_boot': hmpps_gradle_spring_boot_version}},
       )
     except TypeError:
+      remove_version(data, 'gradle')
       pass
 
   # Information from Dockerfile
   #############################
-
-  if dockerfile_contents := gh.get_file_plain(
-    repo, f'{component_project_dir}/Dockerfile'
-  ):
+  docker_versions = {}
+  dockerfile_path = f'{component_project_dir}/Dockerfile'
+  log_debug(f'Looking for Dockerfile at {dockerfile_path}')
+  if dockerfile_contents := gh.get_file_plain(repo, dockerfile_path):
     if docker_data := get_dockerfile_data(dockerfile_contents):
-      update_dict(data, 'versions', {'dockerfile': docker_data})
+      # Reprocess the dictionary to include the path name
+      for key, value in docker_data.items():
+        docker_versions[key] = {'ref': value, 'path': dockerfile_path}
+
+  if docker_versions:
+    update_dict(data, 'versions', {'dockerfile': docker_versions})
+  else:
+    remove_version(data, 'dockerfile')
+
   # All done with the branch dependent components
 
   # End of other component information
@@ -368,10 +403,12 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
     log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
 
+    ##############################################################################
+    # Process branch / environment independent components (incremental + full)
+    ##############################################################################
     log_info(f'Processing main branch independent components for: {component_name}')
-    # Get the fields that aren't updated by a commit to main
     independent_components, component_flags = process_independent_component(
-      component, services
+      component, repo
     )
 
     data.update(independent_components)
@@ -387,22 +424,21 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
     else:
       component_flags['main_changed'] = False
 
-    ###########################################################################################################
-    # Anything after this point is only processed if the repo has been updated (component_flags will have data)
-    ###########################################################################################################
     if not (
       component_flags['main_changed'] or component_flags['env_changed'] or force_update
     ):
       log_info(f'No main branch or environment changes for {component_name}')
     else:
-      # process_changed_component function returns a dictionary of further changed fields
+      ######################################################################################################
+      # Process component attributes that only change if main branch / environments have changed (full only)
+      ######################################################################################################
       log_info(f'Processing changed components for: {component_name}')
       data.update(process_changed_component(component, repo, services))
 
-      ###########################################################################################################
+      ###############################################################################################
       # Processing the environment data - updating the Environments table with information from above
-      # Which is basically the environments from the helm charts
-      ###########################################################################################################
+      # (basically the environments from the helm charts)
+      ###############################################################################################
       component_env_data = []
       # Some environment data may already have been populated from helm
       # It will need to be combined with environments found in bootstrap/Github

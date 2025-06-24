@@ -1,6 +1,6 @@
 import re
 import includes.utils as utils
-from includes.utils import update_dict
+from includes.utils import update_dict, remove_version
 from includes.values import env_mapping
 from utilities.job_log_handling import (
   log_debug,
@@ -9,6 +9,7 @@ from utilities.job_log_handling import (
   log_critical,
   log_warning,
 )
+
 
 def get_helm_dirs(repo, component):
   component_name = component['attributes']['name']
@@ -85,16 +86,25 @@ def get_info_from_helm(component, repo, services):
         # HEAT-223 End : Read and collate data for IPallowlist from all environment specific values.yaml files.
 
     # Helm chart dependencies
-    helm_chart = (
-      gh.get_file_yaml(repo, f'{helm_dir}/{component_name}/Chart.yaml')
-      or gh.get_file_yaml(repo, f'{helm_dir}/Chart.yaml')
-      or {}
-    )
-    if 'dependencies' in helm_chart:
-      helm_dep_versions = {}
-      for item in helm_chart['dependencies']:
-        helm_dep_versions.update({item['name']: item['version']})
+    helm_file_paths = [
+      f'{helm_dir}/{component_name}/Chart.yaml',
+      f'{helm_dir}/Chart.yaml',
+    ]
+
+    helm_dep_versions = {}
+
+    for path in helm_file_paths:
+      if (helm_chart := gh.get_file_yaml(repo, path)) and 'dependencies' in helm_chart:
+        helm_dep_versions = {
+          item['name']: {'ref': item['version'], 'path': path}
+          for item in helm_chart['dependencies']
+        }
+        break
+
+    if helm_dep_versions:
       update_dict(data, 'versions', {'helm_dependencies': helm_dep_versions})
+    else:
+      remove_version(data, 'helm_dependencies')
 
     # DEFAULT VALUES SECTION
     # ----------------------

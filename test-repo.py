@@ -86,6 +86,7 @@ def main():
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
     # enter your process here
+    log_info(workflows.process_sc_component_workflows(component, services))
   else:
     log_error(f'Component {component_name} not found')
 

@@ -111,7 +111,7 @@ def get_dockerfile_data(dockerfile_contents):
 
   docker_data = {}
   if re.search(r'rsds-ca-2019-root\.pem', dockerfile.content, re.MULTILINE):
-    docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
+    docker_data['rds_ca_cert'] = {'rds-ca-2019-root.pem'}
   if re.search(r'global-bundle\.pem', dockerfile.content, re.MULTILINE):
     docker_data['rds_ca_cert'] = 'rds-ca-2019-root.pem'
 
@@ -163,3 +163,11 @@ def find_matching_keys(data, search_key):
       found_values.extend(find_matching_keys(item, search_key))
 
   return found_values
+
+
+def remove_version(data, version):
+  log_debug(f'attempting to remove {version} from data["versions"]')
+  if versions := data.get('versions', {}):
+    if version in versions:
+      log_debug(f'found {version}')
+      versions.pop(version)

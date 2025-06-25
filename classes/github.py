@@ -15,7 +15,7 @@ from utilities.job_log_handling import (
   log_info,
   log_critical,
 )
-from includes.values import actions_whitelist
+from includes.values import actions_allowlist
 
 
 class GithubSession:
@@ -128,7 +128,7 @@ class GithubSession:
       result = []
 
     def is_whitelisted(action):
-      return any(re.match(pattern, action) for pattern in actions_whitelist)
+      return any(re.match(pattern, action) for pattern in actions_allowlist)
 
     if isinstance(data, dict):
       for k, v in data.items():

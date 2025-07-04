@@ -133,7 +133,7 @@ def get_dockerfile_data(dockerfile_contents):
 # to prevent it being overwritten by blank entries
 def get_existing_env_config(component, env_name, config, services):
   config_value = None
-  if envs := component['attributes'].get('environments'):
+  if envs := component['attributes'].get('envs', {}).get('data', []):
     env_data = next(
       (env for env in envs if env.get('name') == env_name),
       {},

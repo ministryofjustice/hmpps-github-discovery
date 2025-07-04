@@ -449,19 +449,9 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
         )
       else:
         helm_environments = {}
-      component_env_data, env_flags = environments.process_environments(
+      env_flags = environments.process_environments(
         component, repo, helm_environments, bootstrap_projects, services
-      )
-      # only update the environment if there is data in there
-      # since Service Catalogue doesn't like an empty list
-      if component_env_data:
-        data['environments'] = component_env_data
-        log_debug(
-          f'Final environment data for {component_name}: {json.dumps(data["environments"], indent=2)}'
-        )
-      else:  # if there's no data, remove the environments key
-        if data.get('environments'):
-          del data['environments']
+      ) 
       # Add environment flags to the component flags, since they're related
       for each_flag in env_flags:
         component_flags[each_flag] = env_flags[each_flag]

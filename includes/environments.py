@@ -218,7 +218,7 @@ def process_environments(
       component_env_data.append(helm_environments[env])
 
   log_debug(f'Component environment data to be added: {component_env_data}')
-  return component_env_data, env_flags
+  return env_flags
 
 
 # Logic to check if the branch specific components need to be processed
@@ -237,11 +237,11 @@ def check_env_change(component, repo, bootstrap_projects, services):
 
   log_debug(f'Current environments for {component_name}: {current_envs}')
   # Get the environments from the service catalogue
-  sc_envs = component['attributes']['environments']
+  sc_envs = component['attributes'].get('envs', {}).get('data', [])
   log_debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
 
   # Check if the environments have changed
-  if set(env for env in current_envs) != set(env['name'] for env in sc_envs):
+  if set(env for env in current_envs) != set(env['attributes']['name'] for env in sc_envs):
     env_changed = True
     log_info(f'Environments have changed for {component_name}')
 

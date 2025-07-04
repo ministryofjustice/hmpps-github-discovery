@@ -107,6 +107,7 @@ def create_summary(
     'archived': 'archived (monitoring disabled)',
     'env_added': 'environment(s) added',
     'env_updated': 'environment(s) updated',
+    'env_removed': 'environment(s) removed',
     'env_error': 'environment(s) encountered errors',
   }
 

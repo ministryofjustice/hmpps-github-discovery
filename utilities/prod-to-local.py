@@ -50,7 +50,7 @@ tables = [
     'components',
     sc_in.components_get,
     [('product', 'products')],
-    ['environments', 'latest_commit'],
+    ['envs', 'latest_commit'],
   ),
 ]
 for table in tables:

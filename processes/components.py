@@ -439,7 +439,6 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
       # Processing the environment data - updating the Environments table with information from above
       # (basically the environments from the helm charts)
       ###############################################################################################
-      component_env_data = []
       # Some environment data may already have been populated from helm
       # It will need to be combined with environments found in bootstrap/Github
       # Then updated in components (once it's been turned into a list)

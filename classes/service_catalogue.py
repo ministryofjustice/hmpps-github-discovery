@@ -190,6 +190,30 @@ class ServiceCatalogue:
         f'Error adding a record to {table.split("/")[-1]} in service catalogue: {e}'
       )
     return success
+  
+  def delete(self, table, element_id):
+    success = False
+    try:
+        log_debug(f'Deleting record {element_id} from {table.split("/")[-1]}')
+        x = requests.delete(
+            f'{self.url}/v1/{table}/{element_id}',
+            headers=self.api_headers,
+            timeout=10,
+        )
+        if x.status_code == 200:
+            log_info(
+                f'Successfully deleted record {element_id} from {table.split("/")[-1]}: {x.status_code}'
+            )
+            success = True
+        else:
+            log_info(
+                f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
+            )
+    except Exception as e:
+        log_error(
+            f'Error deleting record {element_id} from {table.split("/")[-1]} in service catalogue: {e}'
+        )
+    return success
 
   # eg get_id('github-teams', 'team_name', 'example')
   def get_id(self, match_table, match_field, match_string):

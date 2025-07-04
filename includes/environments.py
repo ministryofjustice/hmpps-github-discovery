@@ -209,15 +209,34 @@ def process_environments(
         else:
           env_flags['env_error'] = True
 
-      # Then prepare the environment for the components table to be returned and added
-      helm_environments[env]['name'] = env
-      # Check to see if the environment record already exists in the component table
-      # And if so, include the ID so a new one isn't created
-      if env_id := sc.get_component_env_id(component, env):
-        helm_environments[env]['id'] = env_id
-      component_env_data.append(helm_environments[env])
-
-  log_debug(f'Component environment data to be added: {component_env_data}')
+  # Check if SC has extra environments that are not in the helm chart and delete them from environment table
+  current_envs = []
+  sc_envs = component['attributes'].get('envs', {}).get('data', [])
+  config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
+  helm_envs = helm.get_envs_from_helm(component, repo, services)
+  for helm_env in helm_envs:
+    if helm_env in config_envs:
+      current_envs.append(helm_env)
+  extra_envs = set(
+      env['attributes']['name'] for env in sc_envs if isinstance(env, dict) and 'attributes' in env and 'name' in env['attributes']
+  ) - set(current_envs)
+  extra_envs = [
+    env for env in sc_envs
+    if isinstance(env, dict) and 'attributes' in env and 'name' in env['attributes'] and env['attributes']['name'] in extra_envs
+  ]
+  for env in extra_envs:
+    env_id = env['id']
+    env_name = env['attributes']['name']
+    log_info(
+      f'Environment {env_name} in Service Catalogue is not in the helm chart for {component_name}'
+    )
+    if sc.delete(sc.environments, env_id):
+      log_info(
+        f'Environment {env_name} removed from Service Catalogue for {component_name}'
+      )
+      env_flags['env_removed'] = True
+    else:
+      log_error('Failed to remove environment {env_name} from Service Catalogue')
   return env_flags
 
 

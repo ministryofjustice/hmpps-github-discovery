@@ -4,7 +4,7 @@
 from includes.utils import update_dict, get_existing_env_config
 from includes.values import env_mapping
 from includes import helm
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
+from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
 
 
 ################################################################################################
@@ -236,7 +236,7 @@ def process_environments(
       )
       env_flags['env_removed'] = True
     else:
-      log_error('Failed to remove environment {env_name} from Service Catalogue')
+      log_warning('Failed to remove environment {env_name} from Service Catalogue')
   return env_flags
 
 

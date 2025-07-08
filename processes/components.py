@@ -454,6 +454,8 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
       # Add environment flags to the component flags, since they're related
       for each_flag in env_flags:
         component_flags[each_flag] = env_flags[each_flag]
+    if 'environments' in data:
+        del data['environments']
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):

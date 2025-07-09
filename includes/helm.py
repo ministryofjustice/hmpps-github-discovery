@@ -124,6 +124,7 @@ def get_info_from_helm(component, repo, services):
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')
       or {}
     )
+    log_debug(f'helm_default_values: {helm_default_values}')
 
     # Get the default values from the helm chart - and only proceed if there is one
 
@@ -139,6 +140,7 @@ def get_info_from_helm(component, repo, services):
           f'Container image found in image->repository for {component_name}: {container_image}'
         )
       if 'generic-service' in helm_default_values:
+        log_debug(f'generic-service found for {component_name}: {container_image}')
         if 'generic-service' in helm_default_values and (
           container_image := helm_default_values.get('generic-service')
           .get('image')

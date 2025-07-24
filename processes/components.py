@@ -506,7 +506,7 @@ def batch_process_sc_components(
       cur_rate_limit = services.gh.get_rate_limit()
       if cur_rate_limit is None:
         log_error("Failed to fetch rate limit. Ensure valid credentials.")
-        break  # Exit the loop or handle the error appropriately
+        break 
 
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()

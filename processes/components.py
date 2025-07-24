@@ -504,6 +504,10 @@ def batch_process_sc_components(
     )
     while cur_rate_limit.remaining < 500:
       cur_rate_limit = services.gh.get_rate_limit()
+      if cur_rate_limit is None:
+        log_critical("Failed to fetch rate limit. Github login session expired.")
+        sys.exit(1)
+
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:

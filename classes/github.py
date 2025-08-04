@@ -39,8 +39,9 @@ class GithubSession:
     try:
       auth = Auth.Token(self.get_access_token())
       self.session = Github(auth=auth, pool_size=50)
+      self.reauth = False  # clear the flag because it's successfully reauthenticated
     except Exception as e:
-      log_critical('Unable to connect to the github API.')
+      log_critical(f'Unable to connect to the github API {e}')
 
   def get_access_token(self):
     now = datetime.utcnow().replace(tzinfo=timezone.utc)

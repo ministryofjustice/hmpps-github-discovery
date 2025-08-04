@@ -450,12 +450,12 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
         helm_environments = {}
       env_flags = environments.process_environments(
         component, repo, helm_environments, bootstrap_projects, services
-      ) 
+      )
       # Add environment flags to the component flags, since they're related
       for each_flag in env_flags:
         component_flags[each_flag] = env_flags[each_flag]
     if 'environments' in data:
-        del data['environments']
+      del data['environments']
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['id'], data):
@@ -492,6 +492,7 @@ def batch_process_sc_components(
 
   threads = []
   component_count = 0
+
   for component in components:
     component_count += 1
     # Wait until the API limit is reset if we are close to the limit
@@ -502,6 +503,7 @@ def batch_process_sc_components(
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
+
     while cur_rate_limit.remaining < 500:
       cur_rate_limit = services.gh.get_rate_limit()
       if cur_rate_limit is None:
@@ -511,12 +513,18 @@ def batch_process_sc_components(
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:
+        services.gh.reauth = True  # this could take a while so the session might expire
         log_info(
           f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )
         sleep(
           int(time_to_reset + 10)
         )  # Add a second to avoid irritating fractional settings
+
+    if services.gh.reauth:
+      services.gh.auth()
+      log_debug('Reauthenticated to Github')
+      services.gh.reauth = False
 
     # Mini function to process the component and store the result
     # because the threading needs to target a function

@@ -136,7 +136,7 @@ def get_repo_disabled_workflows(repo):
   try:
     workflows = repo.get_workflows()
     for workflow in workflows:
-      if workflow.state != 'active' and workflow.name:
+      if workflow.state not in ['active', 'disabled_manually'] and workflow.name:
         disabled_workflows.append(workflow.name)
     if disabled_workflows:
       log_info(f'Workflows disabled for {repo.name}: {disabled_workflows}')
@@ -162,51 +162,51 @@ def process_independent_component(component, repo):
     'branch_protection_disabled': None,
   }
 
-  # Default branch attributes
-  if default_branch := get_repo_default_branch(repo):
-    data.update(get_repo_properties(repo, default_branch))
-    try:
-      branch_protection = default_branch.get_protection()
-    except Exception as e:
-      if 'Branch not protected' in f'{e}':
-        component_flags['branch_protection_disabled'] = True
-      else:
-        log_warning(
-          f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
-        )
-        component_flags['app_disabled'] = True
-      branch_protection = None
-
-    data.update(get_repo_teams_info(repo, branch_protection))
-  # If the app can't read the default branch, it's probably not allowed to see the repo
-  else:
-    component_flags['app_disabled'] = True
-
-  # Check if workflows are disabled
-  if disabled_workflows := get_repo_disabled_workflows(repo):
-    data['disabled_workflows'] = disabled_workflows
-    component_flags['workflows_disabled'] = True
-  else:
-    component_flags['workflows_disabled'] = False
-
-  # Get the repo topics
-  try:
-    data['github_topics'] = repo.get_topics()
-  except Exception as e:
-    log_warning(f'Unable to get topics for {repo.name}: {e}')
-
-  # Check to see if the repo is a frontend one (based on the name)
-  if re.search(
-    r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
-    f'{component_name} {repo.description}',
-  ):
-    log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
-    data['frontend'] = True
-
   # Check to see if the repo is a archived
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True
+  else:  # no point in getting this info for archived repos
+    # Default branch attributes
+    if default_branch := get_repo_default_branch(repo):
+      data.update(get_repo_properties(repo, default_branch))
+      try:
+        branch_protection = default_branch.get_protection()
+      except Exception as e:
+        if 'Branch not protected' in f'{e}':
+          component_flags['branch_protection_disabled'] = True
+        else:
+          log_warning(
+            f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+          )
+          component_flags['app_disabled'] = True
+        branch_protection = None
+
+      data.update(get_repo_teams_info(repo, branch_protection))
+    # If the app can't read the default branch, it's probably not allowed to see the repo
+    else:
+      component_flags['app_disabled'] = True
+
+    # Check if workflows are disabled
+    if disabled_workflows := get_repo_disabled_workflows(repo):
+      data['disabled_workflows'] = disabled_workflows
+      component_flags['workflows_disabled'] = True
+    else:
+      component_flags['workflows_disabled'] = False
+
+    # Get the repo topics
+    try:
+      data['github_topics'] = repo.get_topics()
+    except Exception as e:
+      log_warning(f'Unable to get topics for {repo.name}: {e}')
+
+    # Check to see if the repo is a frontend one (based on the name)
+    if re.search(
+      r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
+      f'{component_name} {repo.description}',
+    ):
+      log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
+      data['frontend'] = True
 
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
@@ -424,7 +424,7 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
     else:
       component_flags['main_changed'] = False
 
-    if not (
+    if repo.archived or not (
       component_flags['main_changed'] or component_flags['env_changed'] or force_update
     ):
       log_info(f'No main branch or environment changes for {component_name}')
@@ -507,7 +507,7 @@ def batch_process_sc_components(
     while cur_rate_limit.remaining < 500:
       cur_rate_limit = services.gh.get_rate_limit()
       if cur_rate_limit is None:
-        log_critical("Failed to fetch rate limit. Github login session expired.")
+        log_critical('Failed to fetch rate limit. Github login session expired.')
         sys.exit(1)
 
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)

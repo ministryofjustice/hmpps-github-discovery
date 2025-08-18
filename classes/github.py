@@ -29,21 +29,23 @@ class GithubSession:
       try:
         rate_limit = self.session.get_rate_limit()
         self.core_rate_limit = rate_limit.core
-        log_info(f'Github API: {rate_limit}')
-        # test fetching organisation name
-        self.org = self.session.get_organization('ministryofjustice')
+        log_info(f'Github API - rate limit: {rate_limit}')
       except Exception as e:
         log_critical('Unable to get Github Organisation.')
 
   def auth(self):
+    log_debug('Authenticating to Github')
     try:
       auth = Auth.Token(self.get_access_token())
       self.session = Github(auth=auth, pool_size=50)
+      # Refresh the org object
+      self.org = self.session.get_organization('ministryofjustice')
       self.reauth = False  # clear the flag because it's successfully reauthenticated
     except Exception as e:
       log_critical(f'Unable to connect to the github API {e}')
 
   def get_access_token(self):
+    log_debug('Using private key to get access token')
     now = datetime.utcnow().replace(tzinfo=timezone.utc)
     payload = {'iat': now, 'exp': now + timedelta(minutes=10), 'iss': self.app_id}
     jwt_token = jwt.encode(payload, self.private_key, algorithm='RS256')

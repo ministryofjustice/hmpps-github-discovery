@@ -76,50 +76,47 @@ for table in tables:
       subtable_name = subtable[1]
       # replace the subtable with just the ID
       subtable_record_id = None
-      if subtable_data := record['attributes'].get(subtable_link):
+      if subtable_data := record.get(subtable_link):
         log_debug(f'Found subtable data in {subtable_link}: {subtable_data}')
-        if subtable_data.get('data'):
-          if subtable_attributes := subtable_data['data'].get('attributes'):
-            if subtable_record_name := subtable_attributes.get('name'):
-              subtable_record_id = sc_out.get_id(
-                f'{subtable_name}', 'name', subtable_record_name
-              )
-              log_debug(
-                f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
-              )
-        else:
-          log_info(f'No attributes found in {subtable_link}: {subtable_data}')
-      record['attributes'][subtable_link] = subtable_record_id
+        subtable_record_name := subtable_attributes.get('name'):
+        subtable_record_id = sc_out.get_id(
+          f'{subtable_name}', 'name', subtable_record_name
+        )
+        log_debug(
+          f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
+        )
+      else:
+        log_info(f'No subtable data in {subtable_link}')
+      record[subtable_link] = subtable_record_id
     # Subcomponents
     for subcomponent in subcomponents:
       subcomponent_link = subcomponent
-      subcomponent_name = record['attributes'].get(subcomponent)
+      subcomponent_name = record.get(subcomponent)
       if isinstance(subcomponent_name, dict):
-        record['attributes'][subcomponent_link] = None
-        if subcomponent_data := subcomponent_name.get('data'):
-          if subcomponent_id := sc_out.get_id(
-            f'{in_table}', 'name', subcomponent_data['attributes']['name']
-          ):
-            log_debug(
-              f'Record ID found in {in_table} for {subcomponent_name}: {subcomponent_id}'
-            )
-            record['attributes'][subcomponent_link] = subcomponent_id
+        record.get(subcomponent_link) = None
+        if subcomponent_id := sc_out.get_id(
+            f'{in_table}', 'name', subcomponent.get('name')
+        ):
+          log_debug(
+            f'Record ID found in {in_table} for {subcomponent_name}: {subcomponent_id}'
+          )
+          record.get(subcomponent_link) = subcomponent_id
       else:
         updated_subcomponent = []  # need to do something tricky here
         log_debug(f'Subcomponent time - {subcomponent_name}')
-        log_debug(f'Attributes: {record["attributes"]}')
-        for each_element in record['attributes'][subcomponent]:
-          each_element.pop('id')
+        log_debug(f'Attributes: {record}')
+        for each_element in record.get(subcomponent):
+          each_element.pop('documentId')
           if subcomponent == 'environments':  # add the namespace ID if possible
             if namespace_name := each_element.get('namespace'):
               if namespace_id := sc_out.get_id('namespaces', 'name', namespace_name):
                 each_element['ns'] = namespace_id
           updated_subcomponent.append(each_element)
-        record['attributes'][subcomponent] = updated_subcomponent
+        record[subcomponent] = updated_subcomponent
         log_debug(f'Updated {subcomponent} is {updated_subcomponent}')
     # Update the record
     log_debug(f'{in_table}:\n{json.dumps(record, indent=2)}')
-    if existing_id := sc_out.get_id(in_table, 'name', record['attributes']['name']):
+    if existing_id := sc_out.get_id(in_table, 'name', record.get('name')):
       sc_out.update(in_table, existing_id, record['attributes'])
     else:
       sc_out.add(in_table, record['attributes'])
@@ -127,8 +124,8 @@ for table in tables:
 records = sc_in.get_all_records('github-teams')
 for record in records:
   if existing_id := sc_out.get_id(
-    'github-teams', 'team_name', record['attributes']['team_name']
+    'github-teams', 'team_name', record.get('team_name')
   ):
-    sc_out.update('github-teams', existing_id, record['attributes'])
+    sc_out.update('github-teams', existing_id, record)
   else:
-    sc_out.add('github-teams', record['attributes'])
+    sc_out.add('github-teams', record)

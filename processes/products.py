@@ -19,21 +19,21 @@ def process_sc_product(product, services):
   sc = services.sc
   slack = services.slack
 
-  log_info(f'Processing product: {product["attributes"]["name"]}')
+  log_info(f'Processing product: {product.get('name')}')
 
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
 
   # Update Slack Channel name if necessary:
-  if p_slack_channel_id := product['attributes']['slack_channel_id']:
-    p_slack_channel_name = product['attributes']['slack_channel_name']
+  if p_slack_channel_id := product.get('slack_channel_id'):
+    p_slack_channel_name = product.get('slack_channel_name')
     if slack_channel_name := slack.get_slack_channel_name_by_id(p_slack_channel_id):
       if p_slack_channel_name != slack_channel_name:
         data['slack_channel_name'] = slack_channel_name
 
   if data:
     # Update product with all results in data dict.
-    sc.update(sc.products, product['id'], data)
+    sc.update(sc.products, product['documentId'], data)
 
 
 def batch_process_sc_products(services, max_threads=10):
@@ -56,7 +56,7 @@ def batch_process_sc_products(services, max_threads=10):
 
     t_repo.start()
     log_info(
-      f'Started thread for product {product["attributes"]["p_id"]} ({product["attributes"]["name"]})'
+      f'Started thread for product {product.get('p_id')} ({product.get('name')})'
     )
 
   for t in threads:

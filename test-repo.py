@@ -81,7 +81,7 @@ def main():
   component = services.sc.get_record(services.sc.components_get, 'name', component_name)
   log_debug(f'Component: {component}')
   if component:
-    repo_name = component.get('attributes').get('github_repo')
+    repo_name = component.get('github_repo')
     log_info(f'Getting workflow business for {repo_name}')
     repo = services.gh.get_org_repo(repo_name)
     log_info(f'repo name: {repo.name}')
@@ -94,10 +94,9 @@ def main():
   # environments = services.sc.get_all_records('environments?populate=component')
   # env_list = []
   # for env in environments:
-  #   attrs = env.get('attributes', {})
   #   env_list.append(
-  #     f'{attrs.get("component", {}).get("data", {}).get("attributes", {}).get("name")}-{
-  #       attrs.get("name")
+  #     f'{envs.get('component', {}).get('name')}-{
+  #       envs.get('name')
   #     }'
   #   )
 

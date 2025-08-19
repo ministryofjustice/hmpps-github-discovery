@@ -51,7 +51,7 @@ def main():
   log_debug(f'Component: {component}')
   if component:
     log_info(f'Processing component {component_name}...')
-    repo = services.gh.get_org_repo(component.get('attributes').get('github_repo'))
+    repo = services.gh.get_org_repo(component.get('github_repo'))
     github_actions = services.gh.get_actions(repo)
     log_debug(f'github_actions: {github_actions}')
   else:

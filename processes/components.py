@@ -154,7 +154,7 @@ def get_repo_disabled_workflows(repo):
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
 def process_independent_component(component, repo):
-  component_name = component['attributes']['name']
+  component_name = component.get('name')
 
   data = {}
   component_flags = {
@@ -222,10 +222,10 @@ def process_changed_component(component, repo, services):
   cc = services.cc
 
   # Shortcuts to make it easier to read
-  component_name = component['attributes']['name']
+  component_name = component.get('name')
   component_project_dir = (
-    (component['attributes']['path_to_project'] or component_name)
-    if component['attributes']['part_of_monorepo']
+    (component.get('path_to_project') or component_name)
+    if component.get('part_of_monorepo')
     else '.'
   )
   log_debug(f'Component project directory is: {component_project_dir}')
@@ -233,7 +233,7 @@ def process_changed_component(component, repo, services):
   # Reset the data ready for updating
   # Include the existing versions
   data = {
-    'versions': component.get('attributes', {}).get('versions', {})
+    'versions': component.get('versions', {})
   }  # dictionary to hold all the updated data for the component
 
   # Information from Helm config
@@ -387,18 +387,18 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
   component_flags = {}
-  component_name = component['attributes']['name']
+  component_name = component.get('name')
   log_info(f'Processing component: {component_name}')
 
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
-  if latest_commit := component['attributes'].get('latest_commit'):
+  if latest_commit := component.get('latest_commit'):
     if sha := latest_commit.get('sha'):
       sc_latest_commit = sha
   else:
     sc_latest_commit = None
   log_debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
-  repo = gh.get_org_repo(f'{component["attributes"]["github_repo"]}')
+  repo = gh.get_org_repo(component.get('github_repo',{}))
   if repo:
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
     log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
@@ -458,7 +458,7 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
       del data['environments']
 
     # Update component with all results in data dictionary
-    if not sc.update(sc.components, component['id'], data):
+    if not sc.update(sc.components, component['documentId'], data):
       log_error(f'Error updating component {component_name}')
       component_flags['update_error'] = True
 
@@ -498,7 +498,7 @@ def batch_process_sc_components(
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()
     log_info(
-      f'{component_count}/{len(components)} - preparing to process {component["attributes"]["name"]} ({int(component_count / len(components) * 100)}% complete)'
+      f'{component_count}/{len(components)} - preparing to process {component.get('name')} ({int(component_count / len(components) * 100)}% complete)'
     )
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
@@ -546,7 +546,7 @@ def batch_process_sc_components(
           bootstrap_projects=bootstrap_projects,
           force_update=force_update,
         )
-        processed_components.append((component['attributes']['name'], result))
+        processed_components.append((component.get('name'), result))
       else:
         log_error(f'Unable to call {function}')
         sys.exit(1)
@@ -565,7 +565,7 @@ def batch_process_sc_components(
       sleep(10)
 
     t_repo.start()
-    log_info(f'Started thread for component {component["attributes"]["name"]}')
+    log_info(f'Started thread for component {component.get('name')}')
 
   # wait until all the threads are finished
   for t in threads:

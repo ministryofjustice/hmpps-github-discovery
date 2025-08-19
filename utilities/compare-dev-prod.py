@@ -14,11 +14,11 @@ def compare_attributes(prod_attributes, dev_attributes):
     dev_value = dev_attributes.get(key)
 
     if isinstance(prod_value, dict):
-      if prod_value.get('id'):
-        prod_value.pop('id')
+      if prod_value.get('documentId'):
+        prod_value.pop('documentId')
     if isinstance(dev_value, dict):
-      if dev_value.get('id'):
-        dev_value.pop('id')
+      if dev_value.get('documentId'):
+        dev_value.pop('documentId')
 
     ignored_keys = {
       'product',
@@ -54,11 +54,10 @@ def main():
   dev_data = sc_dev.get_all_records(sc_dev.components_get)
 
   for component in prod_data:
-    prod_attributes = component['attributes']
     dev_attributes = [
       x['attributes']
       for x in dev_data
-      if x['attributes']['name'] == prod_attributes['name']
+      if x.get('name') == component.get('name')
     ][0]
     log_info(f'{prod_attributes["name"]}')
     log_info('=======================')

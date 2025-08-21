@@ -40,7 +40,6 @@ class GithubSession:
       self.session = Github(auth=auth, pool_size=50)
       # Refresh the org object
       self.org = self.session.get_organization('ministryofjustice')
-      self.reauth = False  # clear the flag because it's successfully reauthenticated
     except Exception as e:
       log_critical(f'Unable to connect to the github API {e}')
 

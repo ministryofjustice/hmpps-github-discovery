@@ -513,18 +513,15 @@ def batch_process_sc_components(
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:
-        services.gh.reauth = True  # this could take a while so the session might expire
         log_info(
           f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )
         sleep(
           int(time_to_reset + 10)
-        )  # Add a second to avoid irritating fractional settings
-
-    if services.gh.reauth:
-      services.gh.auth()
-      log_debug('Reauthenticated to Github')
-      services.gh.reauth = False
+        )  # Add 10 seconds to avoid irritating fractional settings
+        # then re-authenticate so that the cur_rate_limit is refreshed...
+        services.gh.auth()
+        cur_rate_limit = services.gh.get_rate_limit()
 
     # Mini function to process the component and store the result
     # because the threading needs to target a function

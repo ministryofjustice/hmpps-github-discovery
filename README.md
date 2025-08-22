@@ -166,6 +166,13 @@ The Github Discovery and Github Teams Discovery scripts run on a Kubernetes clus
 Since the Service Catalogue database is copied from prod to dev every night at 11pm, there is no need to run Github Discovery in the dev environment.
 
 
+## Github rate limit status
+
+Assuming you've got the environment variables set up right, you can check how many request are left like this:
+```
+python -m utilities.check_github
+```
+
 ## Appendix
 
 ### Port forward to redis hosted in Cloud-platform

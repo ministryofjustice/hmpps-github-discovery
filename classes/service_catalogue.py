@@ -1,5 +1,8 @@
 import requests
 import json
+import time
+from typing import Any, Dict, List
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from utilities.job_log_handling import (
   log_debug,
   log_error,
@@ -7,6 +10,20 @@ from utilities.job_log_handling import (
   log_critical,
   log_warning,
 )
+
+
+def _set_page(url: str, page: int) -> str:
+  """Return `url` with pagination[page] set to `page`, preserving existing params."""
+  parsed = urlparse(url)
+  query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+  query['pagination[page]'] = str(page)
+  new_query = urlencode(query, doseq=True)
+  return urlunparse(parsed._replace(query=new_query))
+
+
+def _basename(url: str) -> str:
+  """Return URL without query string (for compact logging)."""
+  return url.split('?', 1)[0]
 
 
 class ServiceCatalogue:
@@ -65,77 +82,103 @@ class ServiceCatalogue:
       return False
 
   """
+  Generic get request with retry functionality
+  """
+
+  def _request_json_with_retry(
+    self,
+    url: str,
+    max_retries: int,
+    timeout: int,
+  ) -> Dict[str, Any]:
+    """GET JSON with retry/backoff; raises after exhausting retries."""
+    attempt = 0
+    last_err: Exception | None = None
+
+    while attempt < max_retries:
+      try:
+        resp = requests.get(url, headers=self.api_headers, timeout=timeout)
+        resp.raise_for_status()  # Raises for non-2xx
+        return resp.json()
+      except (requests.RequestException, ValueError) as e:
+        # Request errors or invalid JSON
+        last_err = e
+        attempt += 1
+        log_warning(
+          f'Service Catalogue API error for {_basename(url)} '
+          f'(attempt {attempt}/{max_retries}): {e}'
+        )
+        if attempt < max_retries:
+          # Exponential backoff: 0.5s, 1.0s, 2.0s...
+          time.sleep(0.5 * (2 ** (attempt - 1)))
+
+    # Out of retries
+    raise RuntimeError(
+      f'Exceeded retries for {_basename(url)} (last error: {last_err})'
+    ) from last_err
+
+  def get_with_retry(
+    self,
+    uri: str,
+    max_retries: int = 3,
+    timeout: int = 10,
+  ) -> List[Any]:
+    """
+    Fetch all pages for the given `uri`, aggregating the `field` array from each page.
+    - Retries each page up to `max_retries` times with exponential backoff.
+    - Preserves any existing query params on `uri`.
+    """
+    base_url = f'{self.url.rstrip("/")}/v1/{uri.lstrip("/")}'
+    json_data: List[Any] = []
+
+    # First page
+    try:
+      first = self._request_json_with_retry(base_url, max_retries, timeout)
+      pagination = first['meta']['pagination']
+      log_debug(f'Got result page: {pagination["page"]} from Service Catalogue')
+      page_count = int(pagination.get('pageCount', 1))
+      json_data.extend(first.get('data', []))
+    except Exception as e:
+      log_error(f'Failed to get page data from Service Catalogue: {e}')
+      # If meta/pagination missing, assume single page
+      page_count = 1
+
+    # Remaining pages (if any)
+    for p in range(2, page_count + 1):
+      page_url = _set_page(base_url, p)
+      try:
+        page_json = self._request_json_with_retry(page_url, max_retries, timeout)
+        p_meta = page_json['meta']['pagination']
+        log_debug(f'Got result page: {p_meta["page"]} from Service Catalogue')
+        json_data.extend(page_json.get('data', []))
+      except Exception:
+        pass  # If pagination info missing, don't fail aggregation
+
+    return json_data
+
+  """
   Get all multipage results from Service Catalogue
   """
 
   def get_all_records(self, table):
-    json_data = []
     log_info(
       f'Getting all records from table {table} in Service Catalogue using URL: {self.url}/v1/{table}'
     )
-    try:
-      r = requests.get(f'{self.url}/v1/{table}', headers=self.api_headers, timeout=10)
-      if r.status_code == 200:
-        j_meta = r.json()['meta']['pagination']
-        log_debug(f'Got result page: {j_meta["page"]} from Service Catalogue')
-        json_data.extend(r.json()['data'])
-      else:
-        raise Exception(
-          f'Received non-200 response from Service Catalogue: {r.status_code}'
-        )
-
-      # Loop over the remaining pages and return one at a time
-      num_pages = j_meta['pageCount']
-      for p in range(2, num_pages + 1):
-        if '?' in table:  # add an extra parameter if there are already parameters
-          page = f'&pagination[page]={p}'
-        else:  # otherwise use ? to denote the first parameter
-          page = f'?pagination[page]={p}'
-        r = requests.get(
-          f'{self.url}/v1/{table}{page}', headers=self.api_headers, timeout=10
-        )
-        if r.status_code == 200:
-          j_meta = r.json()['meta']['pagination']
-          log_debug(f'Got result page: {j_meta["page"]} from SC')
-          json_data.extend(r.json()['data'])
-        else:
-          raise Exception(
-            f'Received non-200 response from Service Catalogue when reading all records from {table}: {r.status_code}'
-          )
-
-    except Exception as e:
-      log_error(
-        f'Problem with Service Catalogue API while reading all records from {table}. {e}'
-      )
-    return json_data
+    return self.get_with_retry(table)
 
   """
   Get a single record by filter parameter from the Service Catalogue
   """
 
   def get_record(self, table, label, parameter):
-    json_data = {}
-    try:
-      if '?' in table:  # add an extra parameter if there are already parameters
-        filter = f'&filters[{label}][$eq]={parameter}'
-      else:
-        filter = f'?filters[{label}][$eq]={parameter}'
-      r = requests.get(
-        f'{self.url}/v1/{table}{filter}', headers=self.api_headers, timeout=10
-      )
-      if r.status_code == 200:
-        if len(r.json().get('data')) > 0:
-          json_data = r.json()['data'][0]
-      else:
-        raise Exception(
-          f'Received non-200 response from Service Catalogue while getting a record from {table}: {r.status_code}'
-        )
-
-    except Exception as e:
-      log_error(
-        f'Problem with Service Catalogue API while getting a record from {table}. {e}'
-      )
-    return json_data
+    if '?' in table:  # add an extra parameter if there are already parameters
+      filter = f'&filters[{label}][$eq]={parameter}'
+    else:
+      filter = f'?filters[{label}][$eq]={parameter}'
+    if json_data := self.get_with_retry(f'{table}{filter}'):
+      return json_data[0]
+    else:
+      return {}
 
   """
   Update a record in the Service Catalogue with passed-in JSON data
@@ -157,7 +200,7 @@ class ServiceCatalogue:
         )
         success = True
       else:
-        log_info(
+        log_error(
           f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
@@ -182,7 +225,7 @@ class ServiceCatalogue:
         )
         success = True
       else:
-        log_info(
+        log_error(
           f'Received non-200 response from service catalogue to add a record to {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
@@ -190,54 +233,46 @@ class ServiceCatalogue:
         f'Error adding a record to {table.split("/")[-1]} in service catalogue: {e}'
       )
     return success
-  
+
   def delete(self, table, element_id):
     success = False
     try:
-        log_debug(f'Deleting record {element_id} from {table.split("/")[-1]}')
-        x = requests.delete(
-            f'{self.url}/v1/{table}/{element_id}',
-            headers=self.api_headers,
-            timeout=10,
+      log_debug(f'Deleting record {element_id} from {table.split("/")[-1]}')
+      x = requests.delete(
+        f'{self.url}/v1/{table}/{element_id}',
+        headers=self.api_headers,
+        timeout=10,
+      )
+      if x.status_code == 200:
+        log_info(
+          f'Successfully deleted record {element_id} from {table.split("/")[-1]}: {x.status_code}'
         )
-        if x.status_code == 200:
-            log_info(
-                f'Successfully deleted record {element_id} from {table.split("/")[-1]}: {x.status_code}'
-            )
-            success = True
-        else:
-            log_info(
-                f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
-            )
-    except Exception as e:
+        success = True
+      else:
         log_error(
-            f'Error deleting record {element_id} from {table.split("/")[-1]} in service catalogue: {e}'
+          f'Received non-200 response from service catalogue deleting record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
+    except Exception as e:
+      log_error(
+        f'Error deleting record {element_id} from {table.split("/")[-1]} in service catalogue: {e}'
+      )
     return success
 
   # eg get_id('github-teams', 'team_name', 'example')
   def get_id(self, match_table, match_field, match_string):
-    try:
-      r = requests.get(
-        f'{self.url}/v1/{match_table}?filters[{match_field}][$eq]={match_string.replace("&", "&amp;")}',
-        headers=self.api_headers,
-        timeout=10,
-      )
-      if r.status_code == 200 and r.json()['data']:
-        sc_id = r.json()['data'][0]['id']
+    uri = (
+      f'{match_table}?filters[{match_field}][$eq]={match_string.replace("&", "&amp;")}'
+    )
+    if json_data := self.get_with_retry(uri):
+      if sc_id := json_data[0].get('id'):
         log_debug(
           f'Successfully found Service Catalogue ID for {match_field}={match_string} in {match_table}: {sc_id}'
         )
         return sc_id
-      log_warning(
-        f'Could not find Service Catalogue ID for {match_field}={match_string} in {match_table}'
-      )
-      return None
-    except Exception as e:
-      log_error(
-        f'Error getting Service Catalogue ID for {match_field}={match_string} in {match_table}: {e}'
-      )
-      return None
+      else:
+        log_warning(
+          f'Could not find Service Catalogue ID for {match_field}={match_string} in {match_table}'
+        )
 
   def get_component_env_id(self, component, env):
     env_id = None

@@ -47,8 +47,8 @@ def process_sc_component_workflows(component, services, **kwargs):
   # Set some convenient defaults
   sc = services.sc
   gh = services.gh
-  component_name = component['attributes']['name']
-  github_repo = component['attributes']['github_repo']
+  component_name = component.get('name')
+  github_repo = component.get('github_repo')
 
   # Reset the data ready for updating
   data = {}  # dictionary to hold all the updated data for the component
@@ -92,7 +92,7 @@ def process_sc_component_workflows(component, services, **kwargs):
   if non_local_actions:
     # get the current versions list
 
-    versions = component.get('attributes', {}).get('versions') or {}
+    versions = component.get('versions',{})
 
     log_debug(
       f'non_local_actions for {component_name}: {json.dumps(non_local_actions, indent=2)}'
@@ -108,7 +108,7 @@ def process_sc_component_workflows(component, services, **kwargs):
 
   # Update component with all results in data dictionary if there's data to do so
   if data:
-    if not sc.update(sc.components, component['id'], data):
+    if not sc.update(sc.components, component['documentId'], data):
       log_error(f'Error updating component {component_name}')
       component_flags['update_error'] = True
 

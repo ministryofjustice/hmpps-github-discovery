@@ -173,7 +173,10 @@ def process_independent_component(component, repo):
       try:
         branch_protection = default_branch.get_protection()
       except Exception as e:
-        if 'Branch not protected' in f'{e}':
+        if (
+          'Branch not protected' in f'{e}'
+          or 'Branch protection has been disabled' in f'{e}'
+        ):
           component_flags['branch_protection_disabled'] = True
         else:
           log_warning(
@@ -503,12 +506,10 @@ def batch_process_sc_components(
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
-
     while cur_rate_limit.remaining < 500:
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
       if int(time_to_reset) > 10:
-        services.gh.reauth = True  # this could take a while so the session might expire
         log_info(
           f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )

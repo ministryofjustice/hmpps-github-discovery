@@ -250,7 +250,7 @@ class ServiceCatalogue:
         success = True
       else:
         log_error(
-          f'Received non-200 response from service catalogue for record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
+          f'Received non-200 response from service catalogue deleting record id {element_id} in {table.split("/")[-1]}: {x.status_code} {x.content}'
         )
     except Exception as e:
       log_error(

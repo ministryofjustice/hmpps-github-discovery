@@ -398,7 +398,7 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
   else:
     sc_latest_commit = None
   log_debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
-  repo = gh.get_org_repo(component.get('github_repo',{}))
+  repo = gh.get_org_repo(component.get('github_repo', {}))
   if repo:
     gh_latest_commit = repo.get_branch(repo.default_branch).commit.sha
     log_debug(f'Latest commit in Github for {component_name} is {gh_latest_commit}')
@@ -498,33 +498,27 @@ def batch_process_sc_components(
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()
     log_info(
-      f'{component_count}/{len(components)} - preparing to process {component.get('name')} ({int(component_count / len(components) * 100)}% complete)'
+      f'{component_count}/{len(components)} - preparing to process {component.get("name")} ({int(component_count / len(components) * 100)}% complete)'
     )
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit} remains -  resets at {cur_rate_limit.reset}'
     )
 
     while cur_rate_limit.remaining < 500:
-      cur_rate_limit = services.gh.get_rate_limit()
-      if cur_rate_limit is None:
-        log_critical('Failed to fetch rate limit. Github login session expired.')
-        sys.exit(1)
-
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()
-      if int(time_to_reset) > 10 and cur_rate_limit.remaining < 500:
+      if int(time_to_reset) > 10:
         services.gh.reauth = True  # this could take a while so the session might expire
         log_info(
           f'Backing off for {time_to_reset + 10} seconds, to avoid github API limits.'
         )
         sleep(
           int(time_to_reset + 10)
-        )  # Add a second to avoid irritating fractional settings
-
-    if services.gh.reauth:
-      services.gh.auth()
-      log_debug('Reauthenticated to Github')
-      services.gh.reauth = False
+        )  # Add 10 seconds to avoid irritating fractional settings
+        # then re-authenticate so that the cur_rate_limit can refreshed with a new session
+        log_debug('Reauthenticating')
+        services.gh.auth()
+      cur_rate_limit = services.gh.get_rate_limit()
 
     # Mini function to process the component and store the result
     # because the threading needs to target a function
@@ -565,7 +559,7 @@ def batch_process_sc_components(
       sleep(10)
 
     t_repo.start()
-    log_info(f'Started thread for component {component.get('name')}')
+    log_info(f'Started thread for component {component.get("name")}')
 
   # wait until all the threads are finished
   for t in threads:

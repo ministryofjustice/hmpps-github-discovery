@@ -506,9 +506,6 @@ def batch_process_sc_components(
   component_count = 0
 
   for component in components:
-    if component.get('attributes', {}).get('name', '') != 'james-kotlin-test':
-      log_debug('skipping')
-      continue
     component_count += 1
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()

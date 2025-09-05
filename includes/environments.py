@@ -15,12 +15,12 @@ from utilities.job_log_handling import log_debug, log_error, log_info, log_criti
 def get_environments(component, repo, bootstrap_projects, services):
   sc = services.sc
 
-  component_name = component['attributes']['name']  # for short
+  component_name = component.get('name')  # for short
   envs = {}  # using a dictionary to avoid duplicates
 
   log_debug(f'Getting environments for {component_name} from bootstrap/Github')
   # Check bootstrap first
-  if project := bootstrap_projects.get(component['attributes']['github_repo']):
+  if project := bootstrap_projects.get(component.get('github_repo')):
     log_debug(f'Found bootstrap project data for {component_name} - {project}')
     if 'circleci_project_k8s_namespace' in project:
       log_debug(f'Found CircleCI dev namespace for{component_name}')
@@ -123,7 +123,7 @@ def process_environments(
 ):
   sc = services.sc
 
-  component_name = component['attributes']['name']
+  component_name = component.get('name')
   log_debug(f'Processing environments for {component_name}')
   env_flags = {}
 
@@ -181,9 +181,9 @@ def process_environments(
       # New logic to look for an environment name corresponding to a component_id
       if env_id := services.sc.get_record(
         services.sc.environments_get,
-        f'name][$eq]={env}&filters[component][id',
-        f'{component_id}',
-      ).get('id', ''):
+        f'name][$eq]={env}&filters[component][name',
+        f'{component_name}',
+      ).get('documentId', ''):
         # print(f'{json.dumps(env, indent=2)}')
         log_info(
           f'Environment ID {env_id} found for environment name {env} associated with {component_name} ({component_id})'
@@ -211,22 +211,22 @@ def process_environments(
 
   # Check if SC has extra environments that are not in the helm chart and delete them from environment table
   current_envs = []
-  sc_envs = component['attributes'].get('envs', {}).get('data', [])
+  sc_envs = component.get('envs', {})
   config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
   helm_envs = helm.get_envs_from_helm(component, repo, services)
   for helm_env in helm_envs:
     if helm_env in config_envs:
       current_envs.append(helm_env)
   extra_envs = set(
-      env['attributes']['name'] for env in sc_envs if isinstance(env, dict) and 'attributes' in env and 'name' in env['attributes']
+      env.get('name') for env in sc_envs if isinstance(env, dict)
   ) - set(current_envs)
   extra_envs = [
     env for env in sc_envs
-    if isinstance(env, dict) and 'attributes' in env and 'name' in env['attributes'] and env['attributes']['name'] in extra_envs
+    if isinstance(env, dict) and env.get('name') in extra_envs
   ]
   for env in extra_envs:
-    env_id = env['id']
-    env_name = env['attributes']['name']
+    env_id = env.get('documentId')
+    env_name = env.get('name')
     log_info(
       f'Environment {env_name} in Service Catalogue is not in the helm chart for {component_name}'
     )
@@ -243,7 +243,7 @@ def process_environments(
 # Logic to check if the branch specific components need to be processed
 def check_env_change(component, repo, bootstrap_projects, services):
   env_changed = False
-  component_name = component['attributes']['name']
+  component_name = component.get('name')
   current_envs = []
   # Current envs are the combination of helm environments and the bootstrap/Github environments
   config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
@@ -256,11 +256,11 @@ def check_env_change(component, repo, bootstrap_projects, services):
 
   log_debug(f'Current environments for {component_name}: {current_envs}')
   # Get the environments from the service catalogue
-  sc_envs = component['attributes'].get('envs', {}).get('data', [])
+  sc_envs = component.get('envs', {})
   log_debug(f'Environments in Service catalogue for {component_name}: {sc_envs}')
 
   # Check if the environments have changed
-  if set(env for env in current_envs) != set(env['attributes']['name'] for env in sc_envs):
+  if set(env for env in current_envs) != set(env.get('name') for env in sc_envs):
     env_changed = True
     log_info(f'Environments have changed for {component_name}')
 

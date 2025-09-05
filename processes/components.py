@@ -234,10 +234,10 @@ def process_changed_component(component, repo, services):
   log_debug(f'Component project directory is: {component_project_dir}')
 
   # Reset the data ready for updating
+  data = {}
+
   # Include the existing versions
-  data = {
-    'versions': component.get('versions', {})
-  }  # dictionary to hold all the updated data for the component
+  existing_versions = component.get('versions', {})
 
   # Information from Helm config
   ################################
@@ -252,6 +252,12 @@ def process_changed_component(component, repo, services):
   log_debug(f'Getting information for {component_name} from Helm config')
   if helm_data := helm.get_info_from_helm(component, repo, services):
     log_debug(f'Found Helm data for record id {component_name} - {helm_data}')
+    # remove previous helm data from existing versions data
+    if existing_versions.get('helm_dependencies'):
+      existing_versions.pop('helm_dependencies')
+    # then update the existing versions into helm data
+    update_dict(helm_data, 'versions', existing_versions)
+    # ...and update data
     data.update(helm_data)
 
   log_debug(
@@ -260,7 +266,6 @@ def process_changed_component(component, repo, services):
 
   # Information from CircleCI data
   ################################
-
   if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
     # CircleCI Orb version
     if circleci_orb_version := cc.get_circleci_orb_version(cirlcleci_config):
@@ -272,7 +277,6 @@ def process_changed_component(component, repo, services):
     # Placeholder for GH Trivy scan business
     log_debug('No CircleCI config found')
     remove_version(data, 'circleci')
-
   # App insights cloud_RoleName
   #############################
 
@@ -313,32 +317,38 @@ def process_changed_component(component, repo, services):
   # Gradle config
   ###############
 
-  build_gradle_config_content = False
   if repo.language == 'Kotlin' or repo.language == 'Java':
-    build_gradle_kts_config = gh.get_file_plain(repo, 'build.gradle.kts')
-    build_gradle_config_content = build_gradle_kts_config
-  # Try alternative location for java projects
-  if not build_gradle_config_content:
-    build_gradle_java_config = gh.get_file_plain(repo, 'build.gradle')
-    build_gradle_config_content = build_gradle_java_config
+    spring_boot_version = ''
+    if build_gradle_config_content := gh.get_file_plain(
+      repo, 'build.gradle.kts'
+    ) or gh.get_file_plain(repo, 'build.gradle'):
+      try:
+        regex = r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version [\'"](.*)[\'"]( apply false)?$'
+        if hmpps_gradle_spring_boot_matches := re.findall(
+          regex, build_gradle_config_content, re.MULTILINE
+        ):
+          for version, apply_false in hmpps_gradle_spring_boot_matches:
+            # if apply false is there, it will skip it
+            if not apply_false:
+              spring_boot_version = version
+              break
 
-  if build_gradle_config_content:
-    try:
-      regex = "id\\(\\'uk.gov.justice.hmpps.gradle-spring-boot\\'\\) version \\'(.*)\\'( apply false)?$"
-      hmpps_gradle_spring_boot_version = re.search(
-        regex, build_gradle_config_content, re.MULTILINE
-      )[1]
-      log_debug(
-        f'Found hmpps gradle-spring-boot version: {hmpps_gradle_spring_boot_version}'
-      )
+      except TypeError as e:
+        log_warning(f'Unable to parse build gradle file - {e}')
+        remove_version(data, 'gradle')
+        pass
+
+    if spring_boot_version:
+      log_debug(f'Found hmpps gradle-spring-boot version: {spring_boot_version}')
       update_dict(
         data,
         'versions',
-        {'gradle': {'hmpps_gradle_spring_boot': hmpps_gradle_spring_boot_version}},
+        {'gradle': {'hmpps_gradle_spring_boot': spring_boot_version}},
       )
-    except TypeError:
-      remove_version(data, 'gradle')
-      pass
+    else:
+      log_info(
+        'Unable to find gradle-spring-boot version within build.gradle.kts or build.gradle'
+      )
 
   # Information from Dockerfile
   #############################
@@ -355,7 +365,6 @@ def process_changed_component(component, repo, services):
     update_dict(data, 'versions', {'dockerfile': docker_versions})
   else:
     remove_version(data, 'dockerfile')
-
   # All done with the branch dependent components
 
   # End of other component information

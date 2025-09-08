@@ -39,7 +39,7 @@ def main():
             (
               c
               for c in dev_components
-              if c['attributes']['name'] == component['attributes']['name']
+              if c.get('name') == component.get('name')
             ),
             None,
           )
@@ -57,14 +57,14 @@ def main():
               log_info('updating dev component')
               sc_dev.update(
                 sc_dev.environments,
-                dev_component['id'],
+                dev_component['documentId'],
                 {'environments': dev_environments},
               )
             # Then do the environment tables
             if dev_env_links := dev_attributes.get('envs').get('data'):
               for dev_env in dev_env_links:
                 if dev_env_data := sc_dev.get_record(
-                  sc_dev.environments, 'id', dev_env['id']
+                  sc_dev.environments, 'documentId', dev_env['documentId']
                 ):
                   dev_env_data['build_image_tag'] = build_image_tag
                   log_debug(
@@ -73,7 +73,7 @@ def main():
                   log_info('updating dev env')
                   sc_dev.update(
                     sc_dev.environments,
-                    dev_env_data['id'],
+                    dev_env_data['documentId'],
                     {'build_image_tag': build_image_tag},
                   )
         log_info('\n')

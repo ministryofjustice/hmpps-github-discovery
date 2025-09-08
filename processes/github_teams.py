@@ -69,14 +69,13 @@ def process_github_teams(services):
       # Looks wthin Service Catalogue Github Teams for a matching team_name
       log_debug(f'Looking for {team_name} in the service catalogue..')
       if sc_team := next(
-        (team for team in sc_teams if team['attributes'].get('team_name') == team_name),
+        (team for team in sc_teams if team.get('team_name') == team_name),
         None,
       ):
-        sc_team_id = sc_team['id']
-        sc_team_attributes = sc_team['attributes']
+        sc_team_id = sc_team['documentId']
         # Update the team in SC if anything has changed
         for key in team_data:
-          if key in sc_team['attributes'] and team_data[key] != sc_team_attributes[key]:
+          if key in sc_team and team_data[key] != sc_team[key]:
             log_info(f'Updating team {team_name} in the service catalogue')
             if sc.update(sc.github_teams, sc_team_id, team_data):
               team_flags['team_updated'] = True

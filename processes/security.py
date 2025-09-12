@@ -27,17 +27,20 @@ def get_repo_variables(services, repo, component_name):
     try:
       repo_var = repo.get_variable(var[1])
       repo_var_value = repo_var.value
-      if repo_var == 'HMPPS_PRODUCT_ID':
+      if var[1] == 'HMPPS_PRODUCT_ID':
         if sc_product_id := services.sc.get_id('products', 'p_id', repo_var_value):
           repo_vars[var[0]] = sc_product_id
         else:
-          repo_vars[var[0]] = repo_var.value
+          log_debug(f'Unable to find product entry for {repo_var_value}')
+      else:
+        repo_vars[var[0]] = repo_var.value
     except Exception as e:
       if e.status == 404:
         log_debug(f'No {var[1]} repo variable found for {component_name}')
       else:
         log_debug(f'Could not get {var[1]} repo variable for {component_name} - {e}')
       pass
+  log_debug(f'Repository variables: {repo_vars}')
   return repo_vars
 
 
@@ -83,7 +86,6 @@ def process_sc_component_security(component, services, **kwargs):
     data.update(repo_variables)
 
   # This will ensure the service catalogue has the latest collection of repository variables
-
   # Update component with all results in data dictionary if there's data to do so
   if data:
     if not sc.update(sc.components, component['documentId'], data):

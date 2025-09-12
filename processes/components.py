@@ -426,11 +426,11 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
 
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
+  sc_latest_commit = None
   if latest_commit := component.get('latest_commit'):
     if sha := latest_commit.get('sha'):
       sc_latest_commit = sha
-  else:
-    sc_latest_commit = None
+
   log_debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
   repo = gh.get_org_repo(component.get('github_repo', {}))
   if repo:

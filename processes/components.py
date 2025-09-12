@@ -57,45 +57,40 @@ def get_bootstrap_projects(services):
 #####################################################
 def get_repo_teams_info(repo, branch_protection):
   data = {}
-  branch_protection_restricted_teams = []
-  teams_write = []
-  teams_admin = []
-  teams_maintain = []
 
+  # Branch protection teams
+  restricted_teams = []
   if branch_protection:
     try:
-      branch_protection_teams = branch_protection.get_team_push_restrictions() or []
-      for team in branch_protection_teams:
-        branch_protection_restricted_teams.append(team.slug)
+      for team in branch_protection.get_team_push_restrictions() or []:
+        restricted_teams.append(team.slug)
+      data['github_enforce_admins_enabled'] = getattr(
+        branch_protection, 'enforce_admins', None
+      )
     except Exception as e:
-      log_warning(f'Unable to get branch protection teams for {repo.name}: {e}')
+      log_warning(f'Unable to get branch protection info for {repo.name}: {e}')
 
-    try:
-      if enforce_admins := branch_protection.enforce_admins:
-        data['github_enforce_admins_enabled'] = enforce_admins
-    except Exception as e:
-      log_warning(f'Unable to get enforce admins details for {repo.name}: {e}')
-
+  # Repo teams and permissions
   try:
-    teams = repo.get_teams()
-    for team in teams:
-      team_permissions = team.get_repo_permission(repo)
-      if team_permissions.admin:
+    teams_admin, teams_maintain, teams_write = [], [], []
+    for team in repo.get_teams():
+      perms = team.get_repo_permission(repo)
+      if perms.admin:
         teams_admin.append(team.slug)
-      elif team_permissions.maintain:
+      elif perms.maintain:
         teams_maintain.append(team.slug)
-      elif team_permissions.push:
+      elif perms.push:
         teams_write.append(team.slug)
-
-    data['github_project_teams_admin'] = teams_admin
-    data['github_project_teams_maintain'] = teams_maintain
-    data['github_project_teams_write'] = teams_write
-    data['github_project_branch_protection_restricted_teams'] = (
-      branch_protection_restricted_teams
+    data.update(
+      {
+        'github_project_teams_admin': teams_admin,
+        'github_project_teams_maintain': teams_maintain,
+        'github_project_teams_write': teams_write,
+        'github_project_branch_protection_restricted_teams': restricted_teams,
+      }
     )
-
   except Exception as e:
-    log_warning(f'Unable to get teams/admin information {repo.name}: {e}')
+    log_warning(f'Unable to get teams/admin info for {repo.name}: {e}')
 
   return data
 
@@ -150,6 +145,78 @@ def get_repo_disabled_workflows(repo):
   return disabled_workflows
 
 
+# App insights cloud_RoleName - get the info from the files (dependent on application type)
+###########################################################################################
+def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
+  log_debug('Looking for application insights cloud role name')
+  if repo.language == 'Kotlin' or repo.language == 'Java':
+    log_debug(
+      f'Detected Kotlin/Java - looking in {component_project_dir}/applicationinsights.json'
+    )
+    app_insights_config = gh.get_file_json(
+      repo, f'{component_project_dir}/applicationinsights.json'
+    )
+    if app_insights_config:
+      if app_insights_cloud_role_name := app_insights_config.get('role', {}).get(
+        'name'
+      ):
+        return app_insights_cloud_role_name
+      else:
+        log_debug('Role name not found in the expected place (role.name)')
+    else:
+      log_warning('No applicationinsights.json file found for {component_name}')
+
+  if repo.language == 'JavaScript' or repo.language == 'TypeScript':
+    log_debug(
+      f'Detected JavaScript/TypeScript - looking in {component_project_dir}/package.json'
+    )
+    if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
+      if app_insights_cloud_role_name := package_json.get('name'):
+        if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
+          return app_insights_cloud_role_name
+          log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
+        else:
+          log_debug('Application Insights role name not valid - not setting it')
+      else:
+        log_debug(
+          'Application Insights role name not found in the expected place (name)'
+        )
+    else:
+      log_warning('Typescript repo - no package.json file found for {component_name}')
+  return None
+
+
+def get_gradle_config(gh, repo):
+  # get_gradle_config - reads the gradle file to determine versions
+  gradle_config = {}
+  if build_gradle_config_content := gh.get_file_plain(
+    repo, 'build.gradle.kts'
+  ) or gh.get_file_plain(repo, 'build.gradle'):
+    try:
+      regex = r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version [\'"](.*)[\'"]( apply false)?$'
+      if hmpps_gradle_spring_boot_matches := re.findall(
+        regex, build_gradle_config_content, re.MULTILINE
+      ):
+        for version, apply_false in hmpps_gradle_spring_boot_matches:
+          # if apply false is there, it will skip it
+          if not apply_false:
+            gradle_config['spring_boot_version'] = version
+            break
+
+    except TypeError as e:
+      log_warning(f'Unable to parse build gradle file - {e}')
+      pass
+
+  if gradle_config:  # If there are some valid entries, happy days
+    log_debug(f'Found hmpps gradle_config: {gradle_config}')
+    return gradle_config
+  else:
+    log_info(
+      'Unable to find gradle-spring-boot version within build.gradle.kts or build.gradle'
+    )
+  return None
+
+
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
@@ -166,50 +233,50 @@ def process_independent_component(component, repo):
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True
-  else:  # no point in getting this info for archived repos
-    # Default branch attributes
-    if default_branch := get_repo_default_branch(repo):
-      data.update(get_repo_properties(repo, default_branch))
-      try:
-        branch_protection = default_branch.get_protection()
-      except Exception as e:
-        if (
-          'Branch not protected' in f'{e}'
-          or 'Branch protection has been disabled' in f'{e}'
-        ):
-          component_flags['branch_protection_disabled'] = True
-        else:
-          log_warning(
-            f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
-          )
-          component_flags['app_disabled'] = True
-        branch_protection = None
+    return data, component_flags
 
-      data.update(get_repo_teams_info(repo, branch_protection))
-    # If the app can't read the default branch, it's probably not allowed to see the repo
-    else:
-      component_flags['app_disabled'] = True
-
-    # Check if workflows are disabled
-    if disabled_workflows := get_repo_disabled_workflows(repo):
-      data['disabled_workflows'] = disabled_workflows
-      component_flags['workflows_disabled'] = True
-    else:
-      component_flags['workflows_disabled'] = False
-
-    # Get the repo topics
+  # Carry on if the repo isn't archived
+  # Default branch attributes
+  if default_branch := get_repo_default_branch(repo):
+    data.update(get_repo_properties(repo, default_branch))
     try:
-      data['github_topics'] = repo.get_topics()
+      branch_protection = default_branch.get_protection()
     except Exception as e:
-      log_warning(f'Unable to get topics for {repo.name}: {e}')
+      if (
+        'Branch not protected' in f'{e}'
+        or 'Branch protection has been disabled' in f'{e}'
+      ):
+        component_flags['branch_protection_disabled'] = True
+      else:
+        log_warning(
+          f'Unable to get branch protection details for ministryofjustice/{repo.name} - please check github app has permissions to see it. {e}'
+        )
+        component_flags['app_disabled'] = True
+      branch_protection = None
 
-    # Check to see if the repo is a frontend one (based on the name)
-    if re.search(
-      r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
-      f'{component_name} {repo.description}',
-    ):
-      log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
-      data['frontend'] = True
+    data.update(get_repo_teams_info(repo, branch_protection))
+  # If the app can't read the default branch, it's probably not allowed to see the repo
+  else:
+    component_flags['app_disabled'] = True
+
+  # Check if workflows are disabled
+  disabled_workflows = get_repo_disabled_workflows(repo)
+  data['disabled_workflows'] = disabled_workflows or []
+  component_flags['workflows_disabled'] = bool(disabled_workflows)
+
+  # Get the repo topics
+  try:
+    data['github_topics'] = repo.get_topics()
+  except Exception as e:
+    log_warning(f'Unable to get topics for {repo.name}: {e}')
+
+  # Check to see if the repo is a frontend one (based on the name)
+  if re.search(
+    r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
+    f'{component_name} {repo.description}',
+  ):
+    log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
+    data['frontend'] = True
 
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
@@ -248,6 +315,7 @@ def process_changed_component(component, repo, services):
   # - Environment configurations:
   #   - Alertmanager configuration
   #   - Endpoint URLs
+  # - Product ID if it's valid
 
   log_debug(f'Getting information for {component_name} from Helm config')
   if helm_data := helm.get_info_from_helm(component, repo, services):
@@ -277,78 +345,32 @@ def process_changed_component(component, repo, services):
     # Placeholder for GH Trivy scan business
     log_debug('No CircleCI config found')
     remove_version(data, 'circleci')
+
   # App insights cloud_RoleName
   #############################
-
-  log_debug('Looking for application insights cloud role name')
-  if repo.language == 'Kotlin' or repo.language == 'Java':
-    log_debug(
-      f'Detected Kotlin/Java - looking in {component_project_dir}/applicationinsights.json'
-    )
-    app_insights_config = gh.get_file_json(
-      repo, f'{component_project_dir}/applicationinsights.json'
-    )
-    if app_insights_config:
-      if app_insights_cloud_role_name := app_insights_config.get('role', {}).get(
-        'name'
-      ):
-        data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
-      else:
-        log_debug('Role name not found in the expected place (role.name)')
-    else:
-      log_warning('No applicationinsights.json file found')
-
-  if repo.language == 'JavaScript' or repo.language == 'TypeScript':
-    log_debug(
-      f'Detected JavaScript/TypeScript - looking in {component_project_dir}/package.json'
-    )
-    if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
-      if app_insights_cloud_role_name := package_json.get('name'):
-        if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
-          data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
-          log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
-        else:
-          log_debug('Role name not valid - not setting it')
-      else:
-        log_debug('Role name not found in the expected place (name)')
-    else:
-      log_warning('No package.json file found')
+  if app_insights_cloud_role_name := get_app_insights_cloud_role_name(
+    repo, gh, component_project_dir
+  ):
+    data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
 
   # Gradle config
   ###############
-
   if repo.language == 'Kotlin' or repo.language == 'Java':
-    spring_boot_version = ''
-    if build_gradle_config_content := gh.get_file_plain(
-      repo, 'build.gradle.kts'
-    ) or gh.get_file_plain(repo, 'build.gradle'):
-      try:
-        regex = r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version [\'"](.*)[\'"]( apply false)?$'
-        if hmpps_gradle_spring_boot_matches := re.findall(
-          regex, build_gradle_config_content, re.MULTILINE
-        ):
-          for version, apply_false in hmpps_gradle_spring_boot_matches:
-            # if apply false is there, it will skip it
-            if not apply_false:
-              spring_boot_version = version
-              break
-
-      except TypeError as e:
-        log_warning(f'Unable to parse build gradle file - {e}')
-        remove_version(data, 'gradle')
-        pass
-
-    if spring_boot_version:
-      log_debug(f'Found hmpps gradle-spring-boot version: {spring_boot_version}')
+    if gradle_config := get_gradle_config(gh, repo):
       update_dict(
         data,
         'versions',
-        {'gradle': {'hmpps_gradle_spring_boot': spring_boot_version}},
+        {
+          'gradle': {
+            'hmpps_gradle_spring_boot': gradle_config.get('spring_boot_version', '')
+          }
+        },
       )
     else:
       log_info(
-        'Unable to find gradle-spring-boot version within build.gradle.kts or build.gradle'
+        f'No valid gradle config found for {component_name} - removing version info'
       )
+      remove_version(data, 'gradle')
 
   # Information from Dockerfile
   #############################
@@ -404,11 +426,11 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
 
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
+  sc_latest_commit = None
   if latest_commit := component.get('latest_commit'):
     if sha := latest_commit.get('sha'):
       sc_latest_commit = sha
-  else:
-    sc_latest_commit = None
+
   log_debug(f'Latest commit in SC for {component_name} is {sc_latest_commit}')
   repo = gh.get_org_repo(component.get('github_repo', {}))
   if repo:
@@ -499,7 +521,6 @@ def batch_process_sc_components(
   bootstrap_projects = get_bootstrap_projects(services)
 
   components = sc.get_all_records(sc.components_get)
-
   log_info(f'Processing batch of {len(components)} components...')
 
   threads = []

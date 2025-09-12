@@ -40,8 +40,8 @@ def get_envs_from_helm(component, repo, services):
   if helm_deploy_dir:
     for helm_file in helm_deploy_dir:
       if helm_file.name.startswith('values-'):
-        env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name)[1]
-        helm_environments.append(env)
+        if envs := re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name):
+          helm_environments.append(envs[1])
   return helm_environments
 
 
@@ -70,8 +70,8 @@ def get_info_from_helm(component, repo, services):
 
     for helm_file in helm_deploy_dir:
       if helm_file.name.startswith('values-'):
-        env = re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name)[1]
-        helm_environments.append(env)
+        if envs := re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name):
+          helm_environments.append(envs[1])
 
         # HEAT-223 Start : Read and collate data for IPallowlist from all environment specific values.yaml files.
         ip_allow_list[helm_file] = utils.fetch_yaml_values_for_key(
@@ -135,8 +135,8 @@ def get_info_from_helm(component, repo, services):
       if 'generic-service' in helm_default_values:
         log_debug(f'generic-service found for {component_name}: {container_image}')
         if 'generic-service' in helm_default_values and (
-          container_image := helm_default_values.get('generic-service')
-          .get('image')
+          container_image := helm_default_values.get('generic-service', {})
+          .get('image', {})
           .get('repository')
         ):
           data['container_image'] = container_image

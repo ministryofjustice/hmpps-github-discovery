@@ -20,10 +20,7 @@ def get_helm_dirs(repo, component):
     else '.'
   )
   log_debug(f'component_project_dir: {component_project_dir}')
-  helm_dir = (
-    component.get('path_to_helm_dir')
-    or f'{component_project_dir}/helm_deploy'
-  )
+  helm_dir = component.get('path_to_helm_dir') or f'{component_project_dir}/helm_deploy'
   log_debug(f'helm_dir for {component_name} is {helm_dir}')
 
   try:
@@ -114,12 +111,8 @@ def get_info_from_helm(component, repo, services):
     ip_allow_list_default = {}
     # Get the default values chart filename (including yml versions)
     helm_default_values = (
-      gh.get_file_yaml(
-        repo, f'{helm_dir}/{component.get('name')}/values.yaml'
-      )
-      or gh.get_file_yaml(
-        repo, f'{helm_dir}/{component.get('name')}/values.yml'
-      )
+      gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yaml')
+      or gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yml')
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yaml')
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')
       or {}
@@ -150,11 +143,14 @@ def get_info_from_helm(component, repo, services):
           log_debug(
             f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
           )
-        # Try to get the productID
+
+        # Try to get the productID from helm values.yaml
         if helm_product_id := helm_default_values.get('generic-service', {}).get(
           'productId', {}
         ):
-          data['product'] = sc.get_id('products', 'p_id', helm_product_id)
+          if sc_product_id := sc.get_id('products', 'p_id', helm_product_id):
+            data['product'] = sc_product_id
+
         # Get modsecurity data defaults, if enabled.
         for mod_security_type in [
           'modsecurity_enabled',
@@ -168,14 +164,6 @@ def get_info_from_helm(component, repo, services):
           )
       if not data.get('container_image'):
         log_info(f'No container image found for {component_name}')
-
-      # If the service catalogue product ID already exists (there is no reason why it shouldn't), use that instead
-      # TODO: use the product_id from the repository variables?
-      sc_product_id = None
-      if component and hasattr(component, 'product') and isinstance(component.product, dict):
-        sc_product_id = component.product.get('documentId')
-      if sc_product_id:
-        data['product'] = sc_product_id
 
       alert_severity_label_default = helm_default_values.get(
         'generic-prometheus-alerts', {}

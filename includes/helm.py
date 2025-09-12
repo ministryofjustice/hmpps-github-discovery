@@ -115,10 +115,10 @@ def get_info_from_helm(component, repo, services):
     # Get the default values chart filename (including yml versions)
     helm_default_values = (
       gh.get_file_yaml(
-        repo, f'{helm_dir}/{component.get('name')}/values.yaml'
+        repo, f"{helm_dir}/{component.get('name')}/values.yaml"
       )
       or gh.get_file_yaml(
-        repo, f'{helm_dir}/{component.get('name')}/values.yml'
+        repo, f"{helm_dir}/{component.get('name')}/values.yml"
       )
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yaml')
       or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')

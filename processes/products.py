@@ -19,7 +19,7 @@ def process_sc_product(product, services):
   sc = services.sc
   slack = services.slack
 
-  log_info(f'Processing product: {product.get('name')}')
+  log_info(f'Processing product: {product.get("name")}')
 
   # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
   data = {}
@@ -56,7 +56,7 @@ def batch_process_sc_products(services, max_threads=10):
 
     t_repo.start()
     log_info(
-      f'Started thread for product {product.get('p_id')} ({product.get('name')})'
+      f"Started thread for product {product.get('p_id')} ({product.get('name')})"
     )
 
   for t in threads:

@@ -57,20 +57,6 @@ Retrieval of data from Alertmanager endpoint:
 - Non-production alerts slack channel (also based on alert severity)
 
 
-## Requirements
-The following secrets are required:
- - **`GITHUB_APP_ID`** / **`GITHUB_APP_INSTALLATION_ID`** / **`GITHUB_APP_PRIVATE_KEY`** - Github keys
- - **`CIRCLECI_API_ENDPOINT`** / **`CIRCLECI_TOKEN`** Circle CI token
- - **`SLACK_BOT_TOKEN`** - this uses the [`hmpps-sre-app`](https://api.slack.com/apps/A07BZTDHRNK/general) Slack app
- - **`SERVICE_CATALOGUE_API_ENDPOINT`** / **`SERVICE_CATALOGUE_API_KEY`** - Service Catalogue API token
- - **`SC_FILTER`** (eg. `&filters[name][$contains]=-`) - Service Catalogue filter - **required for dev**
-
-Optional environment variables
-- SLACK_NOTIFY_CHANNEL: Slack channel for notifications
-- SLACK_ALERT_CHANNEL: Slack channel for alerts
-- LOG_LEVEL: Log level (default: INFO)
-
-
 ## Github Teams Discovery
 
 Github teams discovery (`github_team_discovery.py`) populates the **Github Teams** table of the Service Catalogue with team member data based on all the github teams associated with repositories. It checks against the [hmpps-github-teams](https://github.com/ministryofjustice/hmpps-github-teams/tree/main/terraform) terraform configuration and compiles a list of teams.
@@ -172,6 +158,76 @@ Assuming you've got the environment variables set up right, you can check how ma
 ```
 python -m utilities.check_github
 ```
+
+## Setup Instructions
+
+### 1. Install Python using pyenv
+
+This project is tested with Python 3.13+.  
+We recommend using [pyenv](https://github.com/pyenv/pyenv) to manage your Python versions.
+
+#### Install pyenv (MacOS)
+
+```bash
+brew update
+brew install pyenv
+```
+
+#### Install Python
+
+```bash
+pyenv install 3.13.0
+pyenv local 3.13.0
+```
+
+### 2. Install dependencies
+
+It’s recommended to use a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Set environment variables
+
+The following secrets are required:
+ - **`GITHUB_APP_ID`** / **`GITHUB_APP_INSTALLATION_ID`** / **`GITHUB_APP_PRIVATE_KEY`** - Github keys
+ - **`CIRCLECI_API_ENDPOINT`** / **`CIRCLECI_TOKEN`** Circle CI token
+ - **`SLACK_BOT_TOKEN`** - this uses the [`hmpps-sre-app`](https://api.slack.com/apps/A07BZTDHRNK/general) Slack app
+ - **`SERVICE_CATALOGUE_API_ENDPOINT`** / **`SERVICE_CATALOGUE_API_KEY`** - Service Catalogue API token
+ - **`SC_FILTER`** (eg. `&filters[name][$contains]=-`) - Service Catalogue filter - **required for dev**
+
+Optional environment variables
+- SLACK_NOTIFY_CHANNEL: Slack channel for notifications
+- SLACK_ALERT_CHANNEL: Slack channel for alerts
+- LOG_LEVEL: Log level (default: INFO)
+
+
+Optionally use the `set-env-vars-from-secret.bash` script from [hmpps-tech-docs scripts](https://github.com/ministryofjustice/hmpps-tech-docs/tree/main/scripts).
+
+```bash
+source set-env-vars-from-secret.bash hmpps-portfolio-management-dev hmpps-github-discovery
+```
+
+### 4. Run the scripts
+
+Example:
+
+```bash
+python github_discovery.py
+```
+
+Or for a single component:
+
+```bash
+python github_component_discovery.py <component_name>
+```
+
+---
+
+For more details on environment variables and scheduling, see the sections above.
 
 ## Appendix
 

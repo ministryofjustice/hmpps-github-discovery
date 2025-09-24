@@ -2,14 +2,12 @@ import requests
 from dockerfile_parse import DockerfileParser
 import tempfile
 import re
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
-
-
-# Cheeky little function to update a dictionary or add a new record if there isn't one
-def update_dict(this_dict, key, sub_dict):
-  if key not in this_dict:
-    this_dict[key] = {}
-  this_dict[key].update(sub_dict)
+from hmpps.utilities.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+)
 
 
 # Various endoint tests

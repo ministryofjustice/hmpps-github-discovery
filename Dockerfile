@@ -9,7 +9,7 @@ USER 2000
 # install dependencies to the local user directory
 RUN pip install --user -r requirements.txt
 
-FROM python:3.13-slim
+FROM ghcr.io/astral-sh/uv:python3.13-alpine
 WORKDIR /app
 
 RUN addgroup --gid 2000 --system appgroup && \
@@ -18,18 +18,19 @@ RUN addgroup --gid 2000 --system appgroup && \
 # copy the dependencies from builder stage
 COPY --chown=appuser:appgroup --from=builder /home/appuser/.local /home/appuser/.local
 COPY includes includes
-COPY classes classes
 COPY processes processes
 COPY utilities utilities
-COPY models models
+
+# initialise uv
+
 
 # Copy the Python goodness
 COPY ./*.py .
-COPY ./requirements.txt .
+
 
 # update PATH environment variable
 ENV PATH=/home/appuser/.local:$PATH
 
 USER 2000
 
-CMD [ "python", "-u", "github_discovery.py" ]
+CMD [ "uv" "run" "python", "-u", "github_discovery.py" ]

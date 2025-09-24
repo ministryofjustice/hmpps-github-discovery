@@ -35,17 +35,23 @@ import os
 
 # Classes for the various parts of the script
 # from classes.health import HealthServer
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.slack import Slack
-from classes.alertmanager import AlertmanagerData
-from classes.circleci import CircleCI
+from hmpps import ServiceCatalogue
+from hmpps import GithubSession
+from hmpps import Slack
+from hmpps import AlertmanagerData
+from hmpps import CircleCI
 
 # Components
 import processes.products as products
 import processes.components as components
 import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
+from hmpps.services.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_critical,
+  job,
+)
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10

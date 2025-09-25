@@ -1,11 +1,12 @@
-# Classes for the various parts of the script
-from classes.service_catalogue import ServiceCatalogue
 import os
 import json
-from utilities.job_log_handling import log_debug, log_info
+
+# hmpps
+from hmpps import ServiceCatalogue
+from hmpps.services.job_log_handling import log_debug, log_info
+
 
 def main():
-
   # service catalogue parameters
   sc_dev_params = {
     'url': os.getenv('SERVICE_CATALOGUE_DEV_API_ENDPOINT'),
@@ -27,26 +28,20 @@ def main():
   dev_environments = sc_dev.get_all_records(sc_dev.environments)
 
   for component in prod_components:
-    log_info(f'Getting environment data for {component.get("attributes").get("name")}')
-    prod_attributes = component['attributes']
-    if environments := prod_attributes.get('environments'):
+    log_info(f'Getting environment data for {component.get("name")}')
+    if environments := component.get('environments'):
       for env in environments:
         if build_image_tag := env.get('build_image_tag'):
           log_info(
-            f'Copying build image tag {build_image_tag} from prod to dev for {component.get("attributes").get("name")}'
+            f'Copying build image tag {build_image_tag} from prod to dev for {component.get("name")}'
           )
           dev_component = next(
-            (
-              c
-              for c in dev_components
-              if c.get('name') == component.get('name')
-            ),
+            (c for c in dev_components if c.get('name') == component.get('name')),
             None,
           )
           if dev_component:
-            dev_attributes = dev_component.get('attributes')
             # Do the components first
-            if dev_environments := dev_attributes.get('environments'):
+            if dev_environments := dev_component.get('environments'):
               for dev_env in dev_environments:
                 if dev_env.get('name') == env.get('name'):
                   dev_env['build_image_tag'] = build_image_tag
@@ -61,14 +56,14 @@ def main():
                 {'environments': dev_environments},
               )
             # Then do the environment tables
-            if dev_env_links := dev_attributes.get('envs').get('data'):
+            if dev_env_links := dev_component.get('envs'):
               for dev_env in dev_env_links:
                 if dev_env_data := sc_dev.get_record(
                   sc_dev.environments, 'documentId', dev_env['documentId']
                 ):
                   dev_env_data['build_image_tag'] = build_image_tag
                   log_debug(
-                    f'envs environment data for {dev_env_data.get("attributes").get("name")} is now: {json.dumps(dev_env_data, indent=2)}'
+                    f'envs environment data for {dev_env_data.get("name")} is now: {json.dumps(dev_env_data, indent=2)}'
                   )
                   log_info('updating dev env')
                   sc_dev.update(

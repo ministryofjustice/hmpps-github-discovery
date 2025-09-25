@@ -22,7 +22,8 @@ COPY processes processes
 COPY utilities utilities
 
 # initialise uv
-
+COPY pyproject.toml .
+RUN uv pip install --user
 
 # Copy the Python goodness
 COPY ./*.py .
@@ -33,4 +34,4 @@ ENV PATH=/home/appuser/.local:$PATH
 
 USER 2000
 
-CMD [ "uv" "run" "python", "-u", "github_discovery.py" ]
+CMD [ "uv", "run", "python", "-u", "github_discovery.py" ]

@@ -3,12 +3,13 @@
 
 import os
 
+# hmpps
+from hmpps import GithubSession, ServiceCatalogue, Slack
+from hmpps.services.job_log_handling import log_info, job
+
+# local
 from processes import github_teams
-from classes.github import GithubSession
-from classes.service_catalogue import ServiceCatalogue
-from classes.slack import Slack
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
+
 
 class Services:
   def __init__(self, sc_params, gh_params, slack_params):
@@ -45,9 +46,9 @@ def main():
 
   # Github parameters
   gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
+    'app_id': int(os.getenv('GITHUB_APP_ID', '0')),
+    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID', '0')),
+    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY', ''),
   }
 
   slack_params = {
@@ -59,6 +60,7 @@ def main():
   job.name = 'hmpps-github-teams-discovery'
   services = Services(sc_params, gh_params, slack_params)
   slack = services.slack
+  sc = services.sc
 
   log_info('Processing teams...')
   processed_teams = github_teams.process_github_teams(services)
@@ -69,11 +71,12 @@ def main():
   log_info(summary)
 
   if job.error_messages:
-    sc_scheduled_job.update(services, 'Errors')
-    log_info("Github teams discovery job completed  with errors.")
+    sc.update_scheduled_job('Errors')
+    log_info('Github teams discovery job completed  with errors.')
   else:
-    sc_scheduled_job.update(services, 'Succeeded')
-    log_info("Github teams discovery job completed successfully.")
+    sc.update_scheduled_job('Succeeded')
+    log_info('Github teams discovery job completed successfully.')
+
 
 if __name__ == '__main__':
   main()

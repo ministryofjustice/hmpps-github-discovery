@@ -1,10 +1,20 @@
 # Environment specific functions
 # This will prepare data to be updated in the environment table
 # as well as returning data to be added to the component table (to be deprecated)
-from includes.utils import update_dict, get_existing_env_config
-from includes.values import env_mapping
+# hmpps
+from hmpps import update_dict
+
+from hmpps.services.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+  log_warning,
+)
+
+# locals
+from includes.utils import get_existing_env_config
 from includes import helm
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, log_warning
+from includes.values import env_mapping
 
 
 ################################################################################################
@@ -53,46 +63,45 @@ def get_environments(component, repo, bootstrap_projects, services):
 
   # Then check Github - these environments take precedence since they're newer
   try:
-    repo_envs = repo.get_environments()
+    if repo_envs := repo.get_environments():
+      if repo_envs.totalCount < 10:
+        # workaround for a repo that has hundreds of environments
+        for repo_env in repo_envs:
+          log_debug(
+            f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
+          )
+          env_vars = None
+          try:
+            env_vars = repo_env.get_variables()
+          except Exception as e:
+            log_debug(f'Unable to get environment variables for {repo_env.name}: {e}')
+
+          # there are some non-standard environments in some of the repos
+          # so only process the ones that map to the env_mapping list
+          if env_vars:
+            if env_type := env_mapping.get(repo_env.name):
+              # default settings
+              namespace = None
+              ns_id = None
+              for var in (
+                env_vars
+              ):  # We should populate these for all namespaces where possible
+                if var.name == 'KUBE_NAMESPACE':
+                  log_info(f'Found namespace {var.value} for {component_name}')
+                  namespace = var.value
+                  ns_id = sc.get_id('namespaces', 'name', var.value)
+
+              update_dict(
+                envs,
+                repo_env.name,
+                {
+                  'type': env_type,
+                  'namespace': namespace,
+                  'ns': ns_id,
+                },
+              )
   except Exception as e:
     log_error(f'Error getting environments for {component_name}: {e}')
-
-  if repo_envs and repo_envs.totalCount < 10:
-    # workaround for a repo that has hundreds of environments
-    for repo_env in repo_envs:
-      log_debug(
-        f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
-      )
-      env_vars = None
-      try:
-        env_vars = repo_env.get_variables()
-      except Exception as e:
-        log_debug(f'Unable to get environment variables for {repo_env.name}: {e}')
-
-      # there are some non-standard environments in some of the repos
-      # so only process the ones that map to the env_mapping list
-      if env_vars:
-        if env_type := env_mapping.get(repo_env.name):
-          # default settings
-          namespace = None
-          ns_id = None
-          for (
-            var
-          ) in env_vars:  # We should populate these for all namespaces where possible
-            if var.name == 'KUBE_NAMESPACE':
-              log_info(f'Found namespace {var.value} for {component_name}')
-              namespace = var.value
-              ns_id = sc.get_id('namespaces', 'name', var.value)
-
-          update_dict(
-            envs,
-            repo_env.name,
-            {
-              'type': env_type,
-              'namespace': namespace,
-              'ns': ns_id,
-            },
-          )
 
   # there's some data that is not populated by Github Discovery, for example
   # the build_image_tag, so loop through the environments and get them from the existing records
@@ -217,12 +226,11 @@ def process_environments(
   for helm_env in helm_envs:
     if helm_env in config_envs:
       current_envs.append(helm_env)
-  extra_envs = set(
-      env.get('name') for env in sc_envs if isinstance(env, dict)
-  ) - set(current_envs)
+  extra_envs = set(env.get('name') for env in sc_envs if isinstance(env, dict)) - set(
+    current_envs
+  )
   extra_envs = [
-    env for env in sc_envs
-    if isinstance(env, dict) and env.get('name') in extra_envs
+    env for env in sc_envs if isinstance(env, dict) and env.get('name') in extra_envs
   ]
   for env in extra_envs:
     env_id = env.get('documentId')

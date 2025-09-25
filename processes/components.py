@@ -7,24 +7,28 @@ import importlib
 from time import sleep
 from datetime import datetime, timezone
 
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.circleci import CircleCI
-from classes.alertmanager import AlertmanagerData
-from classes.slack import Slack
+# hmpps
+from hmpps import (
+  ServiceCatalogue,
+  GithubSession,
+  CircleCI,
+  AlertmanagerData,
+  Slack,
+)
+from hmpps import update_dict
 
-# Standalone functions
-from includes import helm, environments
-from includes.utils import update_dict, get_dockerfile_data, remove_version
-
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import (
+from hmpps.services.job_log_handling import (
   log_debug,
   log_error,
   log_info,
-  log_critical,
   log_warning,
 )
+
+
+# local
+from includes import helm, environments
+from includes.utils import get_dockerfile_data, remove_version
+
 
 max_threads = 10
 

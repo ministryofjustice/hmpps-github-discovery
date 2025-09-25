@@ -31,16 +31,13 @@ Optional environment variables
 import os
 import argparse
 
-# Classes for the various parts of the script
-# from classes.health import HealthServer
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.alertmanager import AlertmanagerData
-from classes.circleci import CircleCI
+# hmpps
+from hmpps import ServiceCatalogue, GithubSession, AlertmanagerData, CircleCI
+from hmpps.services.job_log_handling import log_debug, log_error, log_info
 
-# Components
+
+# local
 import processes.components as components
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -72,9 +69,9 @@ def main():
 
   # Github parameters
   gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
+    'app_id': int(os.getenv('GITHUB_APP_ID', '0')),
+    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID', '0')),
+    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY', ''),
   }
 
   cc_params = {

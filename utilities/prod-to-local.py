@@ -1,8 +1,10 @@
-from classes.service_catalogue import ServiceCatalogue
 import os
 import json
 import logging
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
+
+# hmpps
+from hmpps import ServiceCatalogue
+from hmpps.services.job_log_handling import log_debug, log_info
 
 # service catalogue parameters
 sc_in_params = {
@@ -78,7 +80,7 @@ for table in tables:
       subtable_record_id = None
       if subtable_data := record.get(subtable_link):
         log_debug(f'Found subtable data in {subtable_link}: {subtable_data}')
-        subtable_record_name := subtable_attributes.get('name'):
+        subtable_record_name = subtable_data.get('name'):
         subtable_record_id = sc_out.get_id(
           f'{subtable_name}', 'name', subtable_record_name
         )

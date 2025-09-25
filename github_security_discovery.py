@@ -24,16 +24,16 @@ Optional environment variables
 
 import os
 
-# Classes for the various parts of the script
-# from classes.health import HealthServer
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.slack import Slack
+# hmpps
+from hmpps import ServiceCatalogue, GithubSession, Slack
+from hmpps.services.job_log_handling import (
+  log_error,
+  log_info,
+  job,
+)
 
-# Components - to loop through each component and initiate batch jobs
-import processes.components as components
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
+# local
+from processes import components
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -88,9 +88,9 @@ def main():
 
   # Github parameters
   gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
+    'app_id': int(os.getenv('GITHUB_APP_ID', '0')),
+    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID', '0')),
+    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY', ''),
   }
 
   slack_params = {
@@ -112,7 +112,7 @@ def main():
   if not gh.org:
     slack.alert('*Github Discovery (security)*: Unable to connect to Github')
     log_error('*Github Discovery (security)*: Unable to connect to Github')
-    sc_scheduled_job.update(services, 'Failed')
+    sc.update_scheduled_job('Failed')
     raise SystemExit()
 
   # Since we're running this on a schedule, this is of no further use to us
@@ -132,10 +132,10 @@ def main():
   create_summary(services, processed_components)
 
   if job.error_messages:
-    sc_scheduled_job.update(services, 'Errors')
+    sc.update_scheduled_job('Errors')
     log_info('Github security discovery job completed with errors.')
   else:
-    sc_scheduled_job.update(services, 'Succeeded')
+    sc.update_scheduled_job('Succeeded')
     log_info('Github security discovery job completed successfully.')
 
 

@@ -117,8 +117,6 @@ These workflows and their references (and a representative location for each one
 - **Workflows** (`processes/workflows.py`) contains the main function for processing workflow statuses for components (`process_sc_component_workflows`).
   This calls functions that extract non-local workflows from the component's Github repository (`get_non_local_actions`)
 
-- **Scheduled Jobs** (`processes/scheduled_jobs.py`) contains functions to update the scheduled_jobs table in Service Catalogue with the status of the various jobs that are run
-
 
 ### Includes
 

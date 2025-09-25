@@ -325,10 +325,11 @@ def process_changed_component(component, repo, services):
   if helm_data := helm.get_info_from_helm(component, repo, services):
     log_debug(f'Found Helm data for record id {component_name} - {helm_data}')
     # remove previous helm data from existing versions data
-    if existing_versions.get('helm_dependencies'):
-      existing_versions.pop('helm_dependencies')
-    # then update the existing versions into helm data
-    update_dict(helm_data, 'versions', existing_versions)
+    if existing_versions:
+      if existing_versions.get('helm_dependencies'):
+        existing_versions.pop('helm_dependencies')
+      # then update the existing versions into helm data
+      update_dict(helm_data, 'versions', existing_versions)
     # ...and update data
     data.update(helm_data)
 

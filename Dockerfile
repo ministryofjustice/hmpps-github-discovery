@@ -11,7 +11,7 @@ COPY utilities utilities
 
 # initialise uv
 COPY pyproject.toml .
-RUN uv pip install --user
+RUN uv sync
 
 # Copy the Python goodness
 COPY ./*.py .

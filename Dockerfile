@@ -1,8 +1,8 @@
 FROM ghcr.io/astral-sh/uv:python3.13-alpine
 WORKDIR /app
 
-RUN addgroup --gid 2000 --system appgroup && \
-    adduser --uid 2000 --system appuser --gid 2000 --home /home/appuser
+RUN addgroup -g 2000 appgroup && \
+    adduser -u 2000 -G appgroup -h /home/appuser -D appuser
 
 # dependencies
 COPY includes includes

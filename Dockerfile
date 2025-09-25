@@ -1,14 +1,3 @@
-FROM python:3.13-slim AS builder
-COPY requirements.txt .
-
-RUN addgroup --gid 2000 --system appgroup && \
-    adduser --uid 2000 --system appuser --gid 2000 --home /home/appuser
-
-USER 2000
-
-# install dependencies to the local user directory
-RUN pip install --user -r requirements.txt
-
 FROM ghcr.io/astral-sh/uv:python3.13-alpine
 WORKDIR /app
 

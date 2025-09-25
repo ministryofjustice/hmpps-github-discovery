@@ -4,8 +4,7 @@ WORKDIR /app
 RUN addgroup --gid 2000 --system appgroup && \
     adduser --uid 2000 --system appuser --gid 2000 --home /home/appuser
 
-# copy the dependencies from builder stage
-COPY --chown=appuser:appgroup --from=builder /home/appuser/.local /home/appuser/.local
+# dependencies
 COPY includes includes
 COPY processes processes
 COPY utilities utilities

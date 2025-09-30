@@ -235,6 +235,8 @@ def process_independent_component(component, repo):
     component_flags['archived'] = True
     data['archived'] = True
     return data, component_flags
+  else:
+    data['archived'] = False
 
   # Carry on if the repo isn't archived
   # Default branch attributes

@@ -96,7 +96,7 @@ def main():
 
   component = services.sc.get_record(services.sc.components_get, 'name', component_name)
   log_debug(f'Component: {component}')
-  if component:
+  if component and not component.get('archived'):
     log_info(f'Processing component {component_name}...')
     processed_components = components.process_sc_component(
       component,
@@ -105,6 +105,8 @@ def main():
       force_update=True,
     )
     log_info(f'Processed component: {processed_components}')
+  elif component.get('archived'):
+    log_info(f'Component {component_name} is archived, skipping')
   else:
     log_error(f'Component {component_name} not found')
 

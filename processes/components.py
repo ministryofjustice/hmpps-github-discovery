@@ -233,7 +233,10 @@ def process_independent_component(component, repo):
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True
+    data['archived'] = True
     return data, component_flags
+  else:
+    data['archived'] = False
 
   # Carry on if the repo isn't archived
   # Default branch attributes
@@ -527,6 +530,9 @@ def batch_process_sc_components(
   component_count = 0
 
   for component in components:
+    if component.get('archived'):
+      log_info(f'Skipping archived component {component.get("name")}')
+      continue
     component_count += 1
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()

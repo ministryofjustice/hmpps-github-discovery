@@ -528,6 +528,9 @@ def batch_process_sc_components(
   component_count = 0
 
   for component in components:
+    if component.get('archived'):
+      log_info(f'Skipping archived component {component.get("name")}')
+      continue
     component_count += 1
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()
@@ -578,15 +581,12 @@ def batch_process_sc_components(
         sys.exit(1)
 
     # Create a thread for each component
-    if not component.get('archived'):
-      t_repo = threading.Thread(
-        target=process_component_and_store_result,
-        args=(component, services, module, function, bootstrap_projects, force_update),
-        daemon=True,
-      )
-      threads.append(t_repo)
-    else:
-      log_info(f'Skipping archived component {component.get("name")}')
+    t_repo = threading.Thread(
+      target=process_component_and_store_result,
+      args=(component, services, module, function, bootstrap_projects, force_update),
+      daemon=True,
+    )
+    threads.append(t_repo)
 
     # Apply limit on total active threads, avoid github secondary API rate limit
     while threading.active_count() > (max_threads - 1):

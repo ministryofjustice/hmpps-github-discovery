@@ -233,6 +233,7 @@ def process_independent_component(component, repo):
   if repo.archived:
     log_debug('Repo is archived')
     component_flags['archived'] = True
+    data['archived'] = True
     return data, component_flags
 
   # Carry on if the repo isn't archived
@@ -577,12 +578,15 @@ def batch_process_sc_components(
         sys.exit(1)
 
     # Create a thread for each component
-    t_repo = threading.Thread(
-      target=process_component_and_store_result,
-      args=(component, services, module, function, bootstrap_projects, force_update),
-      daemon=True,
-    )
-    threads.append(t_repo)
+    if not component.get('archived'):
+      t_repo = threading.Thread(
+        target=process_component_and_store_result,
+        args=(component, services, module, function, bootstrap_projects, force_update),
+        daemon=True,
+      )
+      threads.append(t_repo)
+    else:
+      log_info(f'Skipping archived component {component.get("name")}')
 
     # Apply limit on total active threads, avoid github secondary API rate limit
     while threading.active_count() > (max_threads - 1):

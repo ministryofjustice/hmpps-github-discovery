@@ -1,14 +1,22 @@
 import re
-import includes.utils as utils
-from includes.utils import update_dict, remove_version
-from includes.values import env_mapping
-from utilities.job_log_handling import (
+
+# hmpps
+from hmpps import update_dict, fetch_yaml_values_for_key
+from hmpps.services.job_log_handling import (
   log_debug,
-  log_error,
   log_info,
-  log_critical,
   log_warning,
 )
+
+# Locals
+from includes.utils import (
+  remove_version,
+  test_endpoint,
+  test_swagger_docs,
+  test_subject_access_request_endpoint,
+  is_ipallowList_enabled,
+)
+from includes.values import env_mapping
 
 
 def get_helm_dirs(repo, component):
@@ -74,7 +82,7 @@ def get_info_from_helm(component, repo, services):
           helm_environments.append(envs[1])
 
         # HEAT-223 Start : Read and collate data for IPallowlist from all environment specific values.yaml files.
-        ip_allow_list[helm_file] = utils.fetch_yaml_values_for_key(
+        ip_allow_list[helm_file] = fetch_yaml_values_for_key(
           gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}'),
           allow_list_key,
         )
@@ -122,7 +130,7 @@ def get_info_from_helm(component, repo, services):
     # Get the default values from the helm chart - and only proceed if there is one
 
     if helm_default_values:
-      ip_allow_list_default = utils.fetch_yaml_values_for_key(
+      ip_allow_list_default = fetch_yaml_values_for_key(
         helm_default_values, allow_list_key
       )
 
@@ -328,16 +336,16 @@ def get_info_from_helm(component, repo, services):
           if 'sign-in' in env_url:
             health_path = '/auth/health'
             info_path = '/auth/info'
-          if utils.test_endpoint(env_url, health_path):
+          if test_endpoint(env_url, health_path):
             update_dict(helm_envs, env, {'health_path': health_path})
-          if utils.test_endpoint(env_url, info_path):
+          if test_endpoint(env_url, info_path):
             update_dict(helm_envs, env, {'info_path': info_path})
           # Test for API docs - and if found also test for SAR endpoint.
-          if utils.test_swagger_docs(env_url):
+          if test_swagger_docs(env_url):
             update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
             data['api'] = True
             data['frontend'] = False
-            if utils.test_subject_access_request_endpoint(env_url):
+            if test_subject_access_request_endpoint(env_url):
               update_dict(
                 helm_envs,
                 env,
@@ -370,7 +378,7 @@ def get_info_from_helm(component, repo, services):
           env,
           {
             'ip_allow_list': allow_list_values,
-            'ip_allow_list_enabled': utils.is_ipallowList_enabled(allow_list_values),
+            'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values),
           },
         )
 

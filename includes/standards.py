@@ -7,11 +7,9 @@
 # Repository model based on the one from
 # https://github.com/ministryofjustice/github-community/tree/main/app/projects/repository_standards/models
 
-from models.repository_info import (
-  RepositoryInfoFactory,
-)
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
-
+# hmpps
+from hmpps import RepositoryInfoFactory
+from hmpps.services.job_log_handling import log_debug, log_info
 
 # These are mapped to the RepositoryInfo model in models/repository_info.py
 
@@ -21,12 +19,16 @@ from utilities.job_log_handling import log_debug, log_error, log_info, log_criti
 # against a number of criteria
 # These criteria are stored in includes/values.py
 ################################################################################################
+
+# local
 from includes.values import standards
 
 
 def get_standards_compliance(repo):
-  repo_details = RepositoryInfoFactory.from_github_repo(repo)
-  log_info(repo_details)
+  if repo_details := RepositoryInfoFactory.from_github_repo(repo):
+    log_info(f'{repo_details}')
+  else:
+    return None
 
   data = {}
   for standard in standards:

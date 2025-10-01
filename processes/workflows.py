@@ -1,21 +1,17 @@
-from time import sleep
-from datetime import datetime, timezone
-import threading
 import yaml
 import re
 import json
 
-# Standalone functions
-from includes import standards
-from includes.utils import update_dict, find_matching_keys
-from includes.values import actions_allowlist
-from utilities.job_log_handling import (
+# hmpps
+from hmpps.services.job_log_handling import (
   log_debug,
   log_error,
-  log_info,
-  log_critical,
   log_warning,
 )
+from hmpps import find_matching_keys
+
+# local
+from includes.values import actions_allowlist
 
 
 # get non-standard actions (based on whitelist in values.py)
@@ -92,7 +88,7 @@ def process_sc_component_workflows(component, services, **kwargs):
   if non_local_actions:
     # get the current versions list
 
-    versions = component.get('versions',{})
+    versions = component.get('versions', {})
 
     log_debug(
       f'non_local_actions for {component_name}: {json.dumps(non_local_actions, indent=2)}'

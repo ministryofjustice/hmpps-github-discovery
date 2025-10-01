@@ -1,5 +1,7 @@
 import os
-from classes.github import GithubSession
+
+# hmpps
+from hmpps import GithubSession
 
 gh_params = {
   'app_id': int(os.getenv('GITHUB_APP_ID')),

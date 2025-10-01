@@ -1,17 +1,9 @@
-from time import sleep
-from datetime import datetime, timezone
-import threading
+# hmpps
+from hmpps import update_dict
+from hmpps.services.job_log_handling import log_debug, log_error
 
-# Standalone functions
+# local
 from includes import standards
-from includes.utils import update_dict
-from utilities.job_log_handling import (
-  log_debug,
-  log_error,
-  log_info,
-  log_critical,
-  log_warning,
-)
 
 
 # Repository variables - processed daily to ensure that the Service Catalogue is up-to-date

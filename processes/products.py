@@ -1,9 +1,11 @@
 import threading
 import os
 from time import sleep
-from classes.slack import Slack
-from classes.service_catalogue import ServiceCatalogue
-from utilities.job_log_handling import log_debug, log_info, log_error, log_critical
+
+# hmpps
+from hmpps import Slack
+from hmpps import ServiceCatalogue
+from hmpps.services.job_log_handling import log_debug, log_info
 
 max_threads = 10
 
@@ -56,7 +58,7 @@ def batch_process_sc_products(services, max_threads=10):
 
     t_repo.start()
     log_info(
-      f"Started thread for product {product.get('p_id')} ({product.get('name')})"
+      f'Started thread for product {product.get("p_id")} ({product.get("name")})'
     )
 
   for t in threads:
@@ -65,7 +67,6 @@ def batch_process_sc_products(services, max_threads=10):
 
 
 def main():
-
   # service catalogue parameters from environment variables
   sc_params = {
     'sc_api_endpoint': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),

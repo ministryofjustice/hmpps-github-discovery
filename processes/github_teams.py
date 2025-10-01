@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 """Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue"""
 
-import os
-from classes.github import GithubSession
-from classes.service_catalogue import ServiceCatalogue
+# hmpps
+from hmpps import GithubSession, ServiceCatalogue
+from hmpps.services.job_log_handling import log_debug, log_error, log_info
 
+# local
 import includes.teams as teams
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
 
 class Services:

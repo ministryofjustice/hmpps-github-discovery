@@ -7,24 +7,28 @@ import importlib
 from time import sleep
 from datetime import datetime, timezone
 
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.circleci import CircleCI
-from classes.alertmanager import AlertmanagerData
-from classes.slack import Slack
+# hmpps
+from hmpps import (
+  ServiceCatalogue,
+  GithubSession,
+  CircleCI,
+  AlertmanagerData,
+  Slack,
+)
+from hmpps import update_dict
 
-# Standalone functions
-from includes import helm, environments
-from includes.utils import update_dict, get_dockerfile_data, remove_version
-
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import (
+from hmpps.services.job_log_handling import (
   log_debug,
   log_error,
   log_info,
-  log_critical,
   log_warning,
 )
+
+
+# local
+from includes import helm, environments
+from includes.utils import get_dockerfile_data, remove_version
+
 
 max_threads = 10
 
@@ -324,10 +328,11 @@ def process_changed_component(component, repo, services):
   if helm_data := helm.get_info_from_helm(component, repo, services):
     log_debug(f'Found Helm data for record id {component_name} - {helm_data}')
     # remove previous helm data from existing versions data
-    if existing_versions.get('helm_dependencies'):
-      existing_versions.pop('helm_dependencies')
-    # then update the existing versions into helm data
-    update_dict(helm_data, 'versions', existing_versions)
+    if existing_versions:
+      if existing_versions.get('helm_dependencies'):
+        existing_versions.pop('helm_dependencies')
+      # then update the existing versions into helm data
+      update_dict(helm_data, 'versions', existing_versions)
     # ...and update data
     data.update(helm_data)
 
@@ -534,6 +539,9 @@ def batch_process_sc_components(
       log_info(f'Skipping archived component {component.get("name")}')
       continue
     component_count += 1
+    if component.get('archived'):
+      log_info(f'Skipping archived component {component.get("name")}')
+      continue
     # Wait until the API limit is reset if we are close to the limit
     cur_rate_limit = services.gh.get_rate_limit()
     log_info(

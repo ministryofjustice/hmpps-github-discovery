@@ -1,0 +1,14 @@
+[project]
+name = "hmpps-github-discovery"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dockerfile-parse==2.0.1",
+    "hmpps-python-lib",
+    "pyyaml",
+]
+
+[tool.uv.sources]
+hmpps-python-lib = { url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.0/hmpps_python_lib-0.1.0-py3-none-any.whl" }

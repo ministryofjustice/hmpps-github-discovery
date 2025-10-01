@@ -2,14 +2,13 @@ import requests
 from dockerfile_parse import DockerfileParser
 import tempfile
 import re
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
 
-
-# Cheeky little function to update a dictionary or add a new record if there isn't one
-def update_dict(this_dict, key, sub_dict):
-  if key not in this_dict:
-    this_dict[key] = {}
-  this_dict[key].update(sub_dict)
+# hmpps
+from hmpps.services.job_log_handling import (
+  log_debug,
+  log_error,
+  log_info,
+)
 
 
 # Various endoint tests
@@ -68,33 +67,6 @@ def test_subject_access_request_endpoint(url):
     return False
 
 
-# This method is to find the values defined for allowlist in values*.yaml files under helm_deploy folder of each project.
-# This methods read all the values files under helm_deploy folder and create a dictionary object of allowlist for each environment
-# including the default values.
-
-
-def fetch_yaml_values_for_key(yaml_data, key):
-  values = {}
-  if isinstance(yaml_data, dict):
-    if key in yaml_data:
-      if isinstance(yaml_data[key], dict):
-        values.update(yaml_data[key])
-      else:
-        values[key] = yaml_data[key]
-    for k, v in yaml_data.items():
-      if isinstance(v, (dict, list)):
-        child_values = fetch_yaml_values_for_key(v, key)
-        if child_values:
-          values.update({k: child_values})
-  elif isinstance(yaml_data, list):
-    for item in yaml_data:
-      child_values = fetch_yaml_values_for_key(item, key)
-      if child_values:
-        values.update(child_values)
-
-  return values
-
-
 # This method read the value stored in dictionary passed to it checks if the ip allow list is present or not and returns boolean
 def is_ipallowList_enabled(yaml_data):
   ip_allow_list_enabled = False
@@ -144,25 +116,6 @@ def get_existing_env_config(component, env_name, config, services):
       log_debug(f'No existing value found for {config}')
 
   return config_value
-
-
-################################################################################################
-
-
-def find_matching_keys(data, search_key):
-  found_values = []
-
-  if isinstance(data, dict):
-    for key, value in data.items():
-      if key == search_key:
-        found_values.append(value)
-      else:
-        found_values.extend(find_matching_keys(value, search_key))
-  elif isinstance(data, list):
-    for item in data:
-      found_values.extend(find_matching_keys(item, search_key))
-
-  return found_values
 
 
 def remove_version(data, version):

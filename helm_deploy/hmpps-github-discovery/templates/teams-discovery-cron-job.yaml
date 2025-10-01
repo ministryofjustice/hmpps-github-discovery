@@ -20,7 +20,7 @@ spec:
           containers:
             - name: github-teams-discovery
               image: "{{ .Values.image.repository }}:{{ .Values.version }}"
-              command: ["python", "-u", "/app/github_teams_discovery.py"]
+              command: ["uv", "run", "python", "-u", "/app/github_teams_discovery.py"]
               securityContext:
                 capabilities:
                   drop:

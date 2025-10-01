@@ -1,7 +1,10 @@
 # Classes for the various parts of the script
-from classes.service_catalogue import ServiceCatalogue
+from hmpps import ServiceCatalogue
 import os
-from utilities.job_log_handling import log_debug, log_info, log_error, log_critical
+from hmpps.services.job_log_handling import (
+  log_info,
+)
+
 
 def compare_attributes(prod_attributes, dev_attributes):
   differences = []
@@ -33,7 +36,6 @@ def compare_attributes(prod_attributes, dev_attributes):
 
 
 def main():
-
   # service catalogue parameters
   sc_dev_params = {
     'url': os.getenv('SERVICE_CATALOGUE_DEV_API_ENDPOINT'),
@@ -54,14 +56,10 @@ def main():
   dev_data = sc_dev.get_all_records(sc_dev.components_get)
 
   for component in prod_data:
-    dev_attributes = [
-      x['attributes']
-      for x in dev_data
-      if x.get('name') == component.get('name')
-    ][0]
-    log_info(f'{prod_attributes["name"]}')
+    dev_attributes = [x for x in dev_data if x.get('name') == component.get('name')][0]
+    log_info(f'{prod_data.get("name")}')
     log_info('=======================')
-    differences = compare_attributes(prod_attributes, dev_attributes)
+    differences = compare_attributes(prod_data, dev_data)
     for diff in differences:
       if diff['key'] == 'environments':
         prod_env_names = {env['name'] for env in diff['prod_value']}

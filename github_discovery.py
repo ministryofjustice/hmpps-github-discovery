@@ -32,20 +32,20 @@ Optional environment variables
 """
 
 import os
+import sys
 
 # Classes for the various parts of the script
 # from classes.health import HealthServer
-from classes.service_catalogue import ServiceCatalogue
-from classes.github import GithubSession
-from classes.slack import Slack
-from classes.alertmanager import AlertmanagerData
-from classes.circleci import CircleCI
+from hmpps import ServiceCatalogue
+from hmpps import GithubSession
+from hmpps import Slack
+from hmpps import AlertmanagerData
+from hmpps import CircleCI
 
 # Components
 import processes.products as products
 import processes.components as components
-import processes.scheduled_jobs as sc_scheduled_job
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical, job
+from hmpps.services.job_log_handling import log_error, log_info, job
 
 # Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
 max_threads = 10
@@ -131,7 +131,7 @@ def create_summary(
 def main():
   #### Use the -f parameter to force an update regardless of environment / main branch changes
   force_update = False
-  if '-f' in os.sys.argv or '--force' in os.sys.argv:
+  if '-f' in sys.argv or '--force' in sys.argv:
     job.name = 'hmpps-github-discovery-full'
     force_update = True
   else:
@@ -141,20 +141,20 @@ def main():
 
   # service catalogue parameters
   sc_params = {
-    'url': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'key': os.getenv('SERVICE_CATALOGUE_API_KEY'),
+    'url': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT', ''),
+    'key': os.getenv('SERVICE_CATALOGUE_API_KEY', ''),
     'filter': os.getenv('SC_FILTER', ''),
   }
 
   # Github parameters
   gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID')),
-    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY'),
+    'app_id': int(os.getenv('GITHUB_APP_ID', '0')),
+    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID', '0')),
+    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY', ''),
   }
 
   slack_params = {
-    'token': os.getenv('SLACK_BOT_TOKEN'),
+    'token': os.getenv('SLACK_BOT_TOKEN', ''),
     'notify_channel': os.getenv('SLACK_NOTIFY_CHANNEL', ''),
     'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
   }
@@ -193,13 +193,13 @@ def main():
   if not cc.test_connection():
     slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')
     log_error('*Github Discovery failed*: Unable to connect to CircleCI')
-    sc_scheduled_job.update(services, 'Failed')
+    sc.update_scheduled_job(services, job, 'Failed')
     raise SystemExit()
 
   if not gh.org:
     slack.alert('*Github Discovery*: Unable to connect to Github')
     log_error('*Github Discovery*: Unable to connect to Github')
-    sc_scheduled_job.update(services, 'Failed')
+    sc.update_scheduled_job(services, job, 'Failed')
     raise SystemExit()
 
   # Since we're running this on a schedule, this is of no further use to us
@@ -225,10 +225,10 @@ def main():
   create_summary(services, processed_components, processed_products, force_update)
 
   if job.error_messages:
-    sc_scheduled_job.update(services, 'Errors')
+    sc.update_scheduled_job('Errors')
     log_info('Github discovery job completed  with errors.')
   else:
-    sc_scheduled_job.update(services, 'Succeeded')
+    sc.update_scheduled_job('Succeeded')
     log_info('Github discovery job completed successfully.')
 
 

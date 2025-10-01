@@ -1,5 +1,0 @@
-requests==2.32.4
-PyGithub==2.6.1
-pyyaml==6.0.1
-dockerfile-parse==2.0.1
-slack_sdk==3.31.0

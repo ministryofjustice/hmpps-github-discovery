@@ -12,13 +12,13 @@ github-discovery:
 discoveryCronJob:
   enabled: false
   # cron:
-  #   github_discovery: "45 */6 * * *"
-  #   github_discovery_full: "45 2 * * *"
+  #   github_discovery: "25 15 * * *"
+  #   github_discovery_full: "50 9 * * *"
 
 teamsCronJob:
-  enabled: false
-  # cron:
-  #   github_teams_discovery: "20 2 * * *"
+  enabled: true
+  cron:
+    github_teams_discovery: "45 15 * * *"
 
 securityCronJob:
   enabled: false

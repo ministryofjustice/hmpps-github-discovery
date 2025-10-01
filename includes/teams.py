@@ -1,5 +1,8 @@
 import re
-from utilities.job_log_handling import log_debug, log_error, log_info, log_critical
+
+# hmpps
+from hmpps.services.job_log_handling import log_error, log_info
+
 
 def fetch_gh_github_teams_data(gh, teamrepo):
   try:

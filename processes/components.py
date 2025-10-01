@@ -535,6 +535,9 @@ def batch_process_sc_components(
   component_count = 0
 
   for component in components:
+    if component.get('archived'):
+      log_info(f'Skipping archived component {component.get("name")}')
+      continue
     component_count += 1
     if component.get('archived'):
       log_info(f'Skipping archived component {component.get("name")}')

@@ -88,12 +88,7 @@ These workflows and their references (and a representative location for each one
 
 ### Classes
 
-- **AlertManager** (`classes/alertmanager.py`) contains a simple self-contained script that collects and parses data from the Alertmanager Status endpoint
-- **CircleCI** (`classes/circleci.py`) contains functions that collect data either from the CircleCI configuration or from endpoints referred to by it
-- **GithubSession** (`classes/github.py`) contains custom functions for the discovery script to read and process data from the Github organisation's repositories. It's built on PyGithub
-- **HealthServer** (`classes/health.py`) is not used any more - it starts a simple HTTP server that responds to health pings. It's redundant now discovery is running as a crontab
-- **ServiceCatalogue** (`classes/service_catalogue.py`) contains functions to read from and write to the Service Catalogue.
-- **Slack** (`classes/slack.py`) contains functions to send Slack messages
+These are all inherited from [hmpps-python-lib](https://github.com/ministryofjustice/hmpps-python-lib), which contains documention for the particular classes and the functions they support.
 
 ### Processes
 
@@ -127,6 +122,7 @@ These workflows and their references (and a representative location for each one
 - **Standards** (`includes/standards.py`) contains functions that read and processes various parameters of the repository to determine compliance with standards
 - **Teams** (`includes/teams.py`) are functions to processes the teams either from Github or from Terraform data.
 
+Note: some functions are also inherited from [hmpps-python-lib](https://github.com/ministryofjustice/hmpps-python-lib) - these are designated by bbeginning `from hmpps import...`
 
 ## Github tokens
 Each Github application has a limit of 15,000 calls per hour. Because some of the Github Discovery processes are quite intensive (each time a file is retrieved from Github it counts as a token use),
@@ -154,38 +150,68 @@ Since the Service Catalogue database is copied from prod to dev every night at 1
 
 Assuming you've got the environment variables set up right, you can check how many request are left like this:
 ```
+uv run python -m utilities.check_github
+```
+
+or
+```
+uv sync
+source .venv/bin/activate
 python -m utilities.check_github
 ```
 
+
 ## Setup Instructions
 
-### 1. Install Python using pyenv
-
-This project is tested with Python 3.13+.  
-We recommend using [pyenv](https://github.com/pyenv/pyenv) to manage your Python versions.
-
-#### Install pyenv (MacOS)
-
-```bash
-brew update
-brew install pyenv
-```
-
-#### Install Python
+### 1. Install Python
 
 ```bash
 pyenv install 3.13.0
 pyenv local 3.13.0
 ```
 
+### 2. Install uv
+
+This project is tested with Python 3.13+, and uses the [uv](https://github.com/astral-sh/uv) dependency management system.
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+or
+
+```
+brew install uv
+```
+
+Because `uv` creates a virtual environment (`.venv`) when `uv sync` is run, it's possible to activate this environment using
+
+```
+source .venv/bin/activate
+```
+and `python your_script.py` can be used as usual.
+
+
 ### 2. Install dependencies
 
-It’s recommended to use a virtual environment:
+Dependencies are managed by `uv` - the `uv.lock` file contains the latest snapshot of required dependencies.
+
+If a new version of a library is required (for example if hmpps-python-lib is updated), it is a simple case of running
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv upgrade LIBRARY_NAME==version.number
+```
+or, in the case of hmpps-python-lib, which is an externally managed library:
+```bash
+uv uninstall hmpps-python
+uv install https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.0/hmpps_python_lib-0.1.0-py3-none-any.whl
+uv sync
+```
+
+Then, configure uv to use the appropriate dependencies and activate the virtual environment. Then you can use `python` as normal
+```bash
+uv sync
+source .venv/bin/activate
 ```
 
 ### 3. Set environment variables

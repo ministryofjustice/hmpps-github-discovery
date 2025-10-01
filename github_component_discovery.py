@@ -93,17 +93,23 @@ def main():
 
   component = services.sc.get_record(services.sc.components_get, 'name', component_name)
   log_debug(f'Component: {component}')
-  if component:
-    log_info(f'Processing component {component_name}...')
-    processed_components = components.process_sc_component(
-      component,
-      services,
-      components.get_bootstrap_projects(services),
-      force_update=True,
-    )
-    log_info(f'Processed component: {processed_components}')
-  else:
+
+  if not component:
     log_error(f'Component {component_name} not found')
+    return
+
+  if component.get('archived'):
+    log_info(f'Component {component_name} is archived, skipping')
+    return
+
+  log_info(f'Processing component {component_name}...')
+  processed_components = components.process_sc_component(
+    component,
+    services,
+    components.get_bootstrap_projects(services),
+    force_update=True,
+  )
+  log_info(f'Processed component: {processed_components}')
 
 
 if __name__ == '__main__':

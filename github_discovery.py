@@ -226,7 +226,7 @@ def main():
 
   if job.error_messages:
     sc.update_scheduled_job('Errors')
-    log_info('Github discovery job completed  with errors.')
+    log_info('Github discovery job completed with errors.')
   else:
     sc.update_scheduled_job('Succeeded')
     log_info('Github discovery job completed successfully.')

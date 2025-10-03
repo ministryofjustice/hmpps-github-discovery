@@ -6,19 +6,19 @@ generic-prometheus-alerts:
 
 github-discovery:
   env:
-    LOG_LEVEL: debug
+    LOG_LEVEL: "DEBUG"
     SC_FILTER: "SC_FILTER"
 
 discoveryCronJob:
   enabled: false
   # cron:
-  #   github_discovery: "25 15 * * *"
-  #   github_discovery_full: "50 9 * * *"
+  #   github_discovery: "05 10 * * *"
+  #   github_discovery_full: "50 9 * * 0"
 
 teamsCronJob:
   enabled: true
   cron:
-    github_teams_discovery: "45 15 * * *"
+    github_teams_discovery: "35 10 * * *"
 
 securityCronJob:
   enabled: false

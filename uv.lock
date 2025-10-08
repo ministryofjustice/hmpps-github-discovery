@@ -9,11 +9,11 @@ resolution-markers = [
 
 [[package]]
 name = "certifi"
-version = "2025.8.3"
+version = "2025.10.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/dc/67/960ebe6bf230a96cda2e0abcf73af550ec4f090005363542f0765df162e0/certifi-2025.8.3.tar.gz", hash = "sha256:e564105f78ded564e3ae7c923924435e1daa7463faeab5bb932bc53ffae63407", size = 162386, upload-time = "2025-08-03T03:07:47.08Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/5b/b6ce21586237c77ce67d01dc5507039d444b630dd76611bbca2d8e5dcd91/certifi-2025.10.5.tar.gz", hash = "sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43", size = 164519, upload-time = "2025-10-05T04:12:15.808Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/48/1549795ba7742c948d2ad169c1c8cdbae65bc450d6cd753d124b17c8cd32/certifi-2025.8.3-py3-none-any.whl", hash = "sha256:f6c12493cfb1b06ba2ff328595af9350c65d6644968e5d3a2ffd78699af217a5", size = 161216, upload-time = "2025-08-03T03:07:45.777Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl", hash = "sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de", size = 163286, upload-time = "2025-10-05T04:12:14.03Z" },
 ]
 
 [[package]]
@@ -194,14 +194,14 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dockerfile-parse", specifier = "==2.0.1" },
-    { name = "hmpps-python-lib", url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.2/hmpps_python_lib-0.1.2-py3-none-any.whl" },
+    { name = "hmpps-python-lib", url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.4/hmpps_python_lib-0.1.4-py3-none-any.whl" },
     { name = "pyyaml" },
 ]
 
 [[package]]
 name = "hmpps-python-lib"
-version = "0.1.2"
-source = { url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.2/hmpps_python_lib-0.1.2-py3-none-any.whl" }
+version = "0.1.4"
+source = { url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.4/hmpps_python_lib-0.1.4-py3-none-any.whl" }
 dependencies = [
     { name = "gitpython" },
     { name = "pygithub" },
@@ -210,7 +210,7 @@ dependencies = [
     { name = "slack-sdk" },
 ]
 wheels = [
-    { url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.2/hmpps_python_lib-0.1.2-py3-none-any.whl", hash = "sha256:1ab15e2d3b9cfc9d74a04f8bd90f40ec497c70f8e3ef4f6385d5e0e480da2a17" },
+    { url = "https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.4/hmpps_python_lib-0.1.4-py3-none-any.whl", hash = "sha256:1ce09938a0b311384026d0ea0ab1d907ba80c7a34a96027db07c0e327000440e" },
 ]
 
 [package.metadata]
@@ -330,11 +330,11 @@ wheels = [
 
 [[package]]
 name = "slack-sdk"
-version = "3.36.0"
+version = "3.37.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/73/1e/bbf7fdd00306f097ddb839c23628b7e271128cc8f584b9cae8f704b3924e/slack_sdk-3.36.0.tar.gz", hash = "sha256:8586022bdbdf9f8f8d32f394540436c53b1e7c8da9d21e1eab4560ba70cfcffa", size = 233382, upload-time = "2025-07-09T20:58:22.838Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/c2/0a174a155623d7dc3ed4d1360cdf755590acdc2c3fc9ce0d2340f468909f/slack_sdk-3.37.0.tar.gz", hash = "sha256:242d6cffbd9e843af807487ff04853189b812081aeaa22f90a8f159f20220ed9", size = 241612, upload-time = "2025-10-06T23:07:20.856Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/9a/380d20856d9ea39fbc4d3bb66f076b0d72035ebe873eb05fc88ebee4125f/slack_sdk-3.36.0-py2.py3-none-any.whl", hash = "sha256:6c96887d7175fc1b0b2777b73bb65f39b5b8bee9bd8acfec071d64014f9e2d10", size = 293949, upload-time = "2025-07-09T20:58:21.233Z" },
+    { url = "https://files.pythonhosted.org/packages/07/fd/a502ee24d8c7d12a8f749878ae0949b8eeb50aeac22dc5a613d417a256d0/slack_sdk-3.37.0-py2.py3-none-any.whl", hash = "sha256:e108a0836eafda74d8a95e76c12c2bcb010e645d504d8497451e4c7ebb229c87", size = 302751, upload-time = "2025-10-06T23:07:19.542Z" },
 ]
 
 [[package]]

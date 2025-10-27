@@ -1,3 +1,7 @@
+# This needs to be validated before use
+# since it has been re-written to use Strapi v5 and
+# hmpps-python-lib shared libraries
+
 import os
 import json
 import logging
@@ -80,13 +84,13 @@ for table in tables:
       subtable_record_id = None
       if subtable_data := record.get(subtable_link):
         log_debug(f'Found subtable data in {subtable_link}: {subtable_data}')
-        subtable_record_name = subtable_data.get('name'):
-        subtable_record_id = sc_out.get_id(
-          f'{subtable_name}', 'name', subtable_record_name
-        )
-        log_debug(
-          f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
-        )
+        if subtable_record_name := subtable_data.get('name'):
+          subtable_record_id = sc_out.get_id(
+            f'{subtable_name}', 'name', subtable_record_name
+          )
+          log_debug(
+            f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
+          )
       else:
         log_info(f'No subtable data in {subtable_link}')
       record[subtable_link] = subtable_record_id
@@ -95,14 +99,14 @@ for table in tables:
       subcomponent_link = subcomponent
       subcomponent_name = record.get(subcomponent)
       if isinstance(subcomponent_name, dict):
-        record.get(subcomponent_link) = None
+        record['subcomponent_link'] = None
         if subcomponent_id := sc_out.get_id(
-            f'{in_table}', 'name', subcomponent.get('name')
+          f'{in_table}', 'name', subcomponent.get('name')
         ):
           log_debug(
             f'Record ID found in {in_table} for {subcomponent_name}: {subcomponent_id}'
           )
-          record.get(subcomponent_link) = subcomponent_id
+          record['subcomponent_link'] = subcomponent_id
       else:
         updated_subcomponent = []  # need to do something tricky here
         log_debug(f'Subcomponent time - {subcomponent_name}')
@@ -125,9 +129,7 @@ for table in tables:
 
 records = sc_in.get_all_records('github-teams')
 for record in records:
-  if existing_id := sc_out.get_id(
-    'github-teams', 'team_name', record.get('team_name')
-  ):
+  if existing_id := sc_out.get_id('github-teams', 'team_name', record.get('team_name')):
     sc_out.update('github-teams', existing_id, record)
   else:
     sc_out.add('github-teams', record)

@@ -7,7 +7,6 @@ requires-python = ">=3.13"
 dependencies = [
     "dockerfile-parse==2.0.1",
     "hmpps-python-lib",
-    "pyyaml",
 ]
 
 [tool.uv.sources]

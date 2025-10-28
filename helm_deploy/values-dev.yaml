@@ -10,10 +10,10 @@ github-discovery:
     SC_FILTER: "SC_FILTER"
 
 discoveryCronJob:
-  enabled: true
-  cron:
-    github_discovery: "42 14 * * *"
-    github_discovery_full: "50 9 * * 0"
+  enabled: false
+  # cron:
+  #   github_discovery: "05 10 * * *"
+  #   github_discovery_full: "50 9 * * 0"
 
 teamsCronJob:
   enabled: true

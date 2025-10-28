@@ -2,6 +2,7 @@ import re
 from dockerfile_parse import DockerfileParser
 import io
 import json
+import tomllib
 
 # hmpps
 from hmpps import update_dict
@@ -130,11 +131,18 @@ def get_docker_versions(services, repo, component_project_dir):
   return docker_versions
 
 
-# Python (pyproject.toml)
+# Python (uv.lock)
 def get_python_versions(services, repo):
+  uv_lock = 'uv.lock'
   python_versions = {}
-  if pyproject_toml_contents := services.gh.get_file_plain(repo, 'pyproject.toml'):
-    log_debug(pyproject_toml_contents)
+  if pyproject_toml_contents := services.gh.get_file_plain(repo, uv_lock):
+    toml_data = tomllib.loads(pyproject_toml_contents)
+
+    for pkg in toml_data.get('package', []):
+      name = pkg.get('name')
+      version = pkg.get('version')
+      if name and version:
+        python_versions[name] = {'ref': version, 'path': uv_lock}
   return python_versions
 
 

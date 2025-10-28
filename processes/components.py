@@ -263,7 +263,6 @@ def process_independent_component(component, repo):
 ##################################################################################
 def process_changed_component(component, repo, services):
   gh = services.gh
-  cc = services.cc
 
   # Shortcuts to make it easier to read
   component_name = component.get('name')

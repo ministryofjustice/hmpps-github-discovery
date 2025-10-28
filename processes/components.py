@@ -26,9 +26,7 @@ from hmpps.services.job_log_handling import (
 
 
 # local
-from includes import helm, environments
-from includes.utils import get_dockerfile_data, remove_version
-
+from includes import helm, environments, versions
 
 max_threads = 10
 
@@ -190,37 +188,6 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
   return None
 
 
-def get_gradle_config(gh, repo):
-  # get_gradle_config - reads the gradle file to determine versions
-  gradle_config = {}
-  if build_gradle_config_content := gh.get_file_plain(
-    repo, 'build.gradle.kts'
-  ) or gh.get_file_plain(repo, 'build.gradle'):
-    try:
-      regex = r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version [\'"](.*)[\'"]( apply false)?$'
-      if hmpps_gradle_spring_boot_matches := re.findall(
-        regex, build_gradle_config_content, re.MULTILINE
-      ):
-        for version, apply_false in hmpps_gradle_spring_boot_matches:
-          # if apply false is there, it will skip it
-          if not apply_false:
-            gradle_config['spring_boot_version'] = version
-            break
-
-    except TypeError as e:
-      log_warning(f'Unable to parse build gradle file - {e}')
-      pass
-
-  if gradle_config:  # If there are some valid entries, happy days
-    log_debug(f'Found hmpps gradle_config: {gradle_config}')
-    return gradle_config
-  else:
-    log_info(
-      'Unable to find gradle-spring-boot version within build.gradle.kts or build.gradle'
-    )
-  return None
-
-
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
@@ -296,7 +263,6 @@ def process_independent_component(component, repo):
 ##################################################################################
 def process_changed_component(component, repo, services):
   gh = services.gh
-  cc = services.cc
 
   # Shortcuts to make it easier to read
   component_name = component.get('name')
@@ -340,20 +306,6 @@ def process_changed_component(component, repo, services):
     f'Finished getting information from helm for {component_name}\ndata: {data}'
   )
 
-  # Information from CircleCI data
-  ################################
-  if cirlcleci_config := gh.get_file_yaml(repo, '.circleci/config.yml'):
-    # CircleCI Orb version
-    if circleci_orb_version := cc.get_circleci_orb_version(cirlcleci_config):
-      update_dict(data, 'versions', circleci_orb_version)
-    else:
-      log_debug('No HMPPS CircleCI orb found')
-
-  else:
-    # Placeholder for GH Trivy scan business
-    log_debug('No CircleCI config found')
-    remove_version(data, 'circleci')
-
   # App insights cloud_RoleName
   #############################
   if app_insights_cloud_role_name := get_app_insights_cloud_role_name(
@@ -361,40 +313,9 @@ def process_changed_component(component, repo, services):
   ):
     data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
 
-  # Gradle config
-  ###############
-  if repo.language == 'Kotlin' or repo.language == 'Java':
-    if gradle_config := get_gradle_config(gh, repo):
-      update_dict(
-        data,
-        'versions',
-        {
-          'gradle': {
-            'hmpps_gradle_spring_boot': gradle_config.get('spring_boot_version', '')
-          }
-        },
-      )
-    else:
-      log_info(
-        f'No valid gradle config found for {component_name} - removing version info'
-      )
-      remove_version(data, 'gradle')
+  # Versions information
+  versions.get_versions(services, repo, component_project_dir, data)
 
-  # Information from Dockerfile
-  #############################
-  docker_versions = {}
-  dockerfile_path = f'{component_project_dir}/Dockerfile'
-  log_debug(f'Looking for Dockerfile at {dockerfile_path}')
-  if dockerfile_contents := gh.get_file_plain(repo, dockerfile_path):
-    if docker_data := get_dockerfile_data(dockerfile_contents):
-      # Reprocess the dictionary to include the path name
-      for key, value in docker_data.items():
-        docker_versions[key] = {'ref': value, 'path': dockerfile_path}
-
-  if docker_versions:
-    update_dict(data, 'versions', {'dockerfile': docker_versions})
-  else:
-    remove_version(data, 'dockerfile')
   # All done with the branch dependent components
 
   # End of other component information

@@ -27,7 +27,7 @@ def get_repo_variables(services, repo, component_name):
       else:
         repo_vars[var[0]] = repo_var.value
     except Exception as e:
-      if e.status == 404:
+      if '404' in str(e):
         log_debug(f'No {var[1]} repo variable found for {component_name}')
       else:
         log_debug(f'Could not get {var[1]} repo variable for {component_name} - {e}')
@@ -56,8 +56,9 @@ def process_sc_component_security(component, services, **kwargs):
     repo = gh.get_org_repo(f'{github_repo}')
   except Exception as e:
     log_error(
-      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      f'ERROR accessing ministryofjustice/{github_repo}, check github app has permissions to see it. {e}'
     )
+    return component_flags
 
   # Codescanning Alerts
   #####################

@@ -166,7 +166,7 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
       else:
         log_debug('Role name not found in the expected place (role.name)')
     else:
-      log_warning('No applicationinsights.json file found for {component_name}')
+      log_warning('Kotlin repo - no applicationinsights.json file found for {component_project_dir}')
 
   if repo.language == 'JavaScript' or repo.language == 'TypeScript':
     log_debug(
@@ -184,7 +184,7 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
           'Application Insights role name not found in the expected place (name)'
         )
     else:
-      log_warning('Typescript repo - no package.json file found for {component_name}')
+      log_warning('Typescript repo - no package.json file found for {component_project_dir}')
   return None
 
 
@@ -312,6 +312,8 @@ def process_changed_component(component, repo, services):
     repo, gh, component_project_dir
   ):
     data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+  else:
+    data['app_insights_cloud_role_name'] = None
 
   # Versions information
   versions.get_versions(services, repo, component_project_dir, data)

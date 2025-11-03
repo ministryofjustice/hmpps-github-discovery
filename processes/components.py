@@ -534,3 +534,38 @@ def batch_process_sc_components(
     t.join()
 
   return processed_components
+
+def find_duplicate_app_cloud_role(
+    services,
+    max_threads,
+    module='processes.components',
+    function='find_duplicate_app_cloud_role',
+    force_update=False,
+):
+    sc = services.sc
+
+    processed_components = []
+
+    components = sc.get_all_records(sc.components_get)
+    log_info(f'Processing batch of {len(components)} components for finding duplicate app insights cloud role names...')
+
+    # Count occurrences of each app_insights_cloud_role_name and group components
+    role_counts = {}
+    role_components = {}
+    for component in components:
+      component_name = component.get('name')
+      role_name = component.get('app_insights_cloud_role_name', None)
+      if role_name and component.get('archived') is not True:
+        role_counts[role_name] = role_counts.get(role_name, 0) + 1
+        if role_name not in role_components:
+          role_components[role_name] = []
+        role_components[role_name].append(component_name)
+
+
+    # Filter and log only roles with count > 1
+    log_info("Duplicate app insights cloud role names (count > 1):")
+    for role_name, count in role_counts.items():
+        if count > 1:
+            log_info(f"Role Name: {role_name}, Count: {count}, Components: {role_components[role_name]}")
+
+    return {role_name: role_components[role_name] for role_name, count in role_counts.items() if count > 1}

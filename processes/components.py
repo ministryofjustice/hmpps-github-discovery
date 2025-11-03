@@ -545,7 +545,9 @@ def find_duplicate_app_cloud_role(
   sc = services.sc
 
   processed_components = []
-  components = sc.get_all_records(sc.components_get)
+  components = sc.get_all_records(
+    'components?filters[archived][$eq]=false'
+  )
   log_info(f'Processing batch of {len(components)} components for finding duplicate app insights cloud role names...')
 
   # Count occurrences of each app_insights_cloud_role_name and group components
@@ -554,7 +556,7 @@ def find_duplicate_app_cloud_role(
   for component in components:
     component_name = component.get('name')
     app_insights_cloud_role_name = component.get('app_insights_cloud_role_name', None)
-    if app_insights_cloud_role_name and component.get('archived') is not True:
+    if app_insights_cloud_role_name:
       app_insights_cloud_role_counts[app_insights_cloud_role_name] = app_insights_cloud_role_counts.get(app_insights_cloud_role_name, 0) + 1
       if app_insights_cloud_role_name not in app_insights_cloud_role_components:
         app_insights_cloud_role_components[app_insights_cloud_role_name] = []

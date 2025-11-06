@@ -312,8 +312,11 @@ def process_changed_component(component, repo, services):
     repo, gh, component_project_dir
   ):
     data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+    if component.get('app_insights_alerts_enabled') is None: # only set if app_insights_cloud_role_name is found and app_insights_alerts_enabled is not False already
+      data['app_insights_alerts_enabled'] = True
   else:
     data['app_insights_cloud_role_name'] = None
+    data['app_insights_alerts_enabled'] = None
 
   # Versions information
   versions.get_versions(services, repo, component_project_dir, data)

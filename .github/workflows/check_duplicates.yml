@@ -1,0 +1,41 @@
+name: Check for duplicate envs in Service Catalogue
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7,11,15 * * MON-FRI" # Every weekday at 13:45 UTC
+    
+jobs:
+  duplicate-environments:
+    name: Run duplicate environment check
+    runs-on: [ self-hosted, hmpps-github-actions-runner ]
+    permissions:
+      contents: read
+    outputs:
+      results: ${{ steps.check.outputs.results }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'   # cache invalidates on lockfile change
+
+      - name: Run duplicate environment check
+        id: check
+        run: uv run python utilities/check_duplicate_environments.py
+        env:
+          SERVICE_CATALOGUE_API_ENDPOINT: ${{ vars.SERVICE_CATALOGUE_API_ENDPOINT }}
+          SERVICE_CATALOGUE_API_KEY: ${{ secrets.SERVICE_CATALOGUE_API_KEY }}
+          SLACK_ALERTS_CHANNEL: ${{ vars.PROD_SLACK_ALERT_CHANNEL}}
+
+      - id: send-slack 
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        if: steps.check.outputs.results == 'YES' 
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.HMPPS_SLACK_BOT_TOKEN }}
+          payload-file-path: ./slack-message.json

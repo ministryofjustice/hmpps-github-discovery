@@ -1,8 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-alpine
-WORKDIR /app
-
-RUN addgroup -g 2000 appgroup && \
-    adduser -u 2000 -G appgroup -h /home/appuser -D appuser
+FROM ghcr.io/ministryofjustice/hmpps-python:python3.13-alpine AS base
 
 # dependencies
 COPY includes includes
@@ -15,13 +11,5 @@ RUN uv sync
 
 # Copy the Python goodness
 COPY ./*.py .
-
-
-# update PATH environment variable
-ENV PATH=/home/appuser/.local:$PATH
-
-RUN chown -R 2000:2000 /app
-
-USER 2000
 
 CMD [ "uv", "run", "python", "-u", "github_discovery.py" ]

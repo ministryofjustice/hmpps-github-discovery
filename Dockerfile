@@ -12,8 +12,4 @@ RUN uv sync
 # Copy the Python goodness
 COPY ./*.py .
 
-RUN chown -R 2000:2000 /app
-
-USER 2000
-
 CMD [ "uv", "run", "python", "-u", "github_discovery.py" ]

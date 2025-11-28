@@ -6,7 +6,8 @@ from hmpps.services.job_log_handling import log_debug, log_error
 from includes import standards
 
 
-# Repository variables - processed daily to ensure that the Service Catalogue is up-to-date
+# Repository variables - processed daily to ensure that the Service Catalogue 
+# is up-to-date
 def get_repo_variables(services, repo, component_name):
   repo_vars = {}
   repo_var_list = [
@@ -56,7 +57,8 @@ def process_sc_component_security(component, services, **kwargs):
     repo = gh.get_org_repo(f'{github_repo}')
   except Exception as e:
     log_error(
-      f'ERROR accessing ministryofjustice/{github_repo}, check github app has permissions to see it. {e}'
+      f'ERROR accessing ministryofjustice/{github_repo}, '
+      f'check github app has permissions to see it. {e}'
     )
     return component_flags
 
@@ -78,8 +80,9 @@ def process_sc_component_security(component, services, **kwargs):
   if repo_variables := get_repo_variables(services, repo, component_name):
     data.update(repo_variables)
 
-  # This will ensure the service catalogue has the latest collection of repository variables
-  # Update component with all results in data dictionary if there's data to do so
+  # This will ensure the service catalogue has the latest collection of repository 
+  # variables. Update component with all results in data dictionary 
+  # if there's data to do so
   if data:
     if not sc.update(sc.components, component['documentId'], data):
       log_error(f'Error updating component {component_name}')

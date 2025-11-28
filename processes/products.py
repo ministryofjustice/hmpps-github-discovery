@@ -23,7 +23,8 @@ def process_sc_product(product, services):
 
   log_info(f'Processing product: {product.get("name")}')
 
-  # Empty data dict gets populated along the way, and finally used in PUT request to service catalogue
+  # Empty data dict gets populated along the way, 
+  # and finally used in PUT request to service catalogue
   data = {}
 
   # Update Slack Channel name if necessary:

@@ -1,10 +1,9 @@
 # This needs to be validated before use
 # since it has been re-written to use Strapi v5 and
-# hmpps-python-lib shared libraries
+# hmpps-sre-python-lib shared libraries
 
 import os
 import json
-import logging
 
 # hmpps
 from hmpps import ServiceCatalogue
@@ -47,7 +46,8 @@ tables = [
   ),
   (
     'namespaces',
-    'namespaces?populate[0]=elasticache_cluster&populate[1]=pingdom_check&populate[2]=rds_instance',
+    'namespaces?populate[0]=elasticache_cluster&populate[1]=pingdom_check&'
+    'populate[2]=rds_instance',
     [],
     ['elasticache_cluster', 'pingdom_check', 'rds_instance'],
   ),
@@ -89,7 +89,8 @@ for table in tables:
             f'{subtable_name}', 'name', subtable_record_name
           )
           log_debug(
-            f'Record ID found in {subtable_name} for {subtable_record_name}: {subtable_record_id}'
+            f'Record ID found in {subtable_name} for {subtable_record_name}: '
+            f'{subtable_record_id}'
           )
       else:
         log_info(f'No subtable data in {subtable_link}')

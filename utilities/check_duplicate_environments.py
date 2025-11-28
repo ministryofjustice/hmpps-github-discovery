@@ -31,18 +31,23 @@ def main():
 
   channel_id = os.getenv('SLACK_ALERTS_CHANNEL')
 
-  sc_link_stub = f'{sc_params.get("url")}/admin/content-manager/collection-types/api::environment.environment?sort=component.name:DESC'
+  sc_link_stub = (
+    f'{sc_params.get("url")}/admin/content-manager/collection-types/'
+    f'api::environment.environment?sort=component.name:DESC'
+  )
 
   message = ''
   slack_template = {
     'channel': f'{channel_id}',
-    'text': ':warning: Duplicate environments found in Service Catalogue\nPlease check and remedy as soon as possible.',
+    'text': ':warning: Duplicate environments found in Service Catalogue\n'
+            'Please check and remedy as soon as possible.',
     'blocks': [
       {
         'type': 'section',
         'text': {
           'type': 'mrkdwn',
-          'text': ':warning: Duplicate environments found in Service Catalogue\nPlease check and remedy as soon as possible.',
+          'text': ':warning: Duplicate environments found in Service Catalogue\n'
+                  'Please check and remedy as soon as possible.',
         },
       },
       {
@@ -106,12 +111,6 @@ def main():
         else:
           eprint('GITHUB_OUTPUT env var not found')
 
-  # if qty > 1:
-  #   if
-  #   log_debug(f'{env} | {qty}')
-
-
-# https://service-catalogue.hmpps.service.justice.gov.uk/admin/content-manager/collection-types/api::environment.environment?sort=component.name:DESC&filters[$and][0][component][name][$null]=true&page=1
 
 if __name__ == '__main__':
   main()

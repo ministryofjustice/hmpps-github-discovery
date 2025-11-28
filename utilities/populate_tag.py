@@ -33,7 +33,8 @@ def main():
       for env in environments:
         if build_image_tag := env.get('build_image_tag'):
           log_info(
-            f'Copying build image tag {build_image_tag} from prod to dev for {component.get("name")}'
+            f'Copying build image tag {build_image_tag} from prod to dev for '
+            f'{component.get("name")}'
           )
           dev_component = next(
             (c for c in dev_components if c.get('name') == component.get('name')),
@@ -47,7 +48,8 @@ def main():
                   dev_env['build_image_tag'] = build_image_tag
                   log_info(f'Updated build image tag for {dev_env.get("name")}')
               log_debug(
-                f'component environment data is now: {json.dumps(dev_environments, indent=2)}'
+                f'component environment data is now: '
+                f'{json.dumps(dev_environments, indent=2)}'
               )
               log_info('updating dev component')
               sc_dev.update(
@@ -63,7 +65,8 @@ def main():
                 ):
                   dev_env_data['build_image_tag'] = build_image_tag
                   log_debug(
-                    f'envs environment data for {dev_env_data.get("name")} is now: {json.dumps(dev_env_data, indent=2)}'
+                    f'envs environment data for {dev_env_data.get("name")} is now: '
+                    f'{json.dumps(dev_env_data, indent=2)}'
                   )
                   log_info('updating dev env')
                   sc_dev.update(

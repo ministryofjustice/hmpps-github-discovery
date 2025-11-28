@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue"""
+"""Github discovery - queries the github API for info about hmpps services and stores 
+the results in the service catalogue"""
 
 # hmpps
 from hmpps import GithubSession, ServiceCatalogue
@@ -53,7 +54,9 @@ def process_github_teams(services):
         'team_name': team_name,
         'parent_team_name': gh_team.parent.name if gh_team.parent else None,
         'team_desc': gh_team.description.replace(
-          '• This team is managed by Terraform, see https://github.com/ministryofjustice/hmpps-github-teams - DO NOT UPDATE MANUALLY!',
+          '• This team is managed by Terraform, '
+          'see https://github.com/ministryofjustice/hmpps-github-teams - '
+          'DO NOT UPDATE MANUALLY!',
           '',
         )
         if gh_team.description

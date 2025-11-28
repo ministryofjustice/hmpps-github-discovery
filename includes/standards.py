@@ -5,7 +5,8 @@
 # - Github repository object
 
 # Repository model based on the one from
-# https://github.com/ministryofjustice/github-community/tree/main/app/projects/repository_standards/models
+# https://github.com/ministryofjustice/github-community/tree/main/app/projects/
+#  repository_standards/models
 
 # hmpps
 from hmpps import RepositoryInfoFactory
@@ -13,12 +14,12 @@ from hmpps.services.job_log_handling import log_debug, log_info
 
 # These are mapped to the RepositoryInfo model in models/repository_info.py
 
-################################################################################################
+#######################################################################################
 # get_standards_compliance
 # This function will check the repository compliance
 # against a number of criteria
 # These criteria are stored in includes/values.py
-################################################################################################
+#######################################################################################
 
 # local
 from includes.values import standards

@@ -81,14 +81,16 @@ def get_info_from_helm(component, repo, services):
         if envs := re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name):
           helm_environments.append(envs[1])
 
-        # HEAT-223 Start : Read and collate data for IPallowlist from all environment specific values.yaml files.
+        # HEAT-223 Start : Read and collate data for IPallowlist from all environment 
+        # specific values.yaml files.
         ip_allow_list[helm_file] = fetch_yaml_values_for_key(
           gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}'),
           allow_list_key,
         )
         if ip_allow_list[helm_file]:
           ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
-        # HEAT-223 End : Read and collate data for IPallowlist from all environment specific values.yaml files.
+        # HEAT-223 End : Read and collate data for IPallowlist from all environment 
+        # specific values.yaml files.
 
     # Helm chart dependencies
     helm_file_paths = [
@@ -113,7 +115,8 @@ def get_info_from_helm(component, repo, services):
 
     # DEFAULT VALUES SECTION
     # ----------------------
-    # Default values for modsecurity and alert_severity_label - clear these out in case theres's nothing set
+    # Default values for modsecurity and alert_severity_label - clear these out 
+    # in case theres's nothing set
     mod_security_defaults = {}
     alert_severity_label_default = None
     ip_allow_list_default = {}
@@ -138,7 +141,8 @@ def get_info_from_helm(component, repo, services):
       if container_image := helm_default_values.get('image', {}).get('repository', {}):
         data['container_image'] = container_image
         log_debug(
-          f'Container image found in image->repository for {component_name}: {container_image}'
+          f'Container image found in image->repository for {component_name}: '
+          f'{container_image}'
         )
       if 'generic-service' in helm_default_values:
         log_debug(f'generic-service found for {component_name}: {container_image}')
@@ -149,7 +153,8 @@ def get_info_from_helm(component, repo, services):
         ):
           data['container_image'] = container_image
           log_debug(
-            f'Container image found in generic-service->image->repository for {component_name}: {container_image}'
+            f'Container image found in generic-service->image->repository for '
+            f'{component_name}: {container_image}'
           )
 
         # Try to get the productID from helm values.yaml
@@ -205,7 +210,8 @@ def get_info_from_helm(component, repo, services):
             elif 'hosts' in ingress_dict:
               last_host_record = ingress_dict.get('hosts')[-1]
               log_debug(
-                f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
+                f'hosts found - last record is {last_host_record} - which is of type '
+                f'{type(last_host_record)}'
               )
               host = (
                 last_host_record.get('host', '')
@@ -226,7 +232,8 @@ def get_info_from_helm(component, repo, services):
           elif 'hosts' in ingress_dict:
             last_host_record = ingress_dict.get('hosts')[-1]
             log_debug(
-              f'hosts found - last record is {last_host_record} - which is of type {type(last_host_record)}'
+              f'hosts found - last record is {last_host_record} - which is of type '
+              f'{type(last_host_record)}'
             )
             host = (
               last_host_record.get('host', '')
@@ -261,7 +268,8 @@ def get_info_from_helm(component, repo, services):
               mod_security_type[0]
             ):
               log_debug(
-                f'Updating {mod_security_type[0]} to environment value: {mod_security_env_enabled}'
+                f'Updating {mod_security_type[0]} to environment value: '
+                f'{mod_security_env_enabled}'
               )
               update_dict(
                 helm_envs,
@@ -270,7 +278,8 @@ def get_info_from_helm(component, repo, services):
               )
             elif mod_security_defaults.get(mod_security_type[0]):
               log_debug(
-                f'Updating {mod_security_type[0]} to default value: {mod_security_defaults[mod_security_type[0]]}'
+                f'Updating {mod_security_type[0]} to default value: '
+                f'{mod_security_defaults[mod_security_type[0]]}'
               )
               update_dict(
                 helm_envs,
@@ -288,7 +297,8 @@ def get_info_from_helm(component, repo, services):
             alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
             if alert_severity_label:
               log_debug(
-                f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
+                f'generic-prometheus alerts found in values: '
+                f'{generic_prometheus_alerts}'
               )
               log_debug(
                 f'Updating {env} alert_severity_label to {alert_severity_label}'
@@ -296,12 +306,14 @@ def get_info_from_helm(component, repo, services):
 
           if not alert_severity_label and alert_severity_label_default:
             log_info(
-              f'Alert severity label not found for {component_name} in {env} - setting to default'
+              f'Alert severity label not found for {component_name} in {env} - '
+              f'setting to default'
             )
             alert_severity_label = alert_severity_label_default
           else:
             log_info(
-              f'Alert severity label not found for {component_name} in values.yaml & values-{env}.yaml'
+              f'Alert severity label not found for {component_name} in values.yaml & '
+              f'values-{env}.yaml'
             )
 
           if alert_severity_label:
@@ -310,11 +322,13 @@ def get_info_from_helm(component, repo, services):
             )
             if alerts_slack_channel:
               log_debug(
-                f'Updating {component_name} {env} alerts_slack_channel to {alerts_slack_channel}'
+                f'Updating {component_name} {env} alerts_slack_channel to '
+                f'{alerts_slack_channel}'
               )
             else:
               log_warning(
-                f'Alerts slack channel not found for {component_name} {alert_severity_label} for {env}'
+                f'Alerts slack channel not found for {component_name} '
+                f'{alert_severity_label} for {env}'
               )
 
           alertmanager_config = {

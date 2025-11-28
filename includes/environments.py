@@ -17,11 +17,11 @@ from includes import helm
 from includes.values import env_mapping
 
 
-################################################################################################
+#######################################################################################
 # get_environments
 # This function will get the environments associated with a component
 # from the bootstrap projects json file and Github repo environments
-################################################################################################
+#######################################################################################
 def get_environments(component, repo, bootstrap_projects, services):
   sc = services.sc
 
@@ -48,7 +48,8 @@ def get_environments(component, repo, bootstrap_projects, services):
     if 'circleci_context_k8s_namespaces' in project:
       for circleci_env in project['circleci_context_k8s_namespaces']:
         log_debug(
-          f'Found CircleCI environment {circleci_env["env_name"]} and namespace {circleci_env["namespace"]} for {component_name}'
+          f'Found CircleCI environment {circleci_env["env_name"]} and namespace '
+          f'{circleci_env["namespace"]} for {component_name}'
         )
         if env_type := env_mapping.get(circleci_env.get('env_type')):
           update_dict(
@@ -68,7 +69,8 @@ def get_environments(component, repo, bootstrap_projects, services):
         # workaround for a repo that has hundreds of environments
         for repo_env in repo_envs:
           log_debug(
-            f'Found environment {repo_env.name} in Github for {component_name} in {repo.name}'
+            f'Found environment {repo_env.name} in Github for {component_name} in '
+            f'{repo.name}'
           )
           env_vars = None
           try:
@@ -104,7 +106,8 @@ def get_environments(component, repo, bootstrap_projects, services):
     log_error(f'Error getting environments for {component_name}: {e}')
 
   # there's some data that is not populated by Github Discovery, for example
-  # the build_image_tag, so loop through the environments and get them from the existing records
+  # the build_image_tag, so loop through the environments and get them from 
+  # the existing records
   if envs:
     for env in envs:
       log_debug(f'Updating non-discovery fields for environment {env}')
@@ -120,13 +123,15 @@ def get_environments(component, repo, bootstrap_projects, services):
   return envs
 
 
-###################################################################################################
+#######################################################################################
 # process_environments
 # This is the main function to process environments based on data from the helm chart
 # combined with bootstrap projects json file and Github repo environments
-# It returns the environment as a list of dictionaries to be added to the component table
-# It also updates the environment table with the environment data, associating it with a component.
-###################################################################################################
+# It returns the environment as a list of dictionaries to be added to the component 
+# table.
+# It also updates the environment table with the environment data, 
+# associating it with a component.
+#######################################################################################
 def process_environments(
   component, repo, helm_environments, bootstrap_projects, services
 ):
@@ -135,10 +140,6 @@ def process_environments(
   component_name = component.get('name')
   log_debug(f'Processing environments for {component_name}')
   env_flags = {}
-
-  # This is the final result that will be returned - it's a list of dictionaries
-  # since that's how Service Catalogue expects it.
-  component_env_data = []
 
   # Other environment information - get_environments
   # ################################################
@@ -195,7 +196,8 @@ def process_environments(
       ).get('documentId', ''):
         # print(f'{json.dumps(env, indent=2)}')
         log_info(
-          f'Environment ID {env_id} found for environment name {env} associated with {component_name} ({component_id})'
+          f'Environment ID {env_id} found for environment name {env} associated with '
+          f'{component_name} ({component_id})'
         )
       if env_id:
         # Update the environment in the environment table if anything has changed
@@ -210,7 +212,8 @@ def process_environments(
       else:
         # Create the environment in the environment table
         log_info(
-          f'Environment not found - adding {env} for {component_name} to the environment table'
+          f'Environment not found - adding {env} for {component_name} '
+          'to the environment table'
         )
         log_debug(f'Environment data: {environment_record}')
         if sc.add(sc.environments, environment_record):
@@ -218,7 +221,8 @@ def process_environments(
         else:
           env_flags['env_error'] = True
 
-  # Check if SC has extra environments that are not in the helm chart and delete them from environment table
+  # Check if SC has extra environments that are not in the helm chart 
+  # and delete them from environment table
   current_envs = []
   sc_envs = component.get('envs', {})
   config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
@@ -236,7 +240,8 @@ def process_environments(
     env_id = env.get('documentId')
     env_name = env.get('name')
     log_info(
-      f'Environment {env_name} in Service Catalogue is not in the helm chart for {component_name}'
+      f'Environment {env_name} in Service Catalogue is not in the helm chart for '
+      f'{component_name}'
     )
     if sc.delete(sc.environments, env_id):
       log_info(
@@ -253,7 +258,8 @@ def check_env_change(component, repo, bootstrap_projects, services):
   env_changed = False
   component_name = component.get('name')
   current_envs = []
-  # Current envs are the combination of helm environments and the bootstrap/Github environments
+  # Current envs are the combination of helm environments 
+  # and the bootstrap/Github environments
   config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
   helm_envs = helm.get_envs_from_helm(component, repo, services)
 

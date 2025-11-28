@@ -55,7 +55,8 @@ def process_sc_component_workflows(component, services, **kwargs):
     repo = gh.get_org_repo(f'{github_repo}')
   except Exception as e:
     log_error(
-      f'ERROR accessing ministryofjustice/{repo.name}, check github app has permissions to see it. {e}'
+      f'ERROR accessing ministryofjustice/{repo.name},'
+      f'check github app has permissions to see it. {e}'
     )
 
   # get the non-standard workflows
@@ -84,14 +85,16 @@ def process_sc_component_workflows(component, services, **kwargs):
         non_local_actions = get_non_local_actions(
           yml_data, non_local_actions, file_content.path
         )
-  # now the actions have been found, compare them with the existing actions stored in components
+  # now the actions have been found, 
+  # compare them with the existing actions stored in components
   if non_local_actions:
     # get the current versions list
 
     versions = component.get('versions', {})
 
     log_debug(
-      f'non_local_actions for {component_name}: {json.dumps(non_local_actions, indent=2)}'
+      f'non_local_actions for {component_name}: '
+      f'{json.dumps(non_local_actions, indent=2)}'
     )
     # Deduplicate the actions
 

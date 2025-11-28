@@ -17,7 +17,8 @@ def fetch_gh_github_teams_data(gh, teamrepo):
   parent_teams_pattern = re.compile(r'parent_teams\s*=\s*\[(.*?)\]', re.DOTALL)
   sub_teams_pattern = re.compile(r'sub_teams\s*=\s*\[(.*?)\]', re.DOTALL)
   team_pattern = re.compile(
-    r'\{\s*name\s*=\s*"([^"]+)"\s*parent\s*=\s*"([^"]+)"\s*description\s*=\s*"([^"]+)"\s*\}'
+    r'\{\s*name\s*=\s*"([^"]+)"\s*parent\s*=\s*"([^"]+)"\s*description\s*=\s*"([^"]+)"'
+    r'\s*\}'
   )
 
   parent_teams_match = parent_teams_pattern.search(teams_data)
@@ -48,7 +49,8 @@ def extract_tf_teams(terraform_content):
   parent_teams_pattern = re.compile(r'parent_teams\s*=\s*\[(.*?)\]', re.DOTALL)
   sub_teams_pattern = re.compile(r'sub_teams\s*=\s*\[(.*?)\]', re.DOTALL)
   team_pattern = re.compile(
-    r'\{\s*name\s*=\s*"([^"]+)"\s*parent\s*=\s*"([^"]+)"\s*description\s*=\s*"([^"]+)"\s*\}'
+    r'\{\s*name\s*=\s*"([^"]+)"\s*parent\s*=\s*"([^"]+)"\s*description\s*=\s*"([^"]+)"'
+    r'\s*\}'
   )
 
   parent_teams_match = parent_teams_pattern.search(terraform_content)

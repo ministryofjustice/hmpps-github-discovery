@@ -3,7 +3,6 @@ import requests
 # hmpps
 from hmpps.services.job_log_handling import (
   log_debug,
-  log_error,
   log_info,
 )
 

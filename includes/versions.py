@@ -48,7 +48,8 @@ def get_gradle_config(gh, repo):
     repo, 'build.gradle.kts'
   ) or gh.get_file_plain(repo, 'build.gradle'):
     try:
-      regex = r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version [\'"](.*)[\'"]( apply false)?$'
+      regex = (r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version '
+        r'[\'"](.*)[\'"]( apply false)?$')
       if hmpps_gradle_spring_boot_matches := re.findall(
         regex, build_gradle_config_content, re.MULTILINE
       ):
@@ -67,7 +68,8 @@ def get_gradle_config(gh, repo):
     return gradle_config
   else:
     log_info(
-      'Unable to find gradle-spring-boot version within build.gradle.kts or build.gradle'
+      'Unable to find gradle-spring-boot version within build.gradle.kts '
+      'or build.gradle'
     )
   return None
 
@@ -84,7 +86,8 @@ def get_gradle_version(services, repo):
 
 # Dockerfile reader
 def get_dockerfile_data(dockerfile_contents):
-  # Use an in-memory text buffer that can accept both str and bytes writes from DockerfileParser
+  # Use an in-memory text buffer that can accept both str 
+  # and bytes writes from DockerfileParser
   class _DockerfileStringIO(io.StringIO):
     def write(self, s):  # type: ignore[override]
       if isinstance(s, bytes):
@@ -108,7 +111,8 @@ def get_dockerfile_data(dockerfile_contents):
   try:
     # Get list of parent images, and strip out references to 'base'
     parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
-    # Get the last element in the array, which should be the base image of the final stage.
+    # Get the last element in the array, 
+    # which should be the base image of the final stage.
     base_image = parent_images[-1]
     docker_data['base_image'] = base_image
     log_debug(f'Found Dockerfile base image: {base_image}')

@@ -1,10 +1,9 @@
 # This needs to be validated before use
 # since it has been re-written to use Strapi v5 and
-# hmpps-python-lib shared libraries
+# hmpps-sre-python-lib shared libraries
 
 import os
 import json
-import logging
 
 # hmpps
 from hmpps import ServiceCatalogue

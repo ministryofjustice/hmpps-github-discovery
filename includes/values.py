@@ -22,9 +22,12 @@ env_mapping = {
 # push_protection: push protection enabled (mandatory for public repositories)
 # branch_protection_admins: default branch protection enforced for admins (mandatory)
 # branch_protection_signed: default branch protection requires signed commits (optional)
-# branch_protection_code_owner_review: default branch protection requires code owner reviews (optional)
-# pull_dismiss_stale_reviews: default branch pull request dismiss stale reviews (optional - may be mandatory in the future)
-# pull_requires_review: default branch pull request requires at least one review (optional - may be mandatory in the future)
+# branch_protection_code_owner_review: default branch protection requires code owner 
+# reviews (optional)
+# pull_dismiss_stale_reviews: default branch pull request dismiss stale reviews 
+# (optional - may be mandatory in the future)
+# pull_requires_review: default branch pull request requires at least one review 
+# (optional - may be mandatory in the future)
 # authoritative_owner: has an authoritative owner (optional)
 # licence_mit: license is MIT (optional)
 # default_branch_main: Default Branch is Main (mandatory)
@@ -62,7 +65,8 @@ standards = [
   ('issues_section_enabled', 'basic.has_issues', True),
 ]
 
-# A list of whitelisted Github Actions providers - any that are not in this list will be included in the scan output.
+# A list of whitelisted Github Actions providers - any that are not in this list 
+# will be included in the scan output.
 actions_allowlist = [
   '^\\./\\.github',
   '^\\.github\\/',

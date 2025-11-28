@@ -56,7 +56,6 @@ def main():
   dev_data = sc_dev.get_all_records(sc_dev.components_get)
 
   for component in prod_data:
-    dev_attributes = [x for x in dev_data if x.get('name') == component.get('name')][0]
     log_info(f'{prod_data.get("name")}')
     log_info('=======================')
     differences = compare_attributes(prod_data, dev_data)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Github discovery - queries the github API for info about hmpps services and stores the results in the service catalogue
+"""Github discovery - queries the github API for info about hmpps services 
+and stores the results in the service catalogue
 
 Required environment variables
 ------------------------------
@@ -39,7 +40,8 @@ from hmpps.services.job_log_handling import log_debug, log_error, log_info
 # local
 import processes.components as components
 
-# Set maximum number of concurrent threads to run, try to avoid secondary github api limits.
+# Set maximum number of concurrent threads to run, try to avoid 
+# secondary github api limits.
 max_threads = 10
 
 
@@ -51,9 +53,9 @@ class Services:
     self.cc = CircleCI(cc_params)
 
 
-###########################################################################################################
+#######################################################################################
 # Single component discovery
-###########################################################################################################
+#######################################################################################
 def main():
   parser = argparse.ArgumentParser(description='Process a component.')
   parser.add_argument('component_name', help='The name of the component')
@@ -85,7 +87,8 @@ def main():
   am_params = {
     'url': os.getenv(
       'ALERTMANAGER_ENDPOINT',
-      'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/alertmanager/status',
+      'http://monitoring-alerts-service.cloud-platform-monitoring-alerts:8080/'
+      'alertmanager/status',
     )
   }
 

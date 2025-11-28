@@ -88,7 +88,7 @@ These workflows and their references (and a representative location for each one
 
 ### Classes
 
-These are all inherited from [hmpps-python-lib](https://github.com/ministryofjustice/hmpps-python-lib), which contains documention for the particular classes and the functions they support.
+These are all inherited from [hmpps-sre-python-lib](https://github.com/ministryofjustice/hmpps-sre-python-lib), which contains documention for the particular classes and the functions they support.
 
 ### Processes
 
@@ -122,7 +122,7 @@ These are all inherited from [hmpps-python-lib](https://github.com/ministryofjus
 - **Standards** (`includes/standards.py`) contains functions that read and processes various parameters of the repository to determine compliance with standards
 - **Teams** (`includes/teams.py`) are functions to processes the teams either from Github or from Terraform data.
 
-Note: some functions are also inherited from [hmpps-python-lib](https://github.com/ministryofjustice/hmpps-python-lib) - these are designated by bbeginning `from hmpps import...`
+Note: some functions are also inherited from [hmpps-sre-python-lib](https://github.com/ministryofjustice/hmpps-sre-python-lib) - these are designated by bbeginning `from hmpps import...`
 
 ## Github tokens
 Each Github application has a limit of 15,000 calls per hour. Because some of the Github Discovery processes are quite intensive (each time a file is retrieved from Github it counts as a token use),
@@ -196,15 +196,15 @@ and `python your_script.py` can be used as usual.
 
 Dependencies are managed by `uv` - the `uv.lock` file contains the latest snapshot of required dependencies.
 
-If a new version of a library is required (for example if hmpps-python-lib is updated), it is a simple case of running
+If a new version of a library is required (for example if hmpps-sre-python-lib is updated), it is a simple case of running
 
 ```bash
 uv upgrade LIBRARY_NAME==version.number
 ```
-or, in the case of hmpps-python-lib, which is an externally managed library:
+or, in the case of hmpps-sre-python-lib, which is an externally managed library:
 ```bash
 uv uninstall hmpps-python
-uv install https://github.com/ministryofjustice/hmpps-python-lib/releases/download/v0.1.0/hmpps_python_lib-0.1.0-py3-none-any.whl
+uv install https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.0/hmpps_python_lib-0.1.0-py3-none-any.whl
 uv sync
 ```
 

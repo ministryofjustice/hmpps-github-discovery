@@ -297,7 +297,8 @@ def get_info_from_helm(component, repo, services):
             alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
             if alert_severity_label:
               log_debug(
-                f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
+                f'generic-prometheus alerts found in values: '
+                f'{generic_prometheus_alerts}'
               )
               log_debug(
                 f'Updating {env} alert_severity_label to {alert_severity_label}'

@@ -63,7 +63,8 @@ def test_subject_access_request_endpoint(url):
     return False
 
 
-# This method read the value stored in dictionary passed to it checks if the ip allow list is present or not and returns boolean
+# This method read the value stored in dictionary passed to it checks 
+# if the ip allow list is present or not and returns boolean
 def is_ipallowList_enabled(yaml_data):
   ip_allow_list_enabled = False
   if isinstance(yaml_data, dict):
@@ -73,7 +74,7 @@ def is_ipallowList_enabled(yaml_data):
   return ip_allow_list_enabled
 
 
-################################################################################################
+#######################################################################################
 # get_existing_env_config
 # This function will get the config value from the component environment
 # to prevent it being overwritten by blank entries

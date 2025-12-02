@@ -5,7 +5,7 @@ generic-prometheus-alerts:
 
 github-discovery:
   env:
-    LOG_LEVEL: info
+    LOG_LEVEL: DEBUG
 
 # Run the Cronjob every 2 hours except 06:xx
 discoveryCronJob:

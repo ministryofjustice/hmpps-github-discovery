@@ -4,7 +4,7 @@
 generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-nonprod
 
-github-discovery:
+github_discovery:
   env:
     LOG_LEVEL: "DEBUG"
     SC_FILTER: "SC_FILTER"

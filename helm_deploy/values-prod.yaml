@@ -3,7 +3,7 @@
 generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-prod
 
-github-discovery:
+github_discovery:
   env:
     LOG_LEVEL: DEBUG
 

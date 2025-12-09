@@ -183,8 +183,8 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
     if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
       if app_insights_cloud_role_name := package_json.get('name'):
         if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
-          return app_insights_cloud_role_name
           log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
+          return app_insights_cloud_role_name
         else:
           log_debug('Application Insights role name not valid - not setting it')
       else:
@@ -194,6 +194,20 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
     else:
       log_warning('Typescript repo - '
                   f'no package.json file found for {component_project_dir}')
+    
+  log_debug('Looking for Application Insights config in Helm values.yaml')
+  helm_config = gh.get_file_yaml(repo, 
+    f'{component_project_dir}/helm_deploy/{repo.name}/values.yaml')
+  if helm_config:
+    env_config = helm_config.get('generic-service', {}).get('env', {})
+    if 'APPLICATIONINSIGHTS_CONNECTION_STRING' in env_config:
+      app_insights_cloud_role_name = repo.name
+      return app_insights_cloud_role_name
+    else:
+      log_debug('No Application Insights config found in Helm values.yaml')
+  else:
+    log_debug('No Helm values.yaml found to check for Application Insights config')
+
   return None
 
 

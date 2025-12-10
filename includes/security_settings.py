@@ -1,19 +1,12 @@
 import re
-import io
-import json
-import tomllib
 
 # hmpps
 from hmpps import update_dict
 from hmpps.services.job_log_handling import (
   log_debug,
-  log_error,
   log_info,
   log_warning,
 )
-
-# local
-from includes.utils import remove_version
 
 # Contains functions that return versions
 

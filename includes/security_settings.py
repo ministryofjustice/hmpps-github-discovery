@@ -50,9 +50,6 @@ def get_npmrc_ignore_scripts(services, repo):
         return True
       elif ignore_scripts_value.lower() == 'false':
         return False
-      return ignore_scripts_value
-  log_info(f'No valid .npmrc config found for {repo.name}')
-  return None
 
 
 # Main function that calls all the others

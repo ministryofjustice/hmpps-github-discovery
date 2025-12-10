@@ -57,7 +57,8 @@ def get_security_settings(services, repo, component_project_dir, data):
   """Get security settings from various config files."""
 
   # NPM config
-  if ignore_scripts := get_npmrc_ignore_scripts(services, repo):
+  ignore_scripts = get_npmrc_ignore_scripts(services, repo)
+  if isinstance(ignore_scripts, bool):
     log_info(f'Updating npm ignore-scripts setting: {ignore_scripts}')
     update_dict(
       data,

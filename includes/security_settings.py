@@ -69,5 +69,3 @@ def get_security_settings(services, repo, component_project_dir, data):
     )
   else:
     log_debug(f'npm ignore-scripts setting not found for {repo.name}')
-
-  return data

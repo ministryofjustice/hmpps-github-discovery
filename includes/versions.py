@@ -186,5 +186,3 @@ def get_versions(services, repo, component_project_dir, data):
   else:
     log_info(f'No Python version information found for {repo.name}')
     remove_version(data, 'python')
-
-  return data

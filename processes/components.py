@@ -26,7 +26,7 @@ from hmpps.services.job_log_handling import (
 
 
 # local
-from includes import helm, environments, versions
+from includes import helm, environments, versions, security_settings
 
 max_threads = 10
 
@@ -332,6 +332,9 @@ def process_changed_component(component, repo, services):
 
   # Versions information
   versions.get_versions(services, repo, component_project_dir, data)
+
+  # Security settings (npm config, etc.)
+  security_settings.get_security_settings(services, repo, component_project_dir, data)
 
   # All done with the branch dependent components
 

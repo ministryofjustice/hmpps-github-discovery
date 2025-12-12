@@ -1,4 +1,6 @@
 import re
+import base64
+
 
 # hmpps
 from hmpps import update_dict, fetch_yaml_values_for_key
@@ -53,6 +55,149 @@ def get_envs_from_helm(component, repo, services):
   return helm_environments
 
 
+def fetch_helm_default_values(
+  sc, helm_default_values, allow_list_key, component_name, data
+):
+  helm_defaults = {
+    'mod_security': {},
+    'alert_severity_label': None,
+    'ip_allow_list': (
+      fetch_yaml_values_for_key(helm_default_values, allow_list_key) or {}
+    ),
+  }
+
+  # Try to get the container image
+  if container_image := helm_default_values.get('image', {}).get('repository', {}):
+    data['container_image'] = container_image
+    log_debug(
+      f'Container image found in image->repository for {component_name}: '
+      f'{container_image}'
+    )
+  if 'generic-service' in helm_default_values:
+    log_debug(f'generic-service found for {component_name}')
+    if 'generic-service' in helm_default_values and (
+      container_image := helm_default_values.get('generic-service', {})
+      .get('image', {})
+      .get('repository')
+    ):
+      data['container_image'] = container_image
+      log_debug(
+        f'Container image found in generic-service->image->repository for '
+        f'{component_name}: {container_image}'
+      )
+
+    # Try to get the productID from helm values.yaml
+    if helm_product_id := helm_default_values.get('generic-service', {}).get(
+      'productId', {}
+    ):
+      if sc_product_id := sc.get_id('products', 'p_id', helm_product_id):
+        data['product'] = sc_product_id
+
+    # Get modsecurity data defaults, if enabled.
+    for mod_security_type in [
+      'modsecurity_enabled',
+      'modsecurity_audit_enabled',
+      'modsecurity_snippet',
+    ]:
+      helm_defaults['mod_security'][mod_security_type] = (
+        helm_default_values.get('generic-service', {})
+        .get('ingress', {})
+        .get(mod_security_type, None)
+      )
+  if not data.get('container_image'):
+    log_info(f'No container image found for {component_name}')
+
+  helm_defaults['alert_severity_label'] = helm_default_values.get(
+    'generic-prometheus-alerts', {}
+  ).get('alertSeverity', None)
+
+  return helm_defaults
+
+
+def fetch_alertmanager_config(am, env, helm_defaults, component_name, values):
+  alertmanager_config = {}
+  alert_severity_label = None
+  alerts_slack_channel = None
+  if am.isDataAvailable():
+    # Update Alert severity label and slack channel
+    if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
+      alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
+      if alert_severity_label:
+        log_debug(
+          f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
+        )
+        log_debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
+
+    if not alert_severity_label and helm_defaults.get('alert_severity_label'):
+      log_info(
+        f'Alert severity label not found for {component_name} in {env} - '
+        f'setting to default'
+      )
+      alert_severity_label = helm_defaults.get('alert_severity_label')
+    else:
+      log_info(
+        f'Alert severity label not found for {component_name} in values.yaml & '
+        f'values-{env}.yaml'
+      )
+
+    # Only populate the alertmanager_config dictionary if a config has been found
+    if alert_severity_label:
+      alerts_slack_channel = am.find_channel_by_severity_label(alert_severity_label)
+      if alerts_slack_channel:
+        log_debug(
+          f'Updating {component_name} {env} alerts_slack_channel to '
+          f'{alerts_slack_channel}'
+        )
+      else:
+        log_warning(
+          f'Alerts slack channel not found for {component_name} '
+          f'{alert_severity_label} for {env}'
+        )
+
+      alertmanager_config = {
+        'alert_severity_label': alert_severity_label,
+        'alerts_slack_channel': alerts_slack_channel,
+      }
+  return alertmanager_config
+
+
+def update_helm_dep_versions(gh, repo, helm_dir, component_name, data):
+  log_debug('updating helm dependencies')
+  helm_file_paths = [
+    f'{helm_dir}/{component_name}/Chart.yaml',
+    f'{helm_dir}/Chart.yaml',
+  ]
+  helm_dep_versions = {}
+
+  for path in helm_file_paths:
+    if (helm_chart := gh.get_file_yaml(repo, path)) and 'dependencies' in helm_chart:
+      helm_dep_versions = {
+        item['name']: {'ref': item['version'], 'path': path}
+        for item in helm_chart['dependencies']
+      }
+      break
+
+  if helm_dep_versions:
+    update_dict(data, 'versions', {'helm_dependencies': helm_dep_versions})
+  else:
+    remove_version(data, 'helm_dependencies')
+
+
+def check_for_sqs_audit(repo, helm_deploy_dir):
+  for helm_file in helm_deploy_dir:
+    if helm_file.name.endswith('.yaml') or helm_file.name.endswith('.yml'):
+      try:
+        blob = repo.get_git_blob(helm_file.sha)
+        if (
+          'AUDIT_SQS_QUEUE_URL'
+          in base64.b64decode(blob.content).decode('utf-8').upper()
+        ):
+          return True
+      except Exception as e:
+        log_warning(f'Unable to read {helm_file.name}: {e}')
+  return False
+
+
 def get_info_from_helm(component, repo, services):
   gh = services.gh
   am = services.am
@@ -68,167 +213,88 @@ def get_info_from_helm(component, repo, services):
 
   helm_dirs = get_helm_dirs(repo, component)
   helm_dir, helm_deploy_dir = helm_dirs
-  if helm_deploy_dir:
-    # variables used for implementation of findind IP allowlist in helm values files
-    allow_list_key = 'allowlist'
-    ip_allow_list_data = {}
-    ip_allow_list = {}
 
-    # Read in the environments from the helm deployment directory
+  # No point in continuing if there's no deploy directory
+  if not helm_deploy_dir:
+    return None
 
-    for helm_file in helm_deploy_dir:
-      if helm_file.name.startswith('values-'):
-        if envs := re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name):
-          helm_environments.append(envs[1])
+  # variables used for implementation of findind IP allowlist in helm values files
+  allow_list_key = 'allowlist'
+  ip_allow_list_data = {}
+  ip_allow_list = {}
 
-        # HEAT-223 Start : Read and collate data for IPallowlist from all environment 
-        # specific values.yaml files.
-        ip_allow_list[helm_file] = fetch_yaml_values_for_key(
-          gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}'),
-          allow_list_key,
-        )
-        if ip_allow_list[helm_file]:
-          ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
-        # HEAT-223 End : Read and collate data for IPallowlist from all environment 
-        # specific values.yaml files.
+  # Read in the environments from the helm deployment directory
+  for helm_file in helm_deploy_dir:
+    if not helm_file.name.startswith('values-'):
+      continue
 
-    # Helm chart dependencies
-    helm_file_paths = [
-      f'{helm_dir}/{component_name}/Chart.yaml',
-      f'{helm_dir}/Chart.yaml',
-    ]
+    if envs := re.match('values-([a-z0-9-]+)\\.y[a]?ml', helm_file.name):
+      helm_environments.append(envs[1])
 
-    helm_dep_versions = {}
-
-    for path in helm_file_paths:
-      if (helm_chart := gh.get_file_yaml(repo, path)) and 'dependencies' in helm_chart:
-        helm_dep_versions = {
-          item['name']: {'ref': item['version'], 'path': path}
-          for item in helm_chart['dependencies']
-        }
-        break
-
-    if helm_dep_versions:
-      update_dict(data, 'versions', {'helm_dependencies': helm_dep_versions})
-    else:
-      remove_version(data, 'helm_dependencies')
-
-    # DEFAULT VALUES SECTION
-    # ----------------------
-    # Default values for modsecurity and alert_severity_label - clear these out 
-    # in case theres's nothing set
-    mod_security_defaults = {}
-    alert_severity_label_default = None
-    ip_allow_list_default = {}
-    # Get the default values chart filename (including yml versions)
-    helm_default_values = (
-      gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yaml')
-      or gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yml')
-      or gh.get_file_yaml(repo, f'{helm_dir}/values.yaml')
-      or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')
-      or {}
+    # HEAT-223 Start : Read and collate data for IPallowlist from all environment
+    # specific values.yaml files.
+    ip_allow_list[helm_file] = fetch_yaml_values_for_key(
+      gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}'),
+      allow_list_key,
     )
-    log_debug(f'helm_default_values: {helm_default_values}')
+    if ip_allow_list[helm_file]:
+      ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
+    # HEAT-223 End : Read and collate data for IPallowlist from all environment
+    # specific values.yaml files.
 
-    # Get the default values from the helm chart - and only proceed if there is one
+  # Helm chart dependencies
+  update_helm_dep_versions(gh, repo, helm_dir, component_name, data)
 
-    if helm_default_values:
-      ip_allow_list_default = fetch_yaml_values_for_key(
-        helm_default_values, allow_list_key
-      )
+  # DEFAULT VALUES SECTION
+  # ----------------------
+  # Default values for modsecurity and alert_severity_label - clear these out
+  # in case theres's nothing set
 
-      # Try to get the container image
-      if container_image := helm_default_values.get('image', {}).get('repository', {}):
-        data['container_image'] = container_image
-        log_debug(
-          f'Container image found in image->repository for {component_name}: '
-          f'{container_image}'
-        )
-      if 'generic-service' in helm_default_values:
-        log_debug(f'generic-service found for {component_name}: {container_image}')
-        if 'generic-service' in helm_default_values and (
-          container_image := helm_default_values.get('generic-service', {})
-          .get('image', {})
-          .get('repository')
-        ):
-          data['container_image'] = container_image
-          log_debug(
-            f'Container image found in generic-service->image->repository for '
-            f'{component_name}: {container_image}'
-          )
+  # Get the default values chart filename (including yml versions)
+  helm_defaults = {}
+  helm_default_values = (
+    gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yaml')
+    or gh.get_file_yaml(repo, f'{helm_dir}/{component.get("name")}/values.yml')
+    or gh.get_file_yaml(repo, f'{helm_dir}/values.yaml')
+    or gh.get_file_yaml(repo, f'{helm_dir}/values.yml')
+    or {}
+  )
+  log_debug(f'helm_default_values: {helm_default_values}')
 
-        # Try to get the productID from helm values.yaml
-        if helm_product_id := helm_default_values.get('generic-service', {}).get(
-          'productId', {}
-        ):
-          if sc_product_id := sc.get_id('products', 'p_id', helm_product_id):
-            data['product'] = sc_product_id
+  # Get the default values from the helm chart - and only proceed if there is one
 
-        # Get modsecurity data defaults, if enabled.
-        for mod_security_type in [
-          'modsecurity_enabled',
-          'modsecurity_audit_enabled',
-          'modsecurity_snippet',
-        ]:
-          mod_security_defaults[mod_security_type] = (
-            helm_default_values.get('generic-service', {})
-            .get('ingress', {})
-            .get(mod_security_type, None)
-          )
-      if not data.get('container_image'):
-        log_info(f'No container image found for {component_name}')
+  if helm_default_values:
+    helm_defaults = fetch_helm_default_values(
+      sc, helm_default_values, allow_list_key, component_name, data
+    )
 
-      alert_severity_label_default = helm_default_values.get(
-        'generic-prometheus-alerts', {}
-      ).get('alertSeverity', None)
+  # Shortcut dictionary to update helm data
+  helm_envs = {}
 
-    # Shortcut dictionary to update helm data
-    helm_envs = {}
+  # Process the helm environments
+  # -----------------------------
+  for env in helm_environments:
+    # Environment type first of all:
+    update_dict(helm_envs, env, {'type': env_mapping.get(env.lower(), None)})
 
-    for env in helm_environments:
-      # Environment type first of all:
-      update_dict(helm_envs, env, {'type': env_mapping.get(env.lower(), None)})
+    # Monitor environment
+    if repo.archived:
+      # If the repo is archived, then monitoring should be automatically set to False
+      update_dict(helm_envs, env, {'monitor': False})
 
-      # Monitor environment
-      if repo.archived:
-        # If the repo is archived, then monitoring should be automatically set to False
-        update_dict(helm_envs, env, {'monitor': False})
-
-      # Get the values.yaml file for the environment
-      values = (
-        gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
-        or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
-        or None
-      )
-      log_debug(f'helm values for {component_name} in {env}: {values}')
-      if values:
-        # generic service->ingress->host(s)
-        if 'generic-service' in values:
-          if ingress_dict := values['generic-service'].get('ingress'):
-            if 'host' in ingress_dict:
-              update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})
-            elif 'hosts' in ingress_dict:
-              last_host_record = ingress_dict.get('hosts')[-1]
-              log_debug(
-                f'hosts found - last record is {last_host_record} - which is of type '
-                f'{type(last_host_record)}'
-              )
-              host = (
-                last_host_record.get('host', '')
-                if isinstance(last_host_record, dict)
-                else last_host_record
-              )
-              log_debug(f'host is: {host}')
-              update_dict(
-                helm_envs,
-                env,
-                {'url': f'https://{host}'},
-              )
-        # ingress->host(s)
-        elif 'ingress' in values:
-          ingress_dict = values.get('ingress')
-          if host := ingress_dict.get('host'):
-            update_dict(helm_envs, env, {'url': f'https://{host}'})
+    # Get the values.yaml file for the environment
+    values = (
+      gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yaml')
+      or gh.get_file_yaml(repo, f'{helm_dir}/values-{env}.yml')
+      or None
+    )
+    log_debug(f'helm values for {component_name} in {env}: {values}')
+    if values:
+      # generic service->ingress->host(s)
+      if 'generic-service' in values:
+        if ingress_dict := values['generic-service'].get('ingress'):
+          if 'host' in ingress_dict:
+            update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})
           elif 'hosts' in ingress_dict:
             last_host_record = ingress_dict.get('hosts')[-1]
             log_debug(
@@ -246,160 +312,150 @@ def get_info_from_helm(component, repo, services):
               env,
               {'url': f'https://{host}'},
             )
+      # ingress->host(s)
+      elif 'ingress' in values:
+        ingress_dict = values.get('ingress')
+        if host := ingress_dict.get('host'):
+          update_dict(helm_envs, env, {'url': f'https://{host}'})
+        elif 'hosts' in ingress_dict:
+          last_host_record = ingress_dict.get('hosts')[-1]
+          log_debug(
+            f'hosts found - last record is {last_host_record} - which is of type '
+            f'{type(last_host_record)}'
+          )
+          host = (
+            last_host_record.get('host', '')
+            if isinstance(last_host_record, dict)
+            else last_host_record
+          )
+          log_debug(f'host is: {host}')
+          update_dict(
+            helm_envs,
+            env,
+            {'url': f'https://{host}'},
+          )
 
-        # Container image alternative location
-        if 'image' in values:
-          # image->repository
-          if container_image := values.get('image', {}).get('repository', {}):
+      # Container image alternative location
+      if 'image' in values:
+        # image->repository
+        if container_image := values.get('image', {}).get('repository', {}):
+          data['container_image'] = container_image
+        # generic-service->image->repository
+        elif 'generic-service' in values and 'image' in values['generic-service']:
+          if container_image := values['generic-service']['image']['repository']:
             data['container_image'] = container_image
-          # generic-service->image->repository
-          elif 'generic-service' in values and 'image' in values['generic-service']:
-            if container_image := values['generic-service']['image']['repository']:
-              data['container_image'] = container_image
 
-        # Modsecurity settings
-        for mod_security_type in [
-          ('modsecurity_enabled', False),
-          ('modsecurity_audit_enabled', False),
-          ('modsecurity_snippet', None),
-        ]:  # default to this
-          if 'generic-service' in values and 'ingress' in values['generic-service']:
-            if mod_security_env_enabled := values['generic-service']['ingress'].get(
-              mod_security_type[0]
-            ):
-              log_debug(
-                f'Updating {mod_security_type[0]} to environment value: '
-                f'{mod_security_env_enabled}'
-              )
-              update_dict(
-                helm_envs,
-                env,
-                {mod_security_type[0]: mod_security_env_enabled},
-              )
-            elif mod_security_defaults.get(mod_security_type[0]):
-              log_debug(
-                f'Updating {mod_security_type[0]} to default value: '
-                f'{mod_security_defaults[mod_security_type[0]]}'
-              )
-              update_dict(
-                helm_envs,
-                env,
-                {mod_security_type[0]: mod_security_defaults[mod_security_type[0]]},
-              )
-            else:  # default either to false or None
-              update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
-
-        alert_severity_label = None
-        alerts_slack_channel = None
-        if am.isDataAvailable():
-          # Update Alert severity label and slack channel
-          if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
-            alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
-            if alert_severity_label:
-              log_debug(
-                f'generic-prometheus alerts found in values: '
-                f'{generic_prometheus_alerts}'
-              )
-              log_debug(
-                f'Updating {env} alert_severity_label to {alert_severity_label}'
-              )
-
-          if not alert_severity_label and alert_severity_label_default:
-            log_info(
-              f'Alert severity label not found for {component_name} in {env} - '
-              f'setting to default'
+      # Modsecurity settings
+      for mod_security_type in [
+        ('modsecurity_enabled', False),
+        ('modsecurity_audit_enabled', False),
+        ('modsecurity_snippet', None),
+      ]:  # default to this
+        if 'generic-service' in values and 'ingress' in values['generic-service']:
+          if mod_security_env_enabled := values['generic-service']['ingress'].get(
+            mod_security_type[0]
+          ):
+            log_debug(
+              f'Updating {mod_security_type[0]} to environment value: '
+              f'{mod_security_env_enabled}'
             )
-            alert_severity_label = alert_severity_label_default
+            update_dict(
+              helm_envs,
+              env,
+              {mod_security_type[0]: mod_security_env_enabled},
+            )
+          elif helm_defaults.get('mod_security', {}).get(mod_security_type[0]):
+            log_debug(
+              f'Updating {mod_security_type[0]} to default value: '
+              f'{helm_defaults.get("mod_security", {}).get(mod_security_type[0])}'
+            )
+            update_dict(
+              helm_envs,
+              env,
+              {
+                mod_security_type[0]: helm_defaults.get('mod_security', {}).get(
+                  mod_security_type[0]
+                )
+              },
+            )
+          else:  # default either to false or None
+            update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
+
+      if alertmanager_config := fetch_alertmanager_config(
+        am, env, helm_defaults, component_name, values
+      ):
+        log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+        # Update the helm environment data with the outcome of this check
+        update_dict(helm_envs, env, alertmanager_config)
+
+      # Health paths using the host name:
+      health_path = None
+      info_path = None
+      if env_host := helm_envs[env].get('url'):
+        env_url = f'{env_host}'
+        health_path = '/health'
+        info_path = '/info'
+        # Hack for hmpps-auth non standard endpoints
+        if 'sign-in' in env_url:
+          health_path = '/auth/health'
+          info_path = '/auth/info'
+        if test_endpoint(env_url, health_path):
+          update_dict(helm_envs, env, {'health_path': health_path})
+        if test_endpoint(env_url, info_path):
+          update_dict(helm_envs, env, {'info_path': info_path})
+        # Test for API docs - and if found also test for SAR endpoint.
+        if test_swagger_docs(env_url):
+          update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
+          data['api'] = True
+          data['frontend'] = False
+          if test_subject_access_request_endpoint(env_url):
+            update_dict(
+              helm_envs,
+              env,
+              {'include_in_subject_access_requests': True},
+            )
           else:
-            log_info(
-              f'Alert severity label not found for {component_name} in values.yaml & '
-              f'values-{env}.yaml'
+            update_dict(
+              helm_envs,
+              env,
+              {'include_in_subject_access_requests': False},
             )
+      # Modification to set monitoring to False if no health path is found
+      if not health_path:
+        update_dict(helm_envs, env, {'monitor': False})
 
-          if alert_severity_label:
-            alerts_slack_channel = am.find_channel_by_severity_label(
-              alert_severity_label
-            )
-            if alerts_slack_channel:
-              log_debug(
-                f'Updating {component_name} {env} alerts_slack_channel to '
-                f'{alerts_slack_channel}'
-              )
-            else:
-              log_warning(
-                f'Alerts slack channel not found for {component_name} '
-                f'{alert_severity_label} for {env}'
-              )
+      if ip_allow_list_env := ip_allow_list_data.get(f'values-{env}.yaml'):
+        values_filename = f'values-{env}.yaml'
+        allow_list_values = {
+          f'{values_filename}': ip_allow_list_env,
+          'values.yaml': helm_defaults.get('ip_allow_list'),
+        }
+      else:
+        allow_list_values = {
+          f'values-{env}.yaml': {},
+          'values.yaml': helm_defaults.get('ip_allow_list'),
+        }
 
-          alertmanager_config = {
-            'alert_severity_label': alert_severity_label,
-            'alerts_slack_channel': alerts_slack_channel,
-          }
-          log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
-          # Update the helm environment data with the outcome of this check
-          update_dict(helm_envs, env, alertmanager_config)
+      update_dict(
+        helm_envs,
+        env,
+        {
+          'ip_allow_list': allow_list_values,
+          'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values),
+        },
+      )
 
-        # Health paths using the host name:
-        health_path = None
-        info_path = None
-        if env_host := helm_envs[env].get('url'):
-          env_url = f'{env_host}'
-          health_path = '/health'
-          info_path = '/info'
-          # Hack for hmpps-auth non standard endpoints
-          if 'sign-in' in env_url:
-            health_path = '/auth/health'
-            info_path = '/auth/info'
-          if test_endpoint(env_url, health_path):
-            update_dict(helm_envs, env, {'health_path': health_path})
-          if test_endpoint(env_url, info_path):
-            update_dict(helm_envs, env, {'info_path': info_path})
-          # Test for API docs - and if found also test for SAR endpoint.
-          if test_swagger_docs(env_url):
-            update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
-            data['api'] = True
-            data['frontend'] = False
-            if test_subject_access_request_endpoint(env_url):
-              update_dict(
-                helm_envs,
-                env,
-                {'include_in_subject_access_requests': True},
-              )
-            else:
-              update_dict(
-                helm_envs,
-                env,
-                {'include_in_subject_access_requests': False},
-              )
-        # Modification to set monitoring to False if no health path is found
-        if not health_path:
-          update_dict(helm_envs, env, {'monitor': False})
+  # Need to add the helm data to the main data list of environments
+  if helm_envs:
+    update_dict(data, 'environments', helm_envs)
+  # End of helm environment checks
 
-        if ip_allow_list_env := ip_allow_list_data.get(f'values-{env}.yaml'):
-          values_filename = f'values-{env}.yaml'
-          allow_list_values = {
-            f'{values_filename}': ip_allow_list_env,
-            'values.yaml': ip_allow_list_default,
-          }
-        else:
-          allow_list_values = {
-            f'values-{env}.yaml': {},
-            'values.yaml': ip_allow_list_default,
-          }
-
-        update_dict(
-          helm_envs,
-          env,
-          {
-            'ip_allow_list': allow_list_values,
-            'ip_allow_list_enabled': is_ipallowList_enabled(allow_list_values),
-          },
-        )
-
-    # Need to add the helm data to the main data list of environments
-    if helm_envs:
-      update_dict(data, 'environments', helm_envs)
-    # End of helm environment checks
+  # Check for AUDIT_SQS_QUEUE_URL in the helm files
+  update_dict(
+    data,
+    'security_settings',
+    {'audit_sqs_queue_defined': check_for_sqs_audit(repo, helm_deploy_dir)},
+  )
 
   log_debug(f'Helm data for {component_name}: {data}')
   return data

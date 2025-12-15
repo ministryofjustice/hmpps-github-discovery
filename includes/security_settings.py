@@ -7,11 +7,9 @@ from hmpps.services.job_log_handling import (
   log_info,
   log_warning,
 )
-from includes.helm import get_helm_dirs
-
-# Contains functions that return versions
 
 
+# Contains functions that return security settings
 def get_npmrc_config(gh, repo):
   """Parse .npmrc file and extract configuration settings."""
   npmrc_config = {}

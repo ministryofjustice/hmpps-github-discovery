@@ -495,7 +495,8 @@ def batch_process_sc_components(
     cur_rate_limit = services.gh.get_rate_limit()
     log_info(
       f'{component_count}/{len(components)} - preparing to process '
-      f'{component.get("name")} ({int(component_count / len(components) * 100)}% complete)'
+      f'{component.get("name")} ({int(component_count / len(components) * 100)}'
+      '% complete)'
     )
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit}'

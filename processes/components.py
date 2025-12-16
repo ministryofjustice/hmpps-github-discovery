@@ -101,9 +101,9 @@ def get_repo_teams_info(repo, branch_protection):
 ##########################################
 def get_repo_properties(repo, default_branch):
   log_debug('get_repo_properties running')
-  description=repo.description or ''
-  if repo.archived and "ARCHIVED" not in description:
-    description = f"[ARCHIVED] {description}"
+  description = repo.description or ''
+  if repo.archived and 'ARCHIVED' not in description:
+    description = f'[ARCHIVED] {description}'
   return {
     'language': repo.language,
     'description': description,
@@ -151,7 +151,7 @@ def get_repo_disabled_workflows(repo):
   return disabled_workflows
 
 
-# App insights cloud_RoleName - get the info from the files 
+# App insights cloud_RoleName - get the info from the files
 # (dependent on application type)
 #######################################################################################
 def get_app_insights_cloud_role_name(
@@ -356,7 +356,7 @@ def process_changed_component(component, repo, services):
   versions.get_versions(services, repo, component_project_dir, data)
 
   # Security settings (npm config, etc.)
-  security_settings.get_security_settings(services, repo, component_project_dir, data)
+  security_settings.get_security_settings(services, repo, data)
 
   # All done with the branch dependent components
 
@@ -389,7 +389,7 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
   sc = services.sc
   gh = services.gh
 
-  # Empty data dict gets populated along the way, and finally used 
+  # Empty data dict gets populated along the way, and finally used
   # in PUT request to service catalogue
   data = {}
   component_flags = {}
@@ -436,14 +436,14 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
       log_info(f'No main branch or environment changes for {component_name}')
     else:
       #################################################################################
-      # Process component attributes that only change 
+      # Process component attributes that only change
       # if main branch / environments have changed (full only)
       #################################################################################
       log_info(f'Processing changed components for: {component_name}')
       data.update(process_changed_component(component, repo, services))
 
       #################################################################################
-      # Processing the environment data - 
+      # Processing the environment data -
       # updating the Environments table with information from above
       # (basically the environments from the helm charts)
       #################################################################################
@@ -478,7 +478,7 @@ def process_sc_component(component, services, bootstrap_projects, force_update=F
 
 
 #######################################################################################
-# Main batch dispatcher - this is the process that's called by github_discovery, 
+# Main batch dispatcher - this is the process that's called by github_discovery,
 # and github_security_discovery. By default it runs the function 'process_sc_component'
 # - this can be overridden by a custom function
 # (eg. process_sc_security_component)
@@ -514,7 +514,8 @@ def batch_process_sc_components(
     cur_rate_limit = services.gh.get_rate_limit()
     log_info(
       f'{component_count}/{len(components)} - preparing to process '
-      f'{component.get("name")} ({int(component_count/len(components)*100)}% complete)'
+      f'{component.get("name")} ({int(component_count / len(components) * 100)}'
+      '% complete)'
     )
     log_info(
       f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit}'
@@ -582,21 +583,21 @@ def batch_process_sc_components(
 
   return processed_components
 
+
 def find_duplicate_app_cloud_role(
-    services,
-    max_threads,
-    module='processes.components',
-    function='find_duplicate_app_cloud_role',
-    force_update=False,
+  services,
+  max_threads,
+  module='processes.components',
+  function='find_duplicate_app_cloud_role',
+  force_update=False,
 ):
   sc = services.sc
 
-  components = sc.get_all_records(
-    'components?filters[archived][$eq]=false'
-  )
+  components = sc.get_all_records('components?filters[archived][$eq]=false')
   log_info(
     f'Processing batch of {len(components)} components '
-    'for finding duplicate app insights cloud role names...')
+    'for finding duplicate app insights cloud role names...'
+  )
 
   # Count occurrences of each app_insights_cloud_role_name and group components
   app_insights_cloud_role_counts = {}
@@ -605,27 +606,29 @@ def find_duplicate_app_cloud_role(
     component_name = component.get('name')
     app_insights_cloud_role_name = component.get('app_insights_cloud_role_name', None)
     if app_insights_cloud_role_name:
-        app_insights_cloud_role_counts[app_insights_cloud_role_name] = \
-            app_insights_cloud_role_counts.get(app_insights_cloud_role_name, 0) + 1
-        if app_insights_cloud_role_name not in app_insights_cloud_role_components:
-            app_insights_cloud_role_components[app_insights_cloud_role_name] = []
-        app_insights_cloud_role_components[app_insights_cloud_role_name].append(
-            component_name
-        )
-
+      app_insights_cloud_role_counts[app_insights_cloud_role_name] = (
+        app_insights_cloud_role_counts.get(app_insights_cloud_role_name, 0) + 1
+      )
+      if app_insights_cloud_role_name not in app_insights_cloud_role_components:
+        app_insights_cloud_role_components[app_insights_cloud_role_name] = []
+      app_insights_cloud_role_components[app_insights_cloud_role_name].append(
+        component_name
+      )
 
   # Filter and log only roles with count > 1
-  log_info("Duplicate app insights cloud role names (count > 1):")
+  log_info('Duplicate app insights cloud role names (count > 1):')
   for app_insights_cloud_role_name, count in app_insights_cloud_role_counts.items():
     if count > 1:
-      log_info(f"App Insights Cloud Role Name: {app_insights_cloud_role_name}, "
-          f"Count: {count}, Components: "
-          f"{app_insights_cloud_role_components[app_insights_cloud_role_name]}")
+      log_info(
+        f'App Insights Cloud Role Name: {app_insights_cloud_role_name}, '
+        f'Count: {count}, Components: '
+        f'{app_insights_cloud_role_components[app_insights_cloud_role_name]}'
+      )
 
   return {
-      app_insights_cloud_role_name: app_insights_cloud_role_components[
-          app_insights_cloud_role_name
-      ]
-      for app_insights_cloud_role_name, count in app_insights_cloud_role_counts.items()
-      if count > 1
+    app_insights_cloud_role_name: app_insights_cloud_role_components[
+      app_insights_cloud_role_name
+    ]
+    for app_insights_cloud_role_name, count in app_insights_cloud_role_counts.items()
+    if count > 1
   }

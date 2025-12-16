@@ -8,9 +8,8 @@ from hmpps.services.job_log_handling import (
   log_warning,
 )
 
-# Contains functions that return versions
 
-
+# Contains functions that return security settings
 def get_npmrc_config(gh, repo):
   """Parse .npmrc file and extract configuration settings."""
   npmrc_config = {}
@@ -22,12 +21,12 @@ def get_npmrc_config(gh, repo):
         line = line.strip()
         if not line or line.startswith('#'):
           continue
-        
+
         # Match "key = value" pattern
         if match := re.match(r'^\s*([a-zA-Z0-9_-]+)\s*=\s*(.+)\s*$', line):
           key, value = match.groups()
           npmrc_config[key] = value.strip()
-      
+
       log_debug(f'Found npmrc_config: {npmrc_config}')
     except Exception as e:
       log_warning(f'Unable to parse .npmrc file - {e}')
@@ -53,7 +52,7 @@ def get_npmrc_ignore_scripts(services, repo):
 
 
 # Main function that calls all the others
-def get_security_settings(services, repo, component_project_dir, data):
+def get_security_settings(services, repo, data):
   """Get security settings from various config files."""
 
   # NPM config

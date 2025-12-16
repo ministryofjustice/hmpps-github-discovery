@@ -290,8 +290,19 @@ def get_info_from_helm(component, repo, services):
     )
     log_debug(f'helm values for {component_name} in {env}: {values}')
     if values:
-      # generic service->ingress->host(s)
       if 'generic-service' in values:
+        # Check for postgres database restore setting
+        if postgres_restore := (
+          values['generic-service']
+          .get('postgresDatabaseRestore', {})
+          .get('enabled')
+        ):
+          update_dict(helm_envs, env, {'postgres_database_restore': postgres_restore})
+          log_debug(
+            f'postgresDatabaseRestore set to {postgres_restore} in {env} for '
+            f'{component_name}'
+          )
+        # Check for ingress
         if ingress_dict := values['generic-service'].get('ingress'):
           if 'host' in ingress_dict:
             update_dict(helm_envs, env, {'url': f'https://{ingress_dict["host"]}'})

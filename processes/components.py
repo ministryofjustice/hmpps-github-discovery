@@ -154,9 +154,22 @@ def get_repo_disabled_workflows(repo):
 # App insights cloud_RoleName - get the info from the files
 # (dependent on application type)
 #######################################################################################
-def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
+def get_app_insights_cloud_role_name(
+    repo, gh, component_project_dir, base_template_repo):
   log_debug('Looking for application insights cloud role name')
-  if repo.language == 'Kotlin' or repo.language == 'Java':
+  languages = repo.get_languages()
+  total_bytes = sum(languages.values())
+  threshold_percentage = 10.0
+  major_languages = {
+        lang: bytes_count
+        for lang, bytes_count in languages.items()
+        if (bytes_count / total_bytes) * 100 >= threshold_percentage
+  }
+  log_info(f'Major languages for {repo.name}: {major_languages}')
+  if (
+    any(lang in ('Kotlin', 'Java') for lang in major_languages)
+    or base_template_repo == 'hmpps-template-kotlin'
+  ):
     log_debug(
       f'Detected Kotlin/Java - looking in {component_project_dir}/'
       'applicationinsights.json'
@@ -172,12 +185,15 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
       else:
         log_debug('Role name not found in the expected place (role.name)')
     else:
-      log_warning(
-        'Kotlin repo - no applicationinsights.json file found for '
-        f'{component_project_dir}'
-      )
+      log_warning('Kotlin repo - no applicationinsights.json file found for '
+                  f'{component_project_dir}')
+  else:
+    log_info('Kotlin/Java not detected as major language')
 
-  if repo.language == 'JavaScript' or repo.language == 'TypeScript':
+  if (
+    any(lang in ('TypeScript', 'JavaScript') for lang in major_languages)
+    or base_template_repo== 'hmpps-template-typescript' 
+  ):
     log_debug(
       f'Detected JavaScript/TypeScript - '
       f'looking in {component_project_dir}/package.json'
@@ -185,8 +201,8 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
     if package_json := gh.get_file_json(repo, f'{component_project_dir}/package.json'):
       if app_insights_cloud_role_name := package_json.get('name'):
         if re.match(r'^[a-zA-Z0-9-_]+$', app_insights_cloud_role_name):
-          return app_insights_cloud_role_name
           log_debug(f'app_insights_cloud_role_name is {app_insights_cloud_role_name}')
+          return app_insights_cloud_role_name
         else:
           log_debug('Application Insights role name not valid - not setting it')
       else:
@@ -194,9 +210,10 @@ def get_app_insights_cloud_role_name(repo, gh, component_project_dir):
           'Application Insights role name not found in the expected place (name)'
         )
     else:
-      log_warning(
-        f'Typescript repo - no package.json file found for {component_project_dir}'
-      )
+      log_warning('Typescript repo - '
+                  f'no package.json file found for {component_project_dir}')
+  else:
+    log_info('JavaScript/TypeScript not detected as major language')
   return None
 
 
@@ -321,17 +338,19 @@ def process_changed_component(component, repo, services):
 
   # App insights cloud_RoleName
   #############################
-  if app_insights_cloud_role_name := get_app_insights_cloud_role_name(
-    repo, gh, component_project_dir
-  ):
-    data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
-    # only set if app_insights_cloud_role_name is found and
-    # app_insights_alerts_enabled is not False already
-    if component.get('app_insights_alerts_enabled') is None:
-      data['app_insights_alerts_enabled'] = True
-  else:
-    data['app_insights_cloud_role_name'] = None
-    data['app_insights_alerts_enabled'] = None
+  base_template_repo = component.get('base_template_repo')
+  if component.get('language') not in ('Ruby','Python'):
+    if app_insights_cloud_role_name := get_app_insights_cloud_role_name(
+      repo, gh, component_project_dir, base_template_repo
+    ):
+      data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
+      # only set if app_insights_cloud_role_name is found and 
+      # app_insights_alerts_enabled is not False already
+      if component.get('app_insights_alerts_enabled') is None: 
+        data['app_insights_alerts_enabled'] = True
+    else:
+      data['app_insights_cloud_role_name'] = None
+      data['app_insights_alerts_enabled'] = None
 
   # Versions information
   versions.get_versions(services, repo, component_project_dir, data)

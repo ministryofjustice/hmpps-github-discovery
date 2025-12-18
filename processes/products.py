@@ -23,7 +23,7 @@ def process_sc_product(product, services):
 
   log_info(f'Processing product: {product.get("name")}')
 
-  # Empty data dict gets populated along the way, 
+  # Empty data dict gets populated along the way,
   # and finally used in PUT request to service catalogue
   data = {}
 
@@ -70,14 +70,14 @@ def batch_process_sc_products(services, max_threads=10):
 def main():
   # service catalogue parameters from environment variables
   sc_params = {
-    'sc_api_endpoint': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'sc_api_token': os.getenv('SERVICE_CATALOGUE_API_KEY'),
-    'sc_filter': os.getenv('SC_FILTER', ''),
+    'url': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT', ''),
+    'key': os.getenv('SERVICE_CATALOGUE_API_KEY', ''),
+    'filter': os.getenv('SC_FILTER', ''),
   }
 
   # slack parameters from environment variables
   slack_params = {
-    'slack_bot_token': os.getenv('SLACK_BOT_TOKEN'),
+    'token': os.getenv('SLACK_BOT_TOKEN'),
   }
   services = Services(sc_params, slack_params)
 

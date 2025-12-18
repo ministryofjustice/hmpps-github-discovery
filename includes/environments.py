@@ -6,7 +6,6 @@ from hmpps import update_dict
 
 from hmpps.services.job_log_handling import (
   log_debug,
-  log_error,
   log_info,
   log_warning,
 )
@@ -103,10 +102,10 @@ def get_environments(component, repo, bootstrap_projects, services):
                 },
               )
   except Exception as e:
-    log_error(f'Error getting environments for {component_name}: {e}')
+    log_warning(f'Unable to retrieve environments for {component_name}: {e}')
 
   # there's some data that is not populated by Github Discovery, for example
-  # the build_image_tag, so loop through the environments and get them from 
+  # the build_image_tag, so loop through the environments and get them from
   # the existing records
   if envs:
     for env in envs:
@@ -127,9 +126,9 @@ def get_environments(component, repo, bootstrap_projects, services):
 # process_environments
 # This is the main function to process environments based on data from the helm chart
 # combined with bootstrap projects json file and Github repo environments
-# It returns the environment as a list of dictionaries to be added to the component 
+# It returns the environment as a list of dictionaries to be added to the component
 # table.
-# It also updates the environment table with the environment data, 
+# It also updates the environment table with the environment data,
 # associating it with a component.
 #######################################################################################
 def process_environments(
@@ -221,7 +220,7 @@ def process_environments(
         else:
           env_flags['env_error'] = True
 
-  # Check if SC has extra environments that are not in the helm chart 
+  # Check if SC has extra environments that are not in the helm chart
   # and delete them from environment table
   current_envs = []
   sc_envs = component.get('envs', {})
@@ -258,7 +257,7 @@ def check_env_change(component, repo, bootstrap_projects, services):
   env_changed = False
   component_name = component.get('name')
   current_envs = []
-  # Current envs are the combination of helm environments 
+  # Current envs are the combination of helm environments
   # and the bootstrap/Github environments
   config_envs = get_environments(component, repo, bootstrap_projects, services).keys()
   helm_envs = helm.get_envs_from_helm(component, repo, services)

@@ -26,7 +26,9 @@ jobs:
 
       - name: Run duplicate environment check
         id: check
-        run: uv run python utilities/check_duplicate_environments.py
+        run: |
+          uv lock
+          uv run python utilities/check_duplicate_environments.py
         env:
           SERVICE_CATALOGUE_API_ENDPOINT: ${{ vars.SERVICE_CATALOGUE_API_ENDPOINT }}
           SERVICE_CATALOGUE_API_KEY: ${{ secrets.SERVICE_CATALOGUE_API_KEY }}

@@ -1,6 +1,4 @@
 import re
-import base64
-
 
 # hmpps
 from hmpps import update_dict, fetch_yaml_values_for_key

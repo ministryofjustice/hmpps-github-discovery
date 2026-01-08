@@ -1,6 +1,4 @@
 import re
-import base64
-
 
 # hmpps
 from hmpps import update_dict, fetch_yaml_values_for_key
@@ -183,18 +181,19 @@ def update_helm_dep_versions(gh, repo, helm_dir, component_name, data):
     remove_version(data, 'helm_dependencies')
 
 
-def check_for_sqs_audit(repo, helm_deploy_dir):
-  for helm_file in helm_deploy_dir:
-    if helm_file.name.endswith('.yaml') or helm_file.name.endswith('.yml'):
-      try:
-        blob = repo.get_git_blob(helm_file.sha)
-        if (
-          'AUDIT_SQS_QUEUE_URL'
-          in base64.b64decode(blob.content).decode('utf-8').upper()
-        ):
-          return True
-      except Exception as e:
-        log_warning(f'Unable to read {helm_file.name}: {e}')
+# Use this to check for AUDIT_SQS_QUEUE_URL
+def check_for_key(data, target_key):
+  target_key = target_key.upper()
+  if isinstance(data, dict):
+    for k, v in data.items():
+      if str(k).upper() == target_key:
+        return True
+      if check_for_key(v, target_key):
+        return True
+  elif isinstance(data, list):
+    for item in data:
+      if check_for_key(item, target_key):
+        return True
   return False
 
 
@@ -207,6 +206,7 @@ def get_info_from_helm(component, repo, services):
   component_name = component.get('name')
 
   data = {}
+  audit_sqs_defined = False
 
   helm_environments = []
   # environments is returned from helm as a dictionary
@@ -261,6 +261,10 @@ def get_info_from_helm(component, repo, services):
   )
   log_debug(f'helm_default_values: {helm_default_values}')
 
+  # First place to check for AUDIT_SQS_QUEUE_URL
+  if check_for_key(helm_default_values, 'AUDIT_SQS_QUEUE_URL'):
+    audit_sqs_defined = True
+
   # Get the default values from the helm chart - and only proceed if there is one
 
   if helm_default_values:
@@ -293,9 +297,7 @@ def get_info_from_helm(component, repo, services):
       if 'generic-service' in values:
         # Check for postgres database restore setting
         if postgres_restore := (
-          values['generic-service']
-          .get('postgresDatabaseRestore', {})
-          .get('enabled')
+          values['generic-service'].get('postgresDatabaseRestore', {}).get('enabled')
         ):
           update_dict(helm_envs, env, {'postgres_database_restore': postgres_restore})
           log_debug(
@@ -391,7 +393,7 @@ def get_info_from_helm(component, repo, services):
             )
           else:  # default either to false or None
             update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
-
+      # Alertmanager config
       if alertmanager_config := fetch_alertmanager_config(
         am, env, helm_defaults, component_name, values
       ):
@@ -447,6 +449,10 @@ def get_info_from_helm(component, repo, services):
           'values.yaml': helm_defaults.get('ip_allow_list'),
         }
 
+      # Check within environments for AUDIT_SQS_QUEUE_URL
+      if check_for_key(values, 'AUDIT_SQS_QUEUE_URL'):
+        audit_sqs_defined = True
+
       update_dict(
         helm_envs,
         env,
@@ -465,7 +471,7 @@ def get_info_from_helm(component, repo, services):
   update_dict(
     data,
     'security_settings',
-    {'audit_sqs_queue_defined': check_for_sqs_audit(repo, helm_deploy_dir)},
+    {'audit_sqs_queue_defined': audit_sqs_defined},
   )
 
   log_debug(f'Helm data for {component_name}: {data}')

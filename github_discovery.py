@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Github discovery - queries the github API for info about hmpps services and stores 
+"""Github discovery - queries the github API for info about hmpps services and stores
 the results in the service catalogue
 
 Optional parameters:
@@ -48,7 +48,7 @@ import processes.products as products
 import processes.components as components
 from hmpps.services.job_log_handling import log_error, log_info, job
 
-# Set maximum number of concurrent threads to run, 
+# Set maximum number of concurrent threads to run,
 # try to avoid secondary github api limits.
 max_threads = 10
 
@@ -163,7 +163,7 @@ def create_summary(
 
 
 def main():
-  #### Use the -f parameter to force an update regardless of environment / 
+  #### Use the -f parameter to force an update regardless of environment /
   # main branch changes
   force_update = False
   if '-f' in sys.argv or '--force' in sys.argv:
@@ -253,6 +253,7 @@ def main():
   log_info('Batch processing products...')
   processed_products = products.batch_process_sc_products(services, max_threads)
 
+  # Report on duplicate Application Insights cloud role names
   duplicate_appinsights_cloud_role = components.find_duplicate_app_cloud_role(
     services, max_threads, force_update=force_update
   )

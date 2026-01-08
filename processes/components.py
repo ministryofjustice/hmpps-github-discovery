@@ -26,7 +26,7 @@ from hmpps.services.job_log_handling import (
 
 
 # local
-from includes import helm, environments, versions, security_settings
+from includes import helm, environments, versions
 
 max_threads = 10
 
@@ -155,15 +155,16 @@ def get_repo_disabled_workflows(repo):
 # (dependent on application type)
 #######################################################################################
 def get_app_insights_cloud_role_name(
-    repo, gh, component_project_dir, base_template_repo):
+  repo, gh, component_project_dir, base_template_repo
+):
   log_debug('Looking for application insights cloud role name')
   languages = repo.get_languages()
   total_bytes = sum(languages.values())
   threshold_percentage = 10.0
   major_languages = {
-        lang: bytes_count
-        for lang, bytes_count in languages.items()
-        if (bytes_count / total_bytes) * 100 >= threshold_percentage
+    lang: bytes_count
+    for lang, bytes_count in languages.items()
+    if (bytes_count / total_bytes) * 100 >= threshold_percentage
   }
   log_info(f'Major languages for {repo.name}: {major_languages}')
   if (
@@ -185,14 +186,16 @@ def get_app_insights_cloud_role_name(
       else:
         log_debug('Role name not found in the expected place (role.name)')
     else:
-      log_warning('Kotlin repo - no applicationinsights.json file found for '
-                  f'{component_project_dir}')
+      log_warning(
+        'Kotlin repo - no applicationinsights.json file found for '
+        f'{component_project_dir}'
+      )
   else:
     log_info('Kotlin/Java not detected as major language')
 
   if (
     any(lang in ('TypeScript', 'JavaScript') for lang in major_languages)
-    or base_template_repo== 'hmpps-template-typescript' 
+    or base_template_repo == 'hmpps-template-typescript'
   ):
     log_debug(
       f'Detected JavaScript/TypeScript - '
@@ -210,8 +213,9 @@ def get_app_insights_cloud_role_name(
           'Application Insights role name not found in the expected place (name)'
         )
     else:
-      log_warning('Typescript repo - '
-                  f'no package.json file found for {component_project_dir}')
+      log_warning(
+        f'Typescript repo - no package.json file found for {component_project_dir}'
+      )
   else:
     log_info('JavaScript/TypeScript not detected as major language')
   return None
@@ -339,14 +343,14 @@ def process_changed_component(component, repo, services):
   # App insights cloud_RoleName
   #############################
   base_template_repo = component.get('base_template_repo')
-  if component.get('language') not in ('Ruby','Python'):
+  if component.get('language') not in ('Ruby', 'Python'):
     if app_insights_cloud_role_name := get_app_insights_cloud_role_name(
       repo, gh, component_project_dir, base_template_repo
     ):
       data['app_insights_cloud_role_name'] = app_insights_cloud_role_name
-      # only set if app_insights_cloud_role_name is found and 
+      # only set if app_insights_cloud_role_name is found and
       # app_insights_alerts_enabled is not False already
-      if component.get('app_insights_alerts_enabled') is None: 
+      if component.get('app_insights_alerts_enabled') is None:
         data['app_insights_alerts_enabled'] = True
     else:
       data['app_insights_cloud_role_name'] = None
@@ -354,9 +358,6 @@ def process_changed_component(component, repo, services):
 
   # Versions information
   versions.get_versions(services, repo, component_project_dir, data)
-
-  # Security settings (npm config, etc.)
-  security_settings.get_security_settings(services, repo, data)
 
   # All done with the branch dependent components
 
@@ -539,8 +540,8 @@ def batch_process_sc_components(
     # Mini function to process the component and store the result
     # because the threading needs to target a function
     def process_component_and_store_result(
-      component,
       services,
+      component,
       module,
       function,
       bootstrap_projects,
@@ -551,8 +552,8 @@ def batch_process_sc_components(
       func = getattr(mod, function)
       if callable(func):
         result = func(
-          component,
           services,
+          component,
           bootstrap_projects=bootstrap_projects,
           force_update=force_update,
         )
@@ -564,7 +565,7 @@ def batch_process_sc_components(
     # Create a thread for each component
     t_repo = threading.Thread(
       target=process_component_and_store_result,
-      args=(component, services, module, function, bootstrap_projects, force_update),
+      args=(services, component, module, function, bootstrap_projects, force_update),
       daemon=True,
     )
     threads.append(t_repo)

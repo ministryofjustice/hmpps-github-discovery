@@ -1,12 +1,14 @@
+import re
+
 # hmpps
 from hmpps import update_dict
-from hmpps.services.job_log_handling import log_debug, log_error
+from hmpps.services.job_log_handling import log_debug, log_info, log_warning, log_error
 
 # local
 from includes import standards
 
 
-# Repository variables - processed daily to ensure that the Service Catalogue 
+# Repository variables - processed daily to ensure that the Service Catalogue
 # is up-to-date
 def get_repo_variables(services, repo, component_name):
   repo_vars = {}
@@ -37,12 +39,88 @@ def get_repo_variables(services, repo, component_name):
   return repo_vars
 
 
+# Get the list of open PRs for dependencies
+def get_open_prs(repo):
+  pr_list = []
+  if pull_requests := repo.get_pulls(state='open'):
+    for pr in pull_requests:
+      pr_branch = pr.head.ref
+      if re.match(r'^(dependabot/|renovate-|snyk-)', pr_branch):
+        pr_list.append(
+          {
+            'name': pr.title,
+            'url': pr.html_url,
+            'branch': pr.head.ref,
+            'raiser': pr.user.login,
+          }
+        )
+  return {'open_dependency_prs': pr_list}
+
+
+# Get the list of workflow runs that are currently waiting for user interaction
+def get_waiting_runs(repo):
+  runs_list = []
+  if runs := repo.get_workflow_runs(status='waiting'):
+    for run in runs:
+      runs_list.append(
+        {
+          'name': run.name,
+          'url': run.html_url,
+          'branch': run.head_branch,
+          'raiser': run.actor.login,
+        }
+      )
+  return {'waiting_runs': runs_list}
+
+
+# Read the npmrc configuration from the root of the project
+def get_npmrc_config(gh, repo):
+  """Parse .npmrc file and extract configuration settings."""
+  npmrc_config = {}
+  if npmrc_content := gh.get_file_plain(repo, '.npmrc'):
+    try:
+      # Parse each line looking for key = value pairs
+      for line in npmrc_content.splitlines():
+        # Skip comments and empty lines
+        line = line.strip()
+        if not line or line.startswith('#'):
+          continue
+
+        # Match "key = value" pattern
+        if match := re.match(r'^\s*([a-zA-Z0-9_-]+)\s*=\s*(.+)\s*$', line):
+          key, value = match.groups()
+          npmrc_config[key] = value.strip()
+
+      log_debug(f'Found npmrc_config: {npmrc_config}')
+    except Exception as e:
+      log_warning(f'Unable to parse .npmrc file - {e}')
+      pass
+
+  if npmrc_config:
+    return npmrc_config
+  else:
+    log_debug('No .npmrc file found or no valid configuration')
+  return None
+
+
+def get_npmrc_ignore_scripts(services, repo):
+  """Get the ignore-scripts setting from .npmrc."""
+  if repo.language == 'JavaScript' or repo.language == 'TypeScript':
+    if npmrc_config := get_npmrc_config(services.gh, repo):
+      ignore_scripts_value = npmrc_config.get('ignore-scripts', '')
+      # Convert to boolean if it's 'true' or 'false'
+      if ignore_scripts_value.lower() == 'true':
+        return True
+      elif ignore_scripts_value.lower() == 'false':
+        return False
+
+
 ######################################################
 # Component Security Scanning - only runs once per day
 ######################################################
 
 
-def process_sc_component_security(component, services, **kwargs):
+def process_sc_component_security(services, component, **kwargs):
   # Set some convenient defaults
   sc = services.sc
   gh = services.gh
@@ -70,7 +148,7 @@ def process_sc_component_security(component, services, **kwargs):
     component_flags['repos_with_vulnerabilities'] = 1
 
   # Repository Standards
-  #############################
+  ######################
 
   if repo_standards := standards.get_standards_compliance(repo):
     update_dict(data, 'standards_compliance', repo_standards)
@@ -80,8 +158,31 @@ def process_sc_component_security(component, services, **kwargs):
   if repo_variables := get_repo_variables(services, repo, component_name):
     data.update(repo_variables)
 
-  # This will ensure the service catalogue has the latest collection of repository 
-  # variables. Update component with all results in data dictionary 
+  # npmrc ignore scripts settings
+  ###############################
+  ignore_scripts = get_npmrc_ignore_scripts(services, repo)
+  if isinstance(ignore_scripts, bool):
+    log_info(f'Updating npm ignore-scripts setting: {ignore_scripts}')
+    update_dict(
+      data,
+      'security_settings',
+      {'npm': {'ignore_scripts': ignore_scripts}},
+    )
+  else:
+    log_debug(f'npm ignore-scripts setting not found for {repo.name}')
+
+  # Open depdendabot/snyk/renovate PRs
+  ####################################
+  if open_prs := get_open_prs(repo):
+    data.update(open_prs)
+
+  # Open depdendabot/snyk/renovate PRs
+  ####################################
+  if runs_list := get_waiting_runs(repo):
+    data.update(runs_list)
+
+  # This will ensure the service catalogue has the latest collection of repository
+  # variables. Update component with all results in data dictionary
   # if there's data to do so
   if data:
     if not sc.update(sc.components, component['documentId'], data):

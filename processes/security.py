@@ -171,15 +171,15 @@ def process_sc_component_security(services, component, **kwargs):
   else:
     log_debug(f'npm ignore-scripts setting not found for {repo.name}')
 
-  # Open depdendabot/snyk/renovate PRs
+  # Open dependabot/snyk/renovate PRs
   ####################################
   if open_prs := get_open_prs(repo):
-    data.update(open_prs)
+    update_dict(data, 'security_settings', {'open_dependency_prs': open_prs})
 
-  # Open depdendabot/snyk/renovate PRs
+  # Open runs waiting for manual intervention
   ####################################
   if runs_list := get_waiting_runs(repo):
-    data.update(runs_list)
+    update_dict(data, 'security_settings', {'waiting_runs': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository
   # variables. Update component with all results in data dictionary

@@ -6,6 +6,7 @@ from hmpps.services.job_log_handling import log_debug, log_info, log_warning, lo
 
 # local
 from includes import standards
+from datetime import datetime
 
 
 # Repository variables - processed daily to ensure that the Service Catalogue
@@ -39,38 +40,22 @@ def get_repo_variables(services, repo, component_name):
   return repo_vars
 
 
-# Get the list of open PRs for dependencies
-def get_open_prs(repo):
-  pr_list = []
-  if pull_requests := repo.get_pulls(state='open'):
-    for pr in pull_requests:
-      pr_branch = pr.head.ref
-      if re.match(r'^(dependabot/|renovate-|snyk-)', pr_branch):
-        pr_list.append(
-          {
-            'name': pr.title,
-            'url': pr.html_url,
-            'branch': pr.head.ref,
-            'raiser': pr.user.login,
-          }
-        )
-  return {'open_dependency_prs': pr_list}
-
-
 # Get the list of workflow runs that are currently waiting for user interaction
 def get_waiting_runs(repo):
   runs_list = []
   if runs := repo.get_workflow_runs(status='waiting'):
     for run in runs:
+      age = (datetime.now() - run.created_at.replace(tzinfo=None)).days
       runs_list.append(
         {
           'name': run.name,
           'url': run.html_url,
           'branch': run.head_branch,
           'raiser': run.actor.login,
+          'days_ago': age,
         }
       )
-  return {'waiting_runs': runs_list}
+  return runs_list
 
 
 # Read the npmrc configuration from the root of the project
@@ -173,13 +158,13 @@ def process_sc_component_security(services, component, **kwargs):
 
   # Open dependabot/snyk/renovate PRs
   ####################################
-  if open_prs := get_open_prs(repo):
-    update_dict(data, 'security_settings', {'open_dependency_prs': open_prs})
+  # if open_prs := get_open_prs(repo):
+  #   update_dict(data, 'security_settings', {'open_dependency_prs': open_prs})
 
   # Open runs waiting for manual intervention
   ####################################
   if runs_list := get_waiting_runs(repo):
-    update_dict(data, 'security_settings', {'waiting_runs': runs_list})
+    data.update({'waiting_runs': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository
   # variables. Update component with all results in data dictionary

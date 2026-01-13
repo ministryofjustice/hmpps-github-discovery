@@ -16,7 +16,7 @@ from includes.values import actions_allowlist
 
 # get non-standard actions (based on whitelist in values.py)
 # This will return an ever growing dictionary of potentially duplicate actions
-def get_non_local_actions(yml_data, actions, path):
+def add_non_local_actions(yml_data, actions, path):
   if uses := find_matching_keys(yml_data, 'uses'):
     log_debug(f'qty of uses in {path}: {len(uses)}')
 
@@ -31,43 +31,11 @@ def get_non_local_actions(yml_data, actions, path):
         except ValueError:
           log_debug(f'Invalid format for action: {value}')
 
-  return actions
 
-
-######################################################
-# Component Workfow Scanning - only runs once per week
-######################################################
-
-
-def process_sc_component_workflows(component, services, **kwargs):
-  # Set some convenient defaults
-  sc = services.sc
-  gh = services.gh
-  component_name = component.get('name')
-  github_repo = component.get('github_repo')
-
-  # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
-  component_flags = {}
+# Scan the workflow directory (iterating where necessary)
+# to find YAML files, then extract details of the workflows
+def scan_for_local_actions(workflow_dir, repo):
   non_local_actions = {}
-
-  try:
-    repo = gh.get_org_repo(f'{github_repo}')
-  except Exception as e:
-    log_error(
-      f'ERROR accessing ministryofjustice/{repo.name},'
-      f'check github app has permissions to see it. {e}'
-    )
-
-  # get the non-standard workflows
-  try:
-    workflow_dir = repo.get_contents(
-      '.github', ref=repo.get_branch(repo.default_branch).commit.sha
-    )
-  except Exception as e:
-    workflow_dir = None
-    log_warning(f'Unable to load the workflows folder for {component_name}: {e}')
-
   while workflow_dir:
     file_content = workflow_dir.pop(0)
     log_debug(f'file_content.name: {file_content.name}')
@@ -80,16 +48,52 @@ def process_sc_component_workflows(component, services, **kwargs):
         yml_data = yaml.safe_load(yml_content)
       except yaml.YAMLError as e:
         print(f'Error parsing {file_content.path}: {e}')
+        continue
       if yml_data:
-        # get non-standard actions
-        non_local_actions = get_non_local_actions(
-          yml_data, non_local_actions, file_content.path
-        )
-  # now the actions have been found, 
-  # compare them with the existing actions stored in components
-  if non_local_actions:
-    # get the current versions list
+        # add to non-local actions diectionary
+        add_non_local_actions(yml_data, non_local_actions, file_content.path)
+  return non_local_actions
 
+
+######################################################
+# Component Workfow Scanning - only runs once per week
+######################################################
+
+
+def process_sc_component_workflows(services, component, **kwargs):
+  # Set some convenient defaults
+  sc = services.sc
+  gh = services.gh
+  component_name = component.get('name')
+  github_repo = component.get('github_repo')
+
+  # Reset the data ready for updating
+  data = {}  # dictionary to hold all the updated data for the component
+  component_flags = {}
+
+  try:
+    repo = gh.get_org_repo(f'{github_repo}')
+  except Exception as e:
+    log_error(
+      f'ERROR accessing ministryofjustice/{github_repo},'
+      f'check github app has permissions to see it. {e}'
+    )
+    component_flags['update_error'] = True
+    return component_flags
+
+  # get the non-standard workflows
+  try:
+    workflow_dir = repo.get_contents(
+      '.github', ref=repo.get_branch(repo.default_branch).commit.sha
+    )
+  except Exception as e:
+    log_warning(f'Unable to load the workflows folder for {component_name}: {e}')
+    component_flags['update_error'] = True
+    return component_flags
+
+  # compare them with the existing actions stored in components
+  if non_local_actions := scan_for_local_actions(workflow_dir, repo):
+    # get the current versions list
     versions = component.get('versions', {})
 
     log_debug(

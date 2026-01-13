@@ -41,7 +41,7 @@ def get_repo_variables(services, repo, component_name):
 
 
 # Get the list of workflow runs that are currently waiting for user interaction
-def get_waiting_runs(repo):
+def get_waiting_workflow_runs(repo):
   runs_list = []
   if runs := repo.get_workflow_runs(status='waiting'):
     for run in runs:
@@ -163,8 +163,8 @@ def process_sc_component_security(services, component, **kwargs):
 
   # Open runs waiting for manual intervention
   ####################################
-  if runs_list := get_waiting_runs(repo):
-    data.update({'waiting_runs': runs_list})
+  if runs_list := get_waiting_workflow_runs(repo):
+    data.update({'workflow_runs_waiting': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository
   # variables. Update component with all results in data dictionary

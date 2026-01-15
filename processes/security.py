@@ -6,7 +6,8 @@ from hmpps.services.job_log_handling import log_debug, log_info, log_warning, lo
 
 # local
 from includes import standards
-from datetime import datetime
+from datetime import datetime, timezone
+import requests
 
 
 # Repository variables - processed daily to ensure that the Service Catalogue
@@ -40,22 +41,88 @@ def get_repo_variables(services, repo, component_name):
   return repo_vars
 
 
-# Get the list of workflow runs that are currently waiting for user interaction
-def get_waiting_workflow_runs(repo):
-  runs_list = []
-  if runs := repo.get_workflow_runs(status='waiting'):
-    for run in runs:
-      age = (datetime.now() - run.created_at.replace(tzinfo=None)).days
-      runs_list.append(
-        {
-          'name': run.name,
-          'url': run.html_url,
-          'branch': run.head_branch,
-          'raiser': run.actor.login,
-          'days_ago': age,
-        }
-      )
-  return runs_list
+def get_legit_waiting_runs(repo, rest_token, max_runs=200):
+  """
+  Return waiting runs that (a) are actually blocked by environment protection and
+  (b) are NOT superseded by a newer success on the same workflow+branch.
+  """
+  headers = {
+    'Accept': 'application/vnd.github+json',
+    'Authorization': f'Bearer {rest_token}',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+
+  def _pending_deployments(run_id):
+    # GET /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments
+    url = f'{repo._requester.base_url}/repos/{repo.owner.login}/{repo.name}/actions/runs/{run_id}/pending_deployments'
+    r = requests.get(url, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()  # list (possibly empty): each item contains environment, reviewers, wait_timer, etc.
+
+  now = datetime.now(timezone.utc)
+  legit = []
+  all_waiters = []
+
+  # 1) All 'waiting' runs (GitHub reserves this status; surfaced via the REST filter).
+  waiting = repo.get_workflow_runs(status='waiting')
+
+  for i, run in enumerate(waiting):
+    if i >= max_runs:
+      break
+
+    created = (
+      run.created_at
+      if run.created_at.tzinfo
+      else run.created_at.replace(tzinfo=timezone.utc)
+    )
+    pd = _pending_deployments(
+      run.id
+    )  # empty => not an env gate (likely concurrency, runners, etc.)
+
+    # 2) Find newer success on same workflow+branch to mark as superseded
+    try:
+      wf = repo.get_workflow(run.workflow_id)
+      completed = wf.get_runs(branch=run.head_branch, status='completed')
+    except Exception:
+      completed = repo.get_workflow_runs(branch=run.head_branch, status='completed')
+
+    superseder = None
+    for r2 in completed:
+      if getattr(r2, 'workflow_id', None) != run.workflow_id:
+        continue
+      if r2.conclusion == 'success':
+        r2_created = (
+          r2.created_at
+          if r2.created_at.tzinfo
+          else r2.created_at.replace(tzinfo=timezone.utc)
+        )
+        if r2_created > created:
+          superseder = {
+            'id': r2.id,
+            'url': r2.html_url,
+            'created_at': r2_created.isoformat(),
+          }
+          break
+
+    row = {
+      'id': run.id,
+      'name': run.name,
+      'url': run.html_url,
+      'branch': run.head_branch,
+      'raiser': run.actor.login if run.actor else None,
+      'age_days': (now - created).days,
+      'environments': [item['environment']['name'] for item in pd] if pd else [],
+      'pending_deployments': pd,  # contains reviewers / wait_timer
+      'superseded_by_newer_success': superseder,
+    }
+    all_waiters.append(row)
+
+    log_debug(f'{all_waiters}')
+    # Keep only legitimate, actionable waiters:
+    if pd and superseder is None:
+      legit.append(row)
+
+  return legit, all_waiters
 
 
 # Read the npmrc configuration from the root of the project
@@ -163,7 +230,8 @@ def process_sc_component_security(services, component, **kwargs):
 
   # Open runs waiting for manual intervention
   ####################################
-  if runs_list := get_waiting_workflow_runs(repo):
+  runs_list, all_waiters = get_legit_waiting_runs(repo, gh.rest_token)
+  if runs_list:
     data.update({'workflow_runs_waiting': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository

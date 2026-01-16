@@ -51,6 +51,7 @@ class WaitingRunsDetector:
       'X-GitHub-Api-Version': '2022-11-28',
     }
     self.repo_name = repo.name
+    self.default_branch = repo.default_branch
 
   def list_waiting_runs(self):
     runs = []
@@ -89,6 +90,9 @@ class WaitingRunsDetector:
   def get_pending_deployments(self, run_id):
     url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs/{run_id}/pending_deployments'
     r = requests.get(url, headers=self.headers, timeout=20)
+    log_debug(
+      f'Status code for pending deployments for run_id {run_id}: {r.status_code}'
+    )
     if r.status_code == 200:
       return r.json(), None
     if 500 <= r.status_code < 600:
@@ -108,21 +112,32 @@ class WaitingRunsDetector:
     now = datetime.now(timezone.utc)
 
     for w in waiters:
-      key = (w['workflow_id'], w['head_branch'])
-      if key not in cache:
-        cache[key] = self.latest_success_for(*key)
-
-      latest_ok = cache[key]
       created = datetime.fromisoformat(w['created_at'].replace('Z', '+00:00'))
-      if latest_ok:
-        latest_ok_dt = datetime.fromisoformat(latest_ok.replace('Z', '+00:00'))
-        if latest_ok_dt > created:
-          continue  # superseded
+
+      # Check if superseded by same branch OR default branch (e.g. main)
+      is_superseded = False
+      for branch_to_check in {w['head_branch'], self.default_branch}:
+        key = (w['workflow_id'], branch_to_check)
+        if key not in cache:
+          cache[key] = self.latest_success_for(*key)
+
+        latest_ok = cache[key]
+        if latest_ok:
+          latest_ok_dt = datetime.fromisoformat(latest_ok.replace('Z', '+00:00'))
+          if latest_ok_dt > created:
+            is_superseded = True
+            break
+
+      if is_superseded:
+        continue
 
       # Only now ask pending_deployments
+      log_debug(f'getting pending deployments for {w["id"]}')
       pd, err = self.get_pending_deployments(w['id'])
       if err:  # 5xx -> log and keep going
-        # log err["request_id"]
+        log_info(
+          f'Encountered issues getting pending deployments: {err}'
+        )  # log err["request_id"]
         continue
       if pd:  # non-empty means environment gate; actionable
         age_days = (now - created).days
@@ -249,8 +264,7 @@ def process_sc_component_security(services, component, **kwargs):
   # Open runs waiting for manual intervention
   ####################################
   runs_list = get_waiting_runs(services, repo)
-  if runs_list:
-    data.update({'workflow_runs_waiting': runs_list})
+  data.update({'workflow_runs_waiting': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository
   # variables. Update component with all results in data dictionary

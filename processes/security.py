@@ -71,7 +71,10 @@ class WaitingRunsDetector:
 
   def latest_success_for(self, workflow_id, branch):
     # Try to fetch a single latest success; fallback to completed if needed
-    url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/workflows/{workflow_id}/runs'
+    url = (
+      f'{self.api}/repos/{self.owner}/{self.repo_name}'
+      f'/actions/workflows/{workflow_id}/runs'
+    )
     for params in (
       {'branch': branch, 'status': 'success', 'per_page': 1},
       {'branch': branch, 'status': 'completed', 'per_page': 3},
@@ -88,7 +91,10 @@ class WaitingRunsDetector:
     return None
 
   def get_pending_deployments(self, run_id):
-    url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs/{run_id}/pending_deployments'
+    url = (
+      f'{self.api}/repos/{self.owner}/{self.repo_name}/'
+      f'actions/runs/{run_id}/pending_deployments'
+    )
     r = requests.get(url, headers=self.headers, timeout=20)
     log_debug(
       f'Status code for pending deployments for run_id {run_id}: {r.status_code}'

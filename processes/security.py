@@ -6,7 +6,8 @@ from hmpps.services.job_log_handling import log_debug, log_info, log_warning, lo
 
 # local
 from includes import standards
-from datetime import datetime
+from datetime import datetime, timezone
+import requests
 
 
 # Repository variables - processed daily to ensure that the Service Catalogue
@@ -40,22 +41,127 @@ def get_repo_variables(services, repo, component_name):
   return repo_vars
 
 
-# Get the list of workflow runs that are currently waiting for user interaction
-def get_waiting_workflow_runs(repo):
-  runs_list = []
-  if runs := repo.get_workflow_runs(status='waiting'):
-    for run in runs:
-      age = (datetime.now() - run.created_at.replace(tzinfo=None)).days
-      runs_list.append(
-        {
-          'name': run.name,
-          'url': run.html_url,
-          'branch': run.head_branch,
-          'raiser': run.actor.login,
-          'days_ago': age,
+class WaitingRunsDetector:
+  def __init__(self, services, repo):
+    self.owner = services.gh.org.login
+    self.api = 'https://api.github.com'
+    self.headers = {
+      'Authorization': f'Bearer {services.gh.rest_token}',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+    self.repo_name = repo.name
+    self.default_branch = repo.default_branch
+
+  def list_waiting_runs(self):
+    runs = []
+    page = 1
+    while True:
+      url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs'
+      params = {'status': 'waiting', 'per_page': 100, 'page': page}
+      r = requests.get(url, headers=self.headers, params=params, timeout=20)
+      r.raise_for_status()
+      data = r.json()
+      batch = data.get('workflow_runs', [])
+      runs.extend(batch)
+      if len(batch) < 100:
+        break
+      page += 1
+    return runs
+
+  def latest_success_for(self, workflow_id, branch):
+    # Try to fetch a single latest success; fallback to completed if needed
+    url = (
+      f'{self.api}/repos/{self.owner}/{self.repo_name}'
+      f'/actions/workflows/{workflow_id}/runs'
+    )
+    for params in (
+      {'branch': branch, 'status': 'success', 'per_page': 1},
+      {'branch': branch, 'status': 'completed', 'per_page': 3},
+    ):
+      r = requests.get(url, headers=self.headers, params=params, timeout=20)
+      if r.status_code == 200:
+        runs = r.json().get('workflow_runs', [])
+        # prefer success if we got it; else pick first with conclusion==success
+        if params['status'] == 'success' and runs:
+          return runs[0]['created_at']
+        for rr in runs:
+          if rr.get('conclusion') == 'success':
+            return rr['created_at']
+    return None
+
+  def get_pending_deployments(self, run_id):
+    url = (
+      f'{self.api}/repos/{self.owner}/{self.repo_name}/'
+      f'actions/runs/{run_id}/pending_deployments'
+    )
+    r = requests.get(url, headers=self.headers, timeout=20)
+    log_debug(
+      f'Status code for pending deployments for run_id {run_id}: {r.status_code}'
+    )
+    if r.status_code == 200:
+      return r.json(), None
+    if 500 <= r.status_code < 600:
+      return None, {
+        'status': r.status_code,
+        'request_id': r.headers.get('x-github-request-id'),
+      }
+    r.raise_for_status()
+    return None, None
+
+  def find(self):
+    waiters = self.list_waiting_runs()
+    # Sort oldest first
+    waiters.sort(key=lambda w: w['created_at'])
+    # Build one-liner cache for latest success per (workflow_id, branch)
+    cache = {}
+    now = datetime.now(timezone.utc)
+
+    for w in waiters:
+      created = datetime.fromisoformat(w['created_at'].replace('Z', '+00:00'))
+
+      # Check if superseded by same branch OR default branch (e.g. main)
+      is_superseded = False
+      for branch_to_check in {w['head_branch'], self.default_branch}:
+        key = (w['workflow_id'], branch_to_check)
+        if key not in cache:
+          cache[key] = self.latest_success_for(*key)
+
+        latest_ok = cache[key]
+        if latest_ok:
+          latest_ok_dt = datetime.fromisoformat(latest_ok.replace('Z', '+00:00'))
+          if latest_ok_dt > created:
+            is_superseded = True
+            break
+
+      if is_superseded:
+        continue
+
+      # Only now ask pending_deployments
+      log_debug(f'getting pending deployments for {w["id"]}')
+      pd, err = self.get_pending_deployments(w['id'])
+      if err:  # 5xx -> log and keep going
+        log_info(
+          f'Encountered issues getting pending deployments: {err}'
+        )  # log err["request_id"]
+        continue
+      if pd:  # non-empty means environment gate; actionable
+        age_days = (now - created).days
+        return {
+          'run_id': w['id'],
+          'url': w['html_url'],
+          'branch': w['head_branch'],
+          'workflow_id': w['workflow_id'],
+          'age_days': age_days,
+          'environments': [p['environment']['name'] for p in pd],
         }
-      )
-  return runs_list
+      # else: waiting for other reasons (e.g., concurrency) -> try next
+
+    return None  # no actionable waiting runs
+
+
+def get_waiting_runs(services, repo):
+  return WaitingRunsDetector(services, repo).find()
 
 
 # Read the npmrc configuration from the root of the project
@@ -163,8 +269,8 @@ def process_sc_component_security(services, component, **kwargs):
 
   # Open runs waiting for manual intervention
   ####################################
-  if runs_list := get_waiting_workflow_runs(repo):
-    data.update({'workflow_runs_waiting': runs_list})
+  runs_list = get_waiting_runs(services, repo)
+  data.update({'workflow_runs_waiting': runs_list})
 
   # This will ensure the service catalogue has the latest collection of repository
   # variables. Update component with all results in data dictionary

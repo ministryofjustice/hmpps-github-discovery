@@ -498,6 +498,7 @@ def batch_process_sc_components(
   bootstrap_projects = get_bootstrap_projects(services)
 
   components = sc.get_all_records(sc.components_get)
+
   log_info(f'Processing batch of {len(components)} components...')
 
   threads = []

@@ -107,8 +107,8 @@ def main():
 
   log_info(f'Processing component {component_name}...')
   processed_components = components.process_sc_component(
-    component,
     services,
+    component,
     components.get_bootstrap_projects(services),
     force_update=True,
   )

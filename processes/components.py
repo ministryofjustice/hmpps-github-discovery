@@ -386,7 +386,7 @@ def process_changed_component(component, repo, services):
 # - Return the flags for the component
 
 
-def process_sc_component(component, services, bootstrap_projects, force_update=False):
+def process_sc_component(services, component, bootstrap_projects, force_update=False):
   sc = services.sc
   gh = services.gh
 

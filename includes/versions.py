@@ -41,6 +41,15 @@ def get_circle_ci_orb_version(services, repo):
   return versions_data
 
 
+def get_gradle_value(content, variable):
+  match_string = variable[1:]
+  regex = rf'val[\s]+{match_string}[\s]+=[\s][\'"](.*)[\'"]$'
+  if match := re.search(regex, content, re.MULTILINE):
+    log_debug(f'Found a match for {match_string}: {match.group(1)}')
+    return match.group(1)
+  return None
+
+
 def get_gradle_config(gh, repo):
   # get_gradle_config - reads the gradle file to determine versions
   gradle_config = {}
@@ -48,16 +57,42 @@ def get_gradle_config(gh, repo):
     repo, 'build.gradle.kts'
   ) or gh.get_file_plain(repo, 'build.gradle'):
     try:
-      regex = (r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version '
-        r'[\'"](.*)[\'"]( apply false)?$')
-      if hmpps_gradle_spring_boot_matches := re.findall(
-        regex, build_gradle_config_content, re.MULTILINE
-      ):
-        for version, apply_false in hmpps_gradle_spring_boot_matches:
-          # if apply false is there, it will skip it
-          if not apply_false:
-            gradle_config['spring_boot_version'] = version
-            break
+      gradle_configs = [
+        {
+          # spring boot version
+          'name': 'hmpps_gradle_spring_boot',
+          'regex': (
+            r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version '
+            r'[\'"](.*)[\'"]( apply false)?$'
+          ),
+        },
+        {
+          # SQS spring boot starter
+          'name': 'hmpps_sqs_spring_boot_starter',
+          'regex': r'implementation\([\'"]uk\.gov\.justice\.service\.hmpps:hmpps-sqs-spring-boot-starter:(.*)[\'"]\)',
+        },
+      ]
+
+      for config in gradle_configs:
+        if re_matches := re.findall(
+          config['regex'], build_gradle_config_content, re.MULTILINE
+        ):
+          for match in re_matches:
+            if isinstance(match, tuple):
+              version = match[0]
+              apply_false = match[1]
+            else:
+              version = match
+              apply_false = None
+
+            # if apply false is there, it will skip it
+            log_debug(f'version: {version} apply_false: {apply_false}')
+            if not apply_false:
+              if version.startswith('$'):
+                log_debug('Resolving gradle value because version starts with $')
+                version = get_gradle_value(build_gradle_config_content, version)
+              gradle_config[config['name']] = version
+              break
 
     except TypeError as e:
       log_warning(f'Unable to parse build gradle file - {e}')
@@ -78,15 +113,16 @@ def get_gradle_config(gh, repo):
 ###############
 def get_gradle_version(services, repo):
   if repo.language == 'Kotlin' or repo.language == 'Java':
+    log_debug(f'Getting gradle config for {repo.name}')
     if gradle_config := get_gradle_config(services.gh, repo):
-      return gradle_config.get('spring_boot_version', '')
+      return gradle_config
   log_info(f'No valid gradle config found for {repo.name} - removing version info')
   return None
 
 
 # Dockerfile reader
 def get_dockerfile_data(dockerfile_contents):
-  # Use an in-memory text buffer that can accept both str 
+  # Use an in-memory text buffer that can accept both str
   # and bytes writes from DockerfileParser
   class _DockerfileStringIO(io.StringIO):
     def write(self, s):  # type: ignore[override]
@@ -111,7 +147,7 @@ def get_dockerfile_data(dockerfile_contents):
   try:
     # Get list of parent images, and strip out references to 'base'
     parent_images = list(filter(lambda i: i != 'base', dockerfile.parent_images))
-    # Get the last element in the array, 
+    # Get the last element in the array,
     # which should be the base image of the final stage.
     base_image = parent_images[-1]
     docker_data['base_image'] = base_image
@@ -160,15 +196,15 @@ def get_versions(services, repo, component_project_dir, data):
     log_info(f'No CircleCI version found for {repo.name}')
 
   # Gradle
-  if spring_boot_version := get_gradle_version(services, repo):
-    log_info(f'Updating Gradle Spring Boot version: {spring_boot_version}')
+  if gradle_versions := get_gradle_version(services, repo):
+    log_info(f'Updating gradle_versions: {gradle_versions}')
     update_dict(
       data,
       'versions',
-      {'gradle': {'hmpps_gradle_spring_boot': spring_boot_version}},
+      {'gradle': gradle_versions},
     )
   else:
-    log_info(f'Spring Boot version not found for {repo.name}')
+    log_info(f'Gradle versions not found for {repo.name}')
     remove_version(data, 'gradle')
 
   # Docker

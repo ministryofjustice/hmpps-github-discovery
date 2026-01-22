@@ -513,16 +513,21 @@ def batch_process_sc_components(
       log_info(f'Skipping archived component {component.get("name")}')
       continue
     # Wait until the API limit is reset if we are close to the limit
-    cur_rate_limit = services.gh.get_rate_limit()
+
     log_info(
       f'{component_count}/{len(components)} - preparing to process '
       f'{component.get("name")} ({int(component_count / len(components) * 100)}'
       '% complete)'
     )
-    log_info(
-      f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit}'
-      f'remains -  resets at {cur_rate_limit.reset}'
-    )
+    if cur_rate_limit := services.gh.get_rate_limit():
+      log_info(
+        f'Github API rate limit {cur_rate_limit.remaining} / {cur_rate_limit.limit}'
+        f'remains -  resets at {cur_rate_limit.reset}'
+      )
+    else:
+      # Reauthenticate if the object has been cleared (which seems to happeN)
+      services.gh.auth()
+      cur_rate_limit = services.gh.get_rate_limit()
     while cur_rate_limit.remaining < 500:
       time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
       time_to_reset = time_delta.total_seconds()

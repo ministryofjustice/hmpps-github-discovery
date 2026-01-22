@@ -69,7 +69,10 @@ def get_gradle_config(gh, repo):
         {
           # SQS spring boot starter
           'name': 'hmpps_sqs_spring_boot_starter',
-          'regex': r'implementation\([\'"]uk\.gov\.justice\.service\.hmpps:hmpps-sqs-spring-boot-starter:(.*)[\'"]\)',
+          'regex': (
+            r'implementation\([\'"]uk\.gov\.justice\.service\.'
+            r'hmpps:hmpps-sqs-spring-boot-starter:(.*)[\'"]\)'
+          ),
         },
       ]
 

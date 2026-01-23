@@ -41,6 +41,10 @@ def get_circle_ci_orb_version(services, repo):
   return versions_data
 
 
+# Gradle functions - including support for monorepos
+####################################################
+
+
 def get_gradle_value(content, variable):
   match_string = variable[1:]
   regex = rf'val[\s]+{match_string}[\s]+=[\s][\'"](.*)[\'"]$'
@@ -50,56 +54,111 @@ def get_gradle_value(content, variable):
   return None
 
 
-def get_gradle_config(gh, repo):
+def _parse_gradle_content(content):
+  gradle_config = {}
+  try:
+    gradle_configs = [
+      {
+        # gradle spring boot version
+        'name': 'hmpps_gradle_spring_boot',
+        'regex': (
+          r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version '
+          r'[\'"](.*)[\'"]( apply false)?$'
+        ),
+      },
+      {
+        # kotlin spring boot starter version
+        # uk.gov.justice.service.hmpps:hmpps-kotlin-spring-boot-starter:2.0.0
+        'name': 'hmpps_kotlin_spring_boot_starter',
+        'regex': (
+          r'implementation\([\'"]uk\.gov\.justice\.service\.hmpps:hmpps-kotlin-spring-boot-starter:'
+          r'(.*)[\'"]\)'
+        ),
+      },
+      {
+        # SQS spring boot starter
+        'name': 'hmpps_sqs_spring_boot_starter',
+        'regex': (
+          r'implementation\([\'"]uk\.gov\.justice\.service\.'
+          r'hmpps:hmpps-sqs-spring-boot-starter:(.*)[\'"]\)'
+        ),
+      },
+    ]
+
+    for config in gradle_configs:
+      if re_matches := re.findall(config['regex'], content, re.MULTILINE):
+        for match in re_matches:
+          if isinstance(match, tuple):
+            version = match[0]
+            apply_false = match[1]
+          else:
+            version = match
+            apply_false = None
+
+          # if apply false is there, it will skip it
+          log_debug(
+            f'name: {config["name"]} version: {version} apply_false: {apply_false}'
+          )
+
+          if version.startswith('$'):
+            log_debug('Resolving gradle value because version starts with $')
+            version = get_gradle_value(content, version)
+          if version:
+            gradle_config[config['name']] = version
+            break
+
+  except TypeError as e:
+    log_warning(f'Unable to parse build gradle file - {e}')
+    pass
+
+  return gradle_config
+
+
+def _get_gradle_subprojects(gh, repo):
+  projects = []
+  if settings_content := gh.get_file_plain(
+    repo, 'settings.gradle.kts'
+  ) or gh.get_file_plain(repo, 'settings.gradle'):
+    # Remove comments to avoid false positives
+    settings_content_no_comments = re.sub(r'//.*', '', settings_content)
+
+    # regex to find include(...) blocks
+    if includes := re.findall(
+      r'include\s*\((.*?)\)', settings_content_no_comments, re.DOTALL
+    ):
+      for include_body in includes:
+        project_names = re.findall(r'[\'"]([:a-zA-Z0-9_\-]+)[\'"]', include_body)
+        projects.extend(project_names)
+  log_debug(f'Gradle includes found: {projects}')
+  return projects
+
+
+def get_gradle_config(gh, repo, component_name):
   # get_gradle_config - reads the gradle file to determine versions
   gradle_config = {}
+
+  # Check root
   if build_gradle_config_content := gh.get_file_plain(
     repo, 'build.gradle.kts'
   ) or gh.get_file_plain(repo, 'build.gradle'):
-    try:
-      gradle_configs = [
-        {
-          # spring boot version
-          'name': 'hmpps_gradle_spring_boot',
-          'regex': (
-            r'id\([\'"]uk\.gov\.justice\.hmpps\.gradle-spring-boot[\'"]\) version '
-            r'[\'"](.*)[\'"]( apply false)?$'
-          ),
-        },
-        {
-          # SQS spring boot starter
-          'name': 'hmpps_sqs_spring_boot_starter',
-          'regex': (
-            r'implementation\([\'"]uk\.gov\.justice\.service\.'
-            r'hmpps:hmpps-sqs-spring-boot-starter:(.*)[\'"]\)'
-          ),
-        },
-      ]
+    gradle_config.update(_parse_gradle_content(build_gradle_config_content))
 
-      for config in gradle_configs:
-        if re_matches := re.findall(
-          config['regex'], build_gradle_config_content, re.MULTILINE
-        ):
-          for match in re_matches:
-            if isinstance(match, tuple):
-              version = match[0]
-              apply_false = match[1]
-            else:
-              version = match
-              apply_false = None
+  # Check subprojects
+  subprojects = _get_gradle_subprojects(gh, repo)
+  for project in subprojects:
+    path = project.strip().replace(':', '/').strip('/')
+    if not path:
+      continue
+    # only get the include for common or the include that matches the project
+    if path not in ['common', f'{component_name}']:
+      log_debug(f'{path} is not in {["common", f"{component_name}"]} - skipping')
+      continue
 
-            # if apply false is there, it will skip it
-            log_debug(f'version: {version} apply_false: {apply_false}')
-            if not apply_false:
-              if version.startswith('$'):
-                log_debug('Resolving gradle value because version starts with $')
-                version = get_gradle_value(build_gradle_config_content, version)
-              gradle_config[config['name']] = version
-              break
-
-    except TypeError as e:
-      log_warning(f'Unable to parse build gradle file - {e}')
-      pass
+    if sub_content := gh.get_file_plain(
+      repo, f'{path}/build.gradle.kts'
+    ) or gh.get_file_plain(repo, f'{path}/build.gradle'):
+      log_debug(f'Parsing gradle files in {path}')
+      gradle_config.update(_parse_gradle_content(sub_content))
 
   if gradle_config:  # If there are some valid entries, happy days
     log_debug(f'Found hmpps gradle_config: {gradle_config}')
@@ -114,10 +173,10 @@ def get_gradle_config(gh, repo):
 
 # Gradle config
 ###############
-def get_gradle_version(services, repo):
+def get_gradle_version(services, repo, component_name):
   if repo.language == 'Kotlin' or repo.language == 'Java':
-    log_debug(f'Getting gradle config for {repo.name}')
-    if gradle_config := get_gradle_config(services.gh, repo):
+    log_debug(f'Getting gradle config for {component_name} in {repo.name}')
+    if gradle_config := get_gradle_config(services.gh, repo, component_name):
       return gradle_config
   log_info(f'No valid gradle config found for {repo.name} - removing version info')
   return None
@@ -190,7 +249,7 @@ def get_python_versions(services, repo):
 
 
 # Main function that calls all the others
-def get_versions(services, repo, component_project_dir, data):
+def get_versions(services, repo, component_name, component_project_dir, data):
   # CircleCI
   if circleci_orb_version := get_circle_ci_orb_version(services, repo):
     log_info(f'Updating CircleCI version: {circleci_orb_version}')
@@ -199,7 +258,7 @@ def get_versions(services, repo, component_project_dir, data):
     log_info(f'No CircleCI version found for {repo.name}')
 
   # Gradle
-  if gradle_versions := get_gradle_version(services, repo):
+  if gradle_versions := get_gradle_version(services, repo, component_name):
     log_info(f'Updating gradle_versions: {gradle_versions}')
     update_dict(
       data,

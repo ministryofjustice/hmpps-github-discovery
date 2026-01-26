@@ -357,7 +357,7 @@ def process_changed_component(component, repo, services):
       data['app_insights_alerts_enabled'] = None
 
   # Versions information
-  versions.get_versions(services, repo, component_project_dir, data)
+  versions.get_versions(services, repo, component_name, component_project_dir, data)
 
   # All done with the branch dependent components
 

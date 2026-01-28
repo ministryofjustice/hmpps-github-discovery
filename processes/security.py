@@ -57,16 +57,20 @@ class WaitingRunsDetector:
     runs = []
     page = 1
     while True:
-      url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs'
-      params = {'status': 'waiting', 'per_page': 100, 'page': page}
-      r = requests.get(url, headers=self.headers, params=params, timeout=20)
-      r.raise_for_status()
-      data = r.json()
-      batch = data.get('workflow_runs', [])
-      runs.extend(batch)
-      if len(batch) < 100:
+      try:
+        url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs'
+        params = {'status': 'waiting', 'per_page': 100, 'page': page}
+        r = requests.get(url, headers=self.headers, params=params, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        batch = data.get('workflow_runs', [])
+        runs.extend(batch)
+        if len(batch) < 100:
+          break
+        page += 1
+      except Exception as e:
+        log_error(f'Failed to get list of workflow runs: {e}')
         break
-      page += 1
     return runs
 
   def latest_success_for(self, workflow_id, branch):

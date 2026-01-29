@@ -242,13 +242,13 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dockerfile-parse", specifier = "==2.0.1" },
-    { name = "hmpps-sre-python-lib", url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.15/hmpps_sre_python_lib-0.1.15-py3-none-any.whl" },
+    { name = "hmpps-sre-python-lib", url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.16/hmpps_sre_python_lib-0.1.16-py3-none-any.whl" },
 ]
 
 [[package]]
 name = "hmpps-sre-python-lib"
-version = "0.1.15"
-source = { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.15/hmpps_sre_python_lib-0.1.15-py3-none-any.whl" }
+version = "0.1.16"
+source = { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.16/hmpps_sre_python_lib-0.1.16-py3-none-any.whl" }
 dependencies = [
     { name = "flask" },
     { name = "gitpython" },
@@ -259,7 +259,7 @@ dependencies = [
     { name = "urllib3" },
 ]
 wheels = [
-    { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.15/hmpps_sre_python_lib-0.1.15-py3-none-any.whl", hash = "sha256:c6bbf16deb77ce1ccd237a775768baf5d290abb3bb9ac718c23a15dd37891b00" },
+    { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.16/hmpps_sre_python_lib-0.1.16-py3-none-any.whl", hash = "sha256:987594558e2c76240da8d9c534baabf94af1d63d13dcadcb3ac3f1eec4af01d0" },
 ]
 
 [package.metadata]

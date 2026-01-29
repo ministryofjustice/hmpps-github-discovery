@@ -6,4 +6,8 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "dockerfile-parse==2.0.1",
+    "hmpps-sre-python-lib",
 ]
+
+[tool.uv.sources]
+hmpps-sre-python-lib = { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v0.1.16/hmpps_sre_python_lib-0.1.16-py3-none-any.whl" }

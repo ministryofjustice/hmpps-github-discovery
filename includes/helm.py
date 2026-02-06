@@ -205,7 +205,12 @@ def get_info_from_helm(component, repo, services):
   # Shortcuts to make it easier to read
   component_name = component.get('name')
 
-  data = {}
+  # Ensure security settings are inherited
+  component_security_settings = component.get('security_settings')
+
+  # Data dictionary for updating
+  data = {'security_settings': component_security_settings}
+
   audit_sqs_defined = False
 
   helm_environments = []

@@ -220,10 +220,13 @@ def process_sc_component_security(services, component, **kwargs):
   sc = services.sc
   gh = services.gh
   component_name = component.get('name')
+  component_security_settings = component.get('security_settings')
   github_repo = component.get('github_repo')
 
-  # Reset the data ready for updating
-  data = {}  # dictionary to hold all the updated data for the component
+  # dictionary to hold all the updated data for the component - retaining security settings
+  data = {'security_settings': component_security_settings}
+
+  # Flags for the summary
   component_flags = {}
 
   try:

@@ -94,7 +94,7 @@ def process_sc_component_workflows(services, component, **kwargs):
   # compare them with the existing actions stored in components
   if non_local_actions := scan_for_local_actions(workflow_dir, repo):
     # get the current versions list
-    versions = component.get('versions', {})
+    versions = component.get('versions', {}) or {}
 
     log_debug(
       f'non_local_actions for {component_name}: '

@@ -29,7 +29,6 @@ Optional environment variables
 
 """
 
-import os
 import argparse
 
 # hmpps

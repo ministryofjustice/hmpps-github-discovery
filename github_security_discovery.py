@@ -22,8 +22,6 @@ Optional environment variables
 - LOG_LEVEL: Log level (default: INFO)
 """
 
-import os
-
 # hmpps
 from hmpps import ServiceCatalogue, GithubSession, Slack
 from hmpps.services.job_log_handling import (

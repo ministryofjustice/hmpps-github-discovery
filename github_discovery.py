@@ -32,7 +32,6 @@ Optional environment variables
 
 """
 
-import os
 import sys
 
 # Classes for the various parts of the script

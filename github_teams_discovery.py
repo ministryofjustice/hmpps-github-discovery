@@ -2,8 +2,6 @@
 """Github discovery - queries the github API for info about hmpps services and stores
 the results in the service catalogue"""
 
-import os
-
 # hmpps
 from hmpps import GithubSession, ServiceCatalogue, Slack
 from hmpps.services.job_log_handling import log_info, job

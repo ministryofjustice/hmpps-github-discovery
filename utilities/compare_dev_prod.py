@@ -37,26 +37,21 @@ def compare_attributes(prod_attributes, dev_attributes):
 
 def main():
   # service catalogue parameters
-  sc_dev_params = {
-    'url': os.getenv('SERVICE_CATALOGUE_DEV_API_ENDPOINT'),
-    'key': os.getenv('SERVICE_CATALOGUE_DEV_API_KEY'),
-    'filter': os.getenv('SC_FILTER', ''),
-  }
 
-  sc_prod_params = {
-    'url': os.getenv('SERVICE_CATALOGUE_PROD_API_ENDPOINT'),
-    'key': os.getenv('SERVICE_CATALOGUE_PROD_API_KEY'),
-    'filter': os.getenv('SC_FILTER', ''),
-  }
-
-  sc_prod = ServiceCatalogue(sc_prod_params)
-  sc_dev = ServiceCatalogue(sc_dev_params)
+  sc_prod = ServiceCatalogue(
+    url=os.getenv('SERVICE_CATALOGUE_PROD_API_ENDPOINT', ''),
+    key=os.getenv('SERVICE_CATALOGUE_PROD_API_KEY', ''),
+  )
+  sc_dev = ServiceCatalogue(
+    url=os.getenv('SERVICE_CATALOGUE_DEV_API_ENDPOINT', ''),
+    key=os.getenv('SERVICE_CATALOGUE_DEV_API_KEY', ''),
+  )
 
   prod_data = sc_prod.get_all_records(sc_prod.components_get)
   dev_data = sc_dev.get_all_records(sc_dev.components_get)
 
   for component in prod_data:
-    log_info(f'{prod_data.get("name")}')
+    log_info(f'{component.get("name")}')
     log_info('=======================')
     differences = compare_attributes(prod_data, dev_data)
     for diff in differences:

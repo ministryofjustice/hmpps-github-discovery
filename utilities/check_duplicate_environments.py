@@ -22,17 +22,13 @@ def eprint(*args, **kwargs):
 
 def main():
   # service catalogue parameters
-  sc_params = {
-    'url': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'key': os.getenv('SERVICE_CATALOGUE_API_KEY'),
-  }
 
-  sc = ServiceCatalogue(sc_params)
+  sc = ServiceCatalogue()
 
   channel_id = os.getenv('SLACK_ALERTS_CHANNEL')
 
   sc_link_stub = (
-    f'{sc_params.get("url")}/admin/content-manager/collection-types/'
+    f'{sc.url}/admin/content-manager/collection-types/'
     f'api::environment.environment?sort=component.name:DESC'
   )
 
@@ -40,14 +36,14 @@ def main():
   slack_template = {
     'channel': f'{channel_id}',
     'text': ':warning: Duplicate environments found in Service Catalogue\n'
-            'Please check and remedy as soon as possible.',
+    'Please check and remedy as soon as possible.',
     'blocks': [
       {
         'type': 'section',
         'text': {
           'type': 'mrkdwn',
           'text': ':warning: Duplicate environments found in Service Catalogue\n'
-                  'Please check and remedy as soon as possible.',
+          'Please check and remedy as soon as possible.',
         },
       },
       {

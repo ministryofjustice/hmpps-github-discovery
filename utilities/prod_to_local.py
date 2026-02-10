@@ -10,22 +10,13 @@ from hmpps import ServiceCatalogue
 from hmpps.services.job_log_handling import log_debug, log_info
 
 # service catalogue parameters
-sc_in_params = {
-  'url': os.getenv('SC_API_PROD_ENDPOINT'),
-  'key': os.getenv('SC_API_PROD_KEY'),
-  'filter': os.getenv('SC_FILTER', ''),
-}
 
-# service catalogue parameters
-sc_out_params = {
-  'url': os.getenv('SC_API_LOCAL_ENDPOINT'),
-  'key': os.getenv('SC_API_LOCAL_KEY'),
-  'filter': os.getenv('SC_FILTER', ''),
-}
-
-
-sc_in = ServiceCatalogue(sc_in_params)
-sc_out = ServiceCatalogue(sc_out_params)
+sc_in = ServiceCatalogue(
+  url=os.getenv('SC_API_PROD_ENDPOINT', ''), key=os.getenv('SC_API_PROD_KEY', '')
+)
+sc_out = ServiceCatalogue(
+  url=os.getenv('SC_API_LOCAL_ENDPOINT', ''), key=os.getenv('SC_API_LOCAL_KEY', '')
+)
 
 # github_teams = sc_in.get_all_records('github-teams')
 

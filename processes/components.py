@@ -221,7 +221,7 @@ def get_app_insights_cloud_role_name(
   return None
 
 
-def update_frontend_api(component, data):
+def update_app_type(component, data):
   component_name = component.get('name')
   # Check to see if the repo is a frontend one (based on the name)
   if re.search(

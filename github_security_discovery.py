@@ -22,8 +22,6 @@ Optional environment variables
 - LOG_LEVEL: Log level (default: INFO)
 """
 
-import os
-
 # hmpps
 from hmpps import ServiceCatalogue, GithubSession, Slack
 from hmpps.services.job_log_handling import (
@@ -35,16 +33,16 @@ from hmpps.services.job_log_handling import (
 # local
 from processes import components
 
-# Set maximum number of concurrent threads to run, try to avoid secondary github 
+# Set maximum number of concurrent threads to run, try to avoid secondary github
 # api limits.
 max_threads = 10
 
 
 class Services:
-  def __init__(self, sc_params, gh_params, slack_params):
-    self.slack = Slack(slack_params)
-    self.sc = ServiceCatalogue(sc_params)
-    self.gh = GithubSession(gh_params)
+  def __init__(self):
+    self.slack = Slack()
+    self.sc = ServiceCatalogue()
+    self.gh = GithubSession()
 
 
 # def create_summary(services, processed_components):
@@ -87,27 +85,7 @@ def main():
   #### Create resources ####
   job.name = 'hmpps-github-discovery-security'
 
-  # service catalogue parameters
-  sc_params = {
-    'url': os.getenv('SERVICE_CATALOGUE_API_ENDPOINT'),
-    'key': os.getenv('SERVICE_CATALOGUE_API_KEY'),
-    'filter': os.getenv('SC_FILTER', ''),
-  }
-
-  # Github parameters
-  gh_params = {
-    'app_id': int(os.getenv('GITHUB_APP_ID', '0')),
-    'app_installation_id': int(os.getenv('GITHUB_APP_INSTALLATION_ID', '0')),
-    'app_private_key': os.getenv('GITHUB_APP_PRIVATE_KEY', ''),
-  }
-
-  slack_params = {
-    'token': os.getenv('SLACK_BOT_TOKEN'),
-    'notify_channel': os.getenv('SLACK_NOTIFY_CHANNEL', ''),
-    'alert_channel': os.getenv('SLACK_ALERT_CHANNEL', ''),
-  }
-
-  services = Services(sc_params, gh_params, slack_params)
+  services = Services()
   slack = services.slack
   sc = services.sc
   gh = services.gh

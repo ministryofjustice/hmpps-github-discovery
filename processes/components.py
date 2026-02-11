@@ -302,7 +302,7 @@ def process_independent_component(component, repo):
     log_warning(f'Unable to get topics for {repo.name}: {e}')
 
   # FRONTEND / API checks
-  update_frontend_api(component, data)
+  update_app_type(component, data)
 
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'

@@ -221,6 +221,29 @@ def get_app_insights_cloud_role_name(
   return None
 
 
+def update_frontend_api(component, data):
+  component_name = component.get('name')
+  # Check to see if the repo is a frontend one (based on the name)
+  if re.search(
+    r'([fF]rontend)|(-ui$)|(-UI$)|([uU]ser\s[iI]nterface)', f'{component_name}'
+  ):
+    log_debug("Detected 'frontend|-ui' - setting frontend flag.")
+    data['frontend'] = True
+    data['api'] = False
+
+  # Check to see if the repo is based on hmpps-template-typescript
+  if 'hmpps-template-typescript' in component.get('github_template_repo', ''):
+    log_debug('Typescript template-based repo; setting frontend flag.')
+    data['frontend'] = True
+    data['api'] = False
+
+    # Check to see if the repo is an API (name ends in -api))
+    if re.search(r'(-api$)|(-API$)', f'{component_name}'):
+      log_debug("Detected '-api'  - setting api flag.")
+    data['frontend'] = False
+    data['api'] = True
+
+
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
@@ -278,13 +301,8 @@ def process_independent_component(component, repo):
   except Exception as e:
     log_warning(f'Unable to get topics for {repo.name}: {e}')
 
-  # Check to see if the repo is a frontend one (based on the name)
-  if re.search(
-    r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
-    f'{component_name} {repo.description}',
-  ):
-    log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
-    data['frontend'] = True
+  # FRONTEND / API checks
+  update_frontend_api(component, data)
 
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'

@@ -237,9 +237,9 @@ def update_app_type(component, data):
     data['frontend'] = True
     data['api'] = False
 
-    # Check to see if the repo is an API (name ends in -api))
-    if re.search(r'(-api$)|(-API$)', f'{component_name}'):
-      log_debug("Detected '-api'  - setting api flag.")
+  # Check to see if the repo is an API (name ends in -api))
+  if re.search(r'(-api$)|(-API$)', f'{component_name}'):
+    log_debug("Detected '-api'  - setting api flag.")
     data['frontend'] = False
     data['api'] = True
 

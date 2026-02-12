@@ -223,7 +223,25 @@ def get_app_insights_cloud_role_name(
 
 def update_app_type(component, data):
   component_name = component.get('name')
-  # Check to see if the repo is a frontend one (based on the name)
+  topics = data.get('github_topics', [])
+
+  # Check for app type topics first (highest priority)
+  type_topics = {'api', 'frontend', 'library', 'worker'}
+  found_topics = set(topics) & type_topics
+
+  if found_topics:
+    # Reset all type flags
+    data['api'] = False
+    data['frontend'] = False
+    data['library'] = False
+    data['worker'] = False
+    # Set flags based on topics found
+    for topic in found_topics:
+      log_debug(f"Found '{topic}' topic - setting {topic} flag.")
+      data[topic] = True
+    return  # Topics take priority, skip name-based detection
+
+  # Fallback: Check to see if the repo is a frontend one (based on the name)
   if re.search(
     r'([fF]rontend)|(-ui$)|(-UI$)|([uU]ser\s[iI]nterface)', f'{component_name}'
   ):
@@ -231,13 +249,7 @@ def update_app_type(component, data):
     data['frontend'] = True
     data['api'] = False
 
-  # Check to see if the repo is based on hmpps-template-typescript
-  if 'hmpps-template-typescript' in component.get('github_template_repo', ''):
-    log_debug('Typescript template-based repo; setting frontend flag.')
-    data['frontend'] = True
-    data['api'] = False
-
-  # Check to see if the repo is an API (name ends in -api))
+  # Fallback: Check to see if the repo is an API (name ends in -api))
   if re.search(r'(-api$)|(-API$)', f'{component_name}'):
     log_debug("Detected '-api'  - setting api flag.")
     data['frontend'] = False

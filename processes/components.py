@@ -221,6 +221,41 @@ def get_app_insights_cloud_role_name(
   return None
 
 
+def update_app_type(component, data):
+  component_name = component.get('name')
+  topics = data.get('github_topics', [])
+
+  # Check for app type topics first (highest priority)
+  type_topics = {'api', 'frontend', 'library', 'worker'}
+  found_topics = set(topics) & type_topics
+
+  if found_topics:
+    # Reset all type flags
+    data['api'] = False
+    data['frontend'] = False
+    data['library'] = False
+    data['worker'] = False
+    # Set flags based on topics found
+    for topic in found_topics:
+      log_debug(f"Found '{topic}' topic - setting {topic} flag.")
+      data[topic] = True
+    return  # Topics take priority, skip name-based detection
+
+  # Fallback: Check to see if the repo is a frontend one (based on the name)
+  if re.search(
+    r'([fF]rontend)|(-ui$)|(-UI$)|([uU]ser\s[iI]nterface)', f'{component_name}'
+  ):
+    log_debug("Detected 'frontend|-ui' - setting frontend flag.")
+    data['frontend'] = True
+    data['api'] = False
+
+  # Fallback: Check to see if the repo is an API (name ends in -api))
+  if re.search(r'(-api$)|(-API$)', f'{component_name}'):
+    log_debug("Detected '-api'  - setting api flag.")
+    data['frontend'] = False
+    data['api'] = True
+
+
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
@@ -278,13 +313,8 @@ def process_independent_component(component, repo):
   except Exception as e:
     log_warning(f'Unable to get topics for {repo.name}: {e}')
 
-  # Check to see if the repo is a frontend one (based on the name)
-  if re.search(
-    r'([fF]rontend)|(-ui)|(UI)|([uU]ser\s[iI]nterface)',
-    f'{component_name} {repo.description}',
-  ):
-    log_debug("Detected 'frontend|-ui' keyword, setting frontend flag.")
-    data['frontend'] = True
+  # FRONTEND / API checks
+  update_app_type(component, data)
 
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'

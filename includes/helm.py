@@ -206,7 +206,7 @@ def get_info_from_helm(component, repo, services):
   component_name = component.get('name')
 
   # Ensure security settings are inherited
-  component_security_settings = component.get('security_settings')
+  component_security_settings = component.get('security_settings') or {}
 
   # Data dictionary for updating
   data = {'security_settings': component_security_settings}

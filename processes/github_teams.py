@@ -15,7 +15,24 @@ class Services:
     self.sc = ServiceCatalogue(sc_params)
     self.gh = GithubSession(gh_params)
 
+def remove_team_from_components(sc, team_name):
+  log_info(f'Removing team {team_name} from all components in the service catalogue')
+  components = sc.get_all_records(sc.components)
+  for component in components:
+    for team_list_key in ['github_project_teams_admin',
+                          'github_project_teams_maintain', 
+                          'github_project_teams_write', 
+                          'github_project_branch_protection_restricted_teams'
+                          ]:
+      if team_name in component.get(team_list_key, []):
+        component[team_list_key].remove(team_name)
+        log_info(f'Team {team_name} removed from {team_list_key} in component {component["name"]}')
+        if sc.update(sc.components, component['documentId'], component):
+          log_info(f'Team {team_name} removed from component {component["name"]}')
+        else:
+          log_error(f'Failed to remove team {team_name} from component {component["name"]}')
 
+      
 def process_github_teams(services):
   sc = services.sc
   gh = services.gh
@@ -40,8 +57,19 @@ def process_github_teams(services):
     try:
       gh_team = gh.org.get_team_by_slug(team_name)
     except Exception as e:
-      log_error(f'Unable to get details for {team_name} in Github - {e}')
-      gh_team = None
+      log_info(f'Unable to get details for {team_name} in Github - {e}')
+      if '404' in str(e):
+        log_info(f'Team {team_name} not found in GitHub.'
+          'Deleting from the service catalogue...')
+        team_iterator = (team for team in sc_teams if team.get('team_name') == team_name)
+        sc_team = next(team_iterator, None)
+        if sc_team:
+          if sc.delete(sc.github_teams, sc_team['documentId']):
+            log_info(f'Team {team_name} successfully deleted from the service catalogue')
+            team_flags['team_deleted'] = True
+            remove_team_from_components(sc, team_name)
+        else:
+          continue
 
     if gh_team:
       if any(team_name == tf_team for tf_team in tf_team_names):
@@ -95,4 +123,23 @@ def process_github_teams(services):
     else:
       team_flags['team_failure'] = True
     processed_teams.append((team_name, team_flags))
+
+  # Delete teams from SC which are no longer in hmpps-github-teams 
+  # if they are marked as terraform_managed in the service catalogue
+
+  log_info('Checking for teams to delete from the service catalogue...')
+  for sc_team in sc_teams:
+    sc_team_name = sc_team.get('team_name')
+    sc_team_terraform_managed = sc_team.get('terraform_managed', False)
+    if sc_team_name not in tf_team_names and sc_team_terraform_managed:
+      log_info(
+        f'Terraform managed {sc_team_name} is in the service catalogue '
+        'but not in terraform data anymore - deleting from service catalogue',
+      )
+      if sc.delete(sc.github_teams, sc_team['documentId']):
+        log_info(f'Team {sc_team_name} successfully deleted from the service catalogue')
+        processed_teams.append((sc_team_name, {'team_deleted': True}))
+      else:
+        log_error(f'Failed to delete team {sc_team_name} from the service catalogue')
+
   return processed_teams

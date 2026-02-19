@@ -25,9 +25,11 @@ def summarize_processed_teams(processed_teams):
   )
   team_attributes = {
     'terraform_managed': 'teams are terraform managed',
-    'team_updated': 'team(s) updated',
     'team_added': 'team(s) added',
-    'team_failure': 'teams that encountered errors',
+    'team_updated': 'team(s) updated',
+    'team_deleted': 'team(s) deleted',
+    'team_references_removed': 'team(s) removed from all components',
+    'team_failure': 'team(s) that encountered errors',
   }
   for attr, desc in team_attributes.items():
     filtered_items = [item for item in processed_teams if item[1].get(attr)]

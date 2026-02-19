@@ -19,6 +19,7 @@ def remove_team_from_components(sc, team_name):
   log_info(f'Removing team {team_name} from all components in the service catalogue')
   components = sc.get_all_records(sc.components)
   for component in components:
+    component_name = component.get("name")
     for team_list_key in ['github_project_teams_admin',
                           'github_project_teams_maintain', 
                           'github_project_teams_write', 
@@ -26,12 +27,21 @@ def remove_team_from_components(sc, team_name):
                           ]:
       if team_name in component.get(team_list_key, []):
         component[team_list_key].remove(team_name)
-        log_info(f'Team {team_name} removed from {team_list_key} in component {component["name"]}')
-        if sc.update(sc.components, component['documentId'], component):
+        component_data = { team_list_key: component[team_list_key]}
+        log_info(f'Team {team_name} removed from {team_list_key} in {component_name}')
+        if sc.update(sc.components, component['documentId'], component_data):
           log_info(f'Team {team_name} removed from component {component["name"]}')
         else:
-          log_error(f'Failed to remove team {team_name} from component {component["name"]}')
+          log_error(f'Failed to remove team {team_name} from {component_name}')
 
+def find_all_teams_ref_in_sc(sc):
+  components = sc.get_all_records(sc.components)
+  combined_teams = set()
+  for component in components:
+    combined_teams.update(component.get('github_project_teams_write', []) or [])
+    combined_teams.update(component.get('github_project_teams_admin', []) or [])
+    combined_teams.update(component.get('github_project_teams_maintain', []) or [])
+  return combined_teams
       
 def process_github_teams(services):
   sc = services.sc
@@ -44,7 +54,7 @@ def process_github_teams(services):
   sc_teams = sc.get_all_records(sc.github_teams)
   # Get the github teams refenered in admin, manintain and write teams from SC
   log_info('Getting Github teams references in components')
-  all_repo_ref_gh_teams = sc.find_all_teams_ref_in_sc()
+  all_repo_ref_gh_teams = find_all_teams_ref_in_sc(sc)
   # Get the data from GH for teams from terraform files
   log_info('Retrieving Github teams terraform data...')
   tf_teamrepo = gh.get_org_repo('hmpps-github-teams')
@@ -52,24 +62,31 @@ def process_github_teams(services):
   tf_team_names = [team['name'] for team in tf_teams]
 
   combined_team_names = set(tf_team_names).union(all_repo_ref_gh_teams)
+
   for team_name in combined_team_names:
     team_flags = {}
+    team_data = {}
+    gh_team = None
     try:
       gh_team = gh.org.get_team_by_slug(team_name)
     except Exception as e:
       log_info(f'Unable to get details for {team_name} in Github - {e}')
       if '404' in str(e):
-        log_info(f'Team {team_name} not found in GitHub.'
+        log_info(f'Team {team_name} not found in GitHub. '
           'Deleting from the service catalogue...')
-        team_iterator = (team for team in sc_teams if team.get('team_name') == team_name)
+        team_iterator = (
+          team for team in sc_teams if team.get('team_name') == team_name
+        )
         sc_team = next(team_iterator, None)
         if sc_team:
           if sc.delete(sc.github_teams, sc_team['documentId']):
-            log_info(f'Team {team_name} successfully deleted from the service catalogue')
+            log_info(f'Team {team_name} successfully deleted from service catalogue')
             team_flags['team_deleted'] = True
             remove_team_from_components(sc, team_name)
+            team_flags['team_references_removed'] = True
         else:
-          continue
+          remove_team_from_components(sc, team_name)
+          team_flags['team_references_removed'] = True
 
     if gh_team:
       if any(team_name == tf_team for tf_team in tf_team_names):
@@ -141,5 +158,4 @@ def process_github_teams(services):
         processed_teams.append((sc_team_name, {'team_deleted': True}))
       else:
         log_error(f'Failed to delete team {sc_team_name} from the service catalogue')
-
   return processed_teams

@@ -224,10 +224,9 @@ def get_app_insights_cloud_role_name(
 ##################################################################################
 # Independent Component Function - runs every time the scan takes place
 ##################################################################################
-def process_independent_component(component, repo):
+def process_independent_component(data, component, repo):
   component_name = component.get('name')
 
-  data = {}
   component_flags = {
     'app_disabled': False,
     'branch_protection_disabled': None,
@@ -288,13 +287,13 @@ def process_independent_component(component, repo):
   log_debug(
     f'Processed main branch independent components for {component_name}\ndata: {data}'
   )
-  return data, component_flags
+  return component_flags
 
 
 #################################################¢¢¢¢¢############################
 # Changed Component Function - only runs if main branch or environment has changed
 ##################################################################################
-def process_changed_component(component, repo, services):
+def process_changed_component(data, component, repo, services):
   gh = services.gh
 
   # Shortcuts to make it easier to read
@@ -305,12 +304,6 @@ def process_changed_component(component, repo, services):
     else '.'
   )
   log_debug(f'Component project directory is: {component_project_dir}')
-
-  # Reset the data ready for updating
-  data = {}
-
-  # Include the existing versions
-  existing_versions = component.get('versions', {})
 
   # Information from Helm config
   ################################
@@ -324,16 +317,8 @@ def process_changed_component(component, repo, services):
   # - Product ID if it's valid
 
   log_debug(f'Getting information for {component_name} from Helm config')
-  if helm_data := helm.get_info_from_helm(component, repo, services):
-    log_debug(f'Found Helm data for record id {component_name} - {helm_data}')
-    # remove previous helm data from existing versions data
-    if existing_versions:
-      if existing_versions.get('helm_dependencies'):
-        existing_versions.pop('helm_dependencies')
-      # then update the existing versions into helm data
-      update_dict(helm_data, 'versions', existing_versions)
-    # ...and update data
-    data.update(helm_data)
+  if helm.get_info_from_helm(data, component, repo, services):
+    log_debug(f'Updated Helm data for record id {component_name}')
 
   log_debug(
     f'Finished getting information from helm for {component_name}\ndata: {data}'
@@ -356,7 +341,7 @@ def process_changed_component(component, repo, services):
       data['app_insights_alerts_enabled'] = None
 
   # Versions information
-  versions.get_versions(services, repo, component_name, component_project_dir, data)
+  versions.get_versions(services, data, repo, component_name, component_project_dir)
 
   # All done with the branch dependent components
 
@@ -367,7 +352,7 @@ def process_changed_component(component, repo, services):
     f'Finished getting other repo information for {component_name}\ndata: {data}'
   )
 
-  return data
+  return True
 
 
 #######################################################################################
@@ -389,12 +374,18 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
   sc = services.sc
   gh = services.gh
 
-  # Empty data dict gets populated along the way, and finally used
-  # in PUT request to service catalogue
-  data = {}
   component_flags = {}
   component_name = component.get('name')
+
   log_info(f'Processing component: {component_name}')
+
+  # The data dictionary contains all the updated data
+  # retrieved from the various functions
+  # Reset data with existing component data to avoid overwriting it
+  data = {
+    'security_settings': (component.get('security_settings') or {}),
+    'versions': (component.get('versions') or {}),
+  }
 
   # Get the latest commit from the SC
   log_debug(f'Getting latest commit from SC for {component_name}')
@@ -413,12 +404,7 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
     # Process branch / environment independent components (incremental + full)
     ##############################################################################
     log_info(f'Processing main branch independent components for: {component_name}')
-    independent_components, component_flags = process_independent_component(
-      component, repo
-    )
-
-    data.update(independent_components)
-
+    component_flags = process_independent_component(data, component, repo)
     component_flags['env_changed'] = environments.check_env_change(
       component, repo, bootstrap_projects, services
     )
@@ -440,7 +426,7 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
       # if main branch / environments have changed (full only)
       #################################################################################
       log_info(f'Processing changed components for: {component_name}')
-      data.update(process_changed_component(component, repo, services))
+      process_changed_component(data, component, repo, services)
 
       #################################################################################
       # Processing the environment data -
@@ -450,7 +436,7 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
       # Some environment data may already have been populated from helm
       # It will need to be combined with environments found in bootstrap/Github
       # Then updated in components (once it's been turned into a list)
-      if helm_environments := data.get('environments'):
+      if helm_environments := data.get('helm_environments'):
         log_debug(
           f'Helm environment data for {component_name}: '
           f'{json.dumps(helm_environments, indent=2)}'
@@ -463,8 +449,8 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
       # Add environment flags to the component flags, since they're related
       for each_flag in env_flags:
         component_flags[each_flag] = env_flags[each_flag]
-    if 'environments' in data:
-      del data['environments']
+    if 'helm_environments' in data:
+      del data['helm_environments']
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['documentId'], data):

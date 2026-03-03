@@ -249,7 +249,7 @@ def get_python_versions(services, repo):
 
 
 # Main function that calls all the others
-def get_versions(services, repo, component_name, component_project_dir, data):
+def get_versions(services, data, repo, component_name, component_project_dir):
   # CircleCI
   if circleci_orb_version := get_circle_ci_orb_version(services, repo):
     log_info(f'Updating CircleCI version: {circleci_orb_version}')

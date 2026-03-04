@@ -121,7 +121,8 @@ def fetch_sqs_alerts_config(generic_prometheus_alerts):
   sqs_alert_list = [
     ('sqsOldestAlertQueueNames sqsAlertsQueueNames', 'SQS-oldest-message'),
     (
-      'sqsNumberAlertQueueNames sqsAlertsQueueNames sqsNumberAlertQueueMappings sqsAlertsQueueMappings',
+      'sqsNumberAlertQueueNames sqsAlertsQueueNames '
+      'sqsNumberAlertQueueMappings sqsAlertsQueueMappings',
       'SQS-number-of-messages',
     ),
     ('sqsInactiveAlertQueueNames', 'SQS-no-messages-received'),

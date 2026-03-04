@@ -445,11 +445,11 @@ def get_info_from_helm(data, component, repo, services):
           update_dict(helm_envs, env, alertmanager_config)
 
         # SQS alerts
-        sqs_alert_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
+        sqs_alerts_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
         update_dict(
           data,
-          'sqs_alerts',
-          sqs_alert_config,
+          'sqs_alerts_config',
+          sqs_alerts_config,
         )
 
       # Health paths using the host name:

@@ -15,7 +15,6 @@ from hmpps import (
   AlertmanagerData,
   Slack,
 )
-from hmpps import update_dict
 
 from hmpps.services.job_log_handling import (
   log_debug,

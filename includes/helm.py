@@ -112,6 +112,64 @@ def fetch_helm_default_values(
   return helm_defaults
 
 
+def get_mod_security_settings(values, helm_defaults, helm_envs, env):
+  for mod_security_type in [
+    ('modsecurity_enabled', False),
+    ('modsecurity_audit_enabled', False),
+    ('modsecurity_snippet', None),
+  ]:  # default to this
+    if 'generic-service' in values and 'ingress' in values['generic-service']:
+      if mod_security_env_enabled := values['generic-service']['ingress'].get(
+        mod_security_type[0]
+      ):
+        log_debug(
+          f'Updating {mod_security_type[0]} to environment value: '
+          f'{mod_security_env_enabled}'
+        )
+        update_dict(
+          helm_envs,
+          env,
+          {mod_security_type[0]: mod_security_env_enabled},
+        )
+      elif helm_defaults.get('mod_security', {}).get(mod_security_type[0]):
+        log_debug(
+          f'Updating {mod_security_type[0]} to default value: '
+          f'{helm_defaults.get("mod_security", {}).get(mod_security_type[0])}'
+        )
+        update_dict(
+          helm_envs,
+          env,
+          {
+            mod_security_type[0]: helm_defaults.get('mod_security', {}).get(
+              mod_security_type[0]
+            )
+          },
+        )
+      else:  # default either to false or None
+        update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
+
+
+def get_generic_prometheus_alerts(
+  am, component_name, env, values, helm_defaults, helm_envs, data
+):
+  if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
+    # Alertmanager config
+    if alertmanager_config := fetch_alertmanager_config(
+      am, env, helm_defaults, component_name, generic_prometheus_alerts
+    ):
+      log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+      # Update the helm environment data with the outcome of this check
+      update_dict(helm_envs, env, alertmanager_config)
+
+    # SQS alerts
+    sqs_alerts_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
+    update_dict(
+      data,
+      'sqs_alerts_config',
+      sqs_alerts_config,
+    )
+
+
 # Read from the environment values files to retrieve configurations
 # for SQS alerts - these will be unique to environments (due to the
 # naming convention in Cloud Platform)
@@ -283,9 +341,6 @@ def get_info_from_helm(data, component, repo, services):
     # HEAT-223 End : Read and collate data for IPallowlist from all environment
     # specific values.yaml files.
 
-  # Helm chart dependencies
-  update_helm_dep_versions(gh, repo, helm_dir, component_name, data)
-
   # DEFAULT VALUES SECTION
   # ----------------------
   # Default values for modsecurity and alert_severity_label - clear these out
@@ -313,7 +368,7 @@ def get_info_from_helm(data, component, repo, services):
       sc, helm_default_values, allow_list_key, component_name, data
     )
 
-  # Shortcut dictionary to update helm data
+  # Main dictionary to store helm data as we go
   helm_envs = {}
 
   # Process the helm environments
@@ -400,58 +455,12 @@ def get_info_from_helm(data, component, repo, services):
             data['container_image'] = container_image
 
       # Modsecurity settings
-      for mod_security_type in [
-        ('modsecurity_enabled', False),
-        ('modsecurity_audit_enabled', False),
-        ('modsecurity_snippet', None),
-      ]:  # default to this
-        if 'generic-service' in values and 'ingress' in values['generic-service']:
-          if mod_security_env_enabled := values['generic-service']['ingress'].get(
-            mod_security_type[0]
-          ):
-            log_debug(
-              f'Updating {mod_security_type[0]} to environment value: '
-              f'{mod_security_env_enabled}'
-            )
-            update_dict(
-              helm_envs,
-              env,
-              {mod_security_type[0]: mod_security_env_enabled},
-            )
-          elif helm_defaults.get('mod_security', {}).get(mod_security_type[0]):
-            log_debug(
-              f'Updating {mod_security_type[0]} to default value: '
-              f'{helm_defaults.get("mod_security", {}).get(mod_security_type[0])}'
-            )
-            update_dict(
-              helm_envs,
-              env,
-              {
-                mod_security_type[0]: helm_defaults.get('mod_security', {}).get(
-                  mod_security_type[0]
-                )
-              },
-            )
-          else:  # default either to false or None
-            update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
+      get_mod_security_settings(values, helm_defaults, helm_envs, env)
 
       # Generic prometheus alert configs
-      if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
-        # Alertmanager config
-        if alertmanager_config := fetch_alertmanager_config(
-          am, env, helm_defaults, component_name, generic_prometheus_alerts
-        ):
-          log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
-          # Update the helm environment data with the outcome of this check
-          update_dict(helm_envs, env, alertmanager_config)
-
-        # SQS alerts
-        sqs_alerts_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
-        update_dict(
-          data,
-          'sqs_alerts_config',
-          sqs_alerts_config,
-        )
+      get_generic_prometheus_alerts(
+        am, component_name, env, values, helm_defaults, helm_envs, data
+      )
 
       # Health paths using the host name:
       health_path = None
@@ -518,6 +527,9 @@ def get_info_from_helm(data, component, repo, services):
   if helm_envs:
     update_dict(data, 'helm_environments', helm_envs)
   # End of helm environment checks
+
+  # Shared Helm chart dependency versions
+  update_helm_dep_versions(gh, repo, helm_dir, component_name, data)
 
   # Apply the value for the audit sqs queue setting
   update_dict(

@@ -166,10 +166,10 @@ def main():
   # main branch changes
   force_update = False
   if '-f' in sys.argv or '--force' in sys.argv:
-    job.name = 'hmpps-github-discovery-full'
+    job.name = 'hmpps-github-discovery-full'  # type: ignore[assignment]
     force_update = True
   else:
-    job.name = 'hmpps-github-discovery-incremental'
+    job.name = 'hmpps-github-discovery-incremental'  # type: ignore[assignment]
 
   #### Create resources ####
 

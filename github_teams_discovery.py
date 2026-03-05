@@ -46,7 +46,7 @@ def summarize_processed_teams(processed_teams):
 
 
 def main():
-  job.name = 'hmpps-github-teams-discovery'
+  job.name = 'hmpps-github-teams-discovery'  # type: ignore[assignment]
   services = Services()
   slack = services.slack
   sc = services.sc

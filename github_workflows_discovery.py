@@ -76,7 +76,7 @@ def create_summary(services, processed_components):
 
 def main():
   #### Create resources ####
-  job.name = 'hmpps-github-discovery-workflows'
+  job.name = 'hmpps-github-discovery-workflows'  # type: ignore[assignment]
 
   services = Services()
   slack = services.slack

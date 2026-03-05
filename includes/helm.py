@@ -112,50 +112,150 @@ def fetch_helm_default_values(
   return helm_defaults
 
 
-def fetch_alertmanager_config(am, env, helm_defaults, component_name, values):
+def get_mod_security_settings(values, helm_defaults, helm_envs, env):
+  for mod_security_type in [
+    ('modsecurity_enabled', False),
+    ('modsecurity_audit_enabled', False),
+    ('modsecurity_snippet', None),
+  ]:  # default to this
+    if 'generic-service' in values and 'ingress' in values['generic-service']:
+      if mod_security_env_enabled := values['generic-service']['ingress'].get(
+        mod_security_type[0]
+      ):
+        log_debug(
+          f'Updating {mod_security_type[0]} to environment value: '
+          f'{mod_security_env_enabled}'
+        )
+        update_dict(
+          helm_envs,
+          env,
+          {mod_security_type[0]: mod_security_env_enabled},
+        )
+      elif helm_defaults.get('mod_security', {}).get(mod_security_type[0]):
+        log_debug(
+          f'Updating {mod_security_type[0]} to default value: '
+          f'{helm_defaults.get("mod_security", {}).get(mod_security_type[0])}'
+        )
+        update_dict(
+          helm_envs,
+          env,
+          {
+            mod_security_type[0]: helm_defaults.get('mod_security', {}).get(
+              mod_security_type[0]
+            )
+          },
+        )
+      else:  # default either to false or None
+        update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
+
+
+def get_generic_prometheus_alerts(
+  am, component_name, env, values, helm_defaults, helm_envs, data
+):
+  if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
+    # Alertmanager config
+    if alertmanager_config := fetch_alertmanager_config(
+      am, env, helm_defaults, component_name, generic_prometheus_alerts
+    ):
+      log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
+      # Update the helm environment data with the outcome of this check
+      update_dict(helm_envs, env, alertmanager_config)
+
+    # SQS alerts
+    sqs_alerts_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
+    update_dict(
+      data,
+      'sqs_alerts_config',
+      sqs_alerts_config,
+    )
+
+
+# Read from the environment values files to retrieve configurations
+# for SQS alerts - these will be unique to environments (due to the
+# naming convention in Cloud Platform)
+# Note sqsAlertsQueueNames is a combined alert for Oldest & Number
+def fetch_sqs_alerts_config(generic_prometheus_alerts):
+  sqs_queues = {}
+  sqs_alert_list = [
+    ('sqsOldestAlertQueueNames sqsAlertsQueueNames', 'SQS-oldest-message'),
+    (
+      'sqsNumberAlertQueueNames sqsAlertsQueueNames '
+      'sqsNumberAlertQueueMappings sqsAlertsQueueMappings',
+      'SQS-number-of-messages',
+    ),
+    ('sqsInactiveAlertQueueNames', 'SQS-no-messages-received'),
+  ]
+
+  log_debug('Getting SQS alert configuration')
+
+  for key, value in generic_prometheus_alerts.items():
+    if sqs_alerts := [
+      sqs_alert[1] for sqs_alert in sqs_alert_list if key in sqs_alert[0]
+    ]:
+      # Determine which queues are affected
+      queues = []
+      if 'Mappings' in key and isinstance(value, dict):
+        for queue_list in value.values():
+          queues.extend(queue_list)
+      elif isinstance(value, list):
+        queues.extend(value)
+      else:
+        queues.append(key)
+
+      # Update sqs_queues for each target queue
+      for queue in queues:
+        if queue not in sqs_queues:
+          sqs_queues[queue] = []
+        sqs_queues[queue].extend(sqs_alerts)
+
+  return sqs_queues
+
+
+def fetch_alertmanager_config(
+  am, env, helm_defaults, component_name, generic_prometheus_alerts
+):
   alertmanager_config = {}
   alert_severity_label = None
   alerts_slack_channel = None
   if am.isDataAvailable():
     # Update Alert severity label and slack channel
-    if generic_prometheus_alerts := values.get('generic-prometheus-alerts'):
-      alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
-      if alert_severity_label:
-        log_debug(
-          f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
-        )
-        log_debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
-
-    if not alert_severity_label and helm_defaults.get('alert_severity_label'):
-      log_info(
-        f'Alert severity label not found for {component_name} in {env} - '
-        f'setting to default'
-      )
-      alert_severity_label = helm_defaults.get('alert_severity_label')
-    else:
-      log_info(
-        f'Alert severity label not found for {component_name} in values.yaml & '
-        f'values-{env}.yaml'
-      )
-
-    # Only populate the alertmanager_config dictionary if a config has been found
+    alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
     if alert_severity_label:
-      alerts_slack_channel = am.find_channel_by_severity_label(alert_severity_label)
-      if alerts_slack_channel:
-        log_debug(
-          f'Updating {component_name} {env} alerts_slack_channel to '
-          f'{alerts_slack_channel}'
-        )
-      else:
-        log_warning(
-          f'Alerts slack channel not found for {component_name} '
-          f'{alert_severity_label} for {env}'
-        )
+      log_debug(
+        f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
+      )
+      log_debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
 
-      alertmanager_config = {
-        'alert_severity_label': alert_severity_label,
-        'alerts_slack_channel': alerts_slack_channel,
-      }
+  if not alert_severity_label and helm_defaults.get('alert_severity_label'):
+    log_info(
+      f'Alert severity label not found for {component_name} in {env} - '
+      f'setting to default'
+    )
+    alert_severity_label = helm_defaults.get('alert_severity_label')
+  else:
+    log_info(
+      f'Alert severity label not found for {component_name} in values.yaml & '
+      f'values-{env}.yaml'
+    )
+
+  # Only populate the alertmanager_config dictionary if a config has been found
+  if alert_severity_label:
+    alerts_slack_channel = am.find_channel_by_severity_label(alert_severity_label)
+    if alerts_slack_channel:
+      log_debug(
+        f'Updating {component_name} {env} alerts_slack_channel to '
+        f'{alerts_slack_channel}'
+      )
+    else:
+      log_warning(
+        f'Alerts slack channel not found for {component_name} '
+        f'{alert_severity_label} for {env}'
+      )
+
+    alertmanager_config = {
+      'alert_severity_label': alert_severity_label,
+      'alerts_slack_channel': alerts_slack_channel,
+    }
   return alertmanager_config
 
 
@@ -197,19 +297,13 @@ def check_for_key(data, target_key):
   return False
 
 
-def get_info_from_helm(component, repo, services):
+def get_info_from_helm(data, component, repo, services):
   gh = services.gh
   am = services.am
   sc = services.sc
 
   # Shortcuts to make it easier to read
   component_name = component.get('name')
-
-  # Ensure security settings are inherited
-  component_security_settings = component.get('security_settings') or {}
-
-  # Data dictionary for updating
-  data = {'security_settings': component_security_settings}
 
   audit_sqs_defined = False
 
@@ -221,7 +315,7 @@ def get_info_from_helm(component, repo, services):
 
   # No point in continuing if there's no deploy directory
   if not helm_deploy_dir:
-    return None
+    return False
 
   # variables used for implementation of findind IP allowlist in helm values files
   allow_list_key = 'allowlist'
@@ -246,9 +340,6 @@ def get_info_from_helm(component, repo, services):
       ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
     # HEAT-223 End : Read and collate data for IPallowlist from all environment
     # specific values.yaml files.
-
-  # Helm chart dependencies
-  update_helm_dep_versions(gh, repo, helm_dir, component_name, data)
 
   # DEFAULT VALUES SECTION
   # ----------------------
@@ -277,7 +368,7 @@ def get_info_from_helm(component, repo, services):
       sc, helm_default_values, allow_list_key, component_name, data
     )
 
-  # Shortcut dictionary to update helm data
+  # Main dictionary to store helm data as we go
   helm_envs = {}
 
   # Process the helm environments
@@ -364,47 +455,12 @@ def get_info_from_helm(component, repo, services):
             data['container_image'] = container_image
 
       # Modsecurity settings
-      for mod_security_type in [
-        ('modsecurity_enabled', False),
-        ('modsecurity_audit_enabled', False),
-        ('modsecurity_snippet', None),
-      ]:  # default to this
-        if 'generic-service' in values and 'ingress' in values['generic-service']:
-          if mod_security_env_enabled := values['generic-service']['ingress'].get(
-            mod_security_type[0]
-          ):
-            log_debug(
-              f'Updating {mod_security_type[0]} to environment value: '
-              f'{mod_security_env_enabled}'
-            )
-            update_dict(
-              helm_envs,
-              env,
-              {mod_security_type[0]: mod_security_env_enabled},
-            )
-          elif helm_defaults.get('mod_security', {}).get(mod_security_type[0]):
-            log_debug(
-              f'Updating {mod_security_type[0]} to default value: '
-              f'{helm_defaults.get("mod_security", {}).get(mod_security_type[0])}'
-            )
-            update_dict(
-              helm_envs,
-              env,
-              {
-                mod_security_type[0]: helm_defaults.get('mod_security', {}).get(
-                  mod_security_type[0]
-                )
-              },
-            )
-          else:  # default either to false or None
-            update_dict(helm_envs, env, {mod_security_type[0]: mod_security_type[1]})
-      # Alertmanager config
-      if alertmanager_config := fetch_alertmanager_config(
-        am, env, helm_defaults, component_name, values
-      ):
-        log_debug(f'Alertmanager config for {env} is now: {alertmanager_config}')
-        # Update the helm environment data with the outcome of this check
-        update_dict(helm_envs, env, alertmanager_config)
+      get_mod_security_settings(values, helm_defaults, helm_envs, env)
+
+      # Generic prometheus alert configs
+      get_generic_prometheus_alerts(
+        am, component_name, env, values, helm_defaults, helm_envs, data
+      )
 
       # Health paths using the host name:
       health_path = None
@@ -469,15 +525,17 @@ def get_info_from_helm(component, repo, services):
 
   # Need to add the helm data to the main data list of environments
   if helm_envs:
-    update_dict(data, 'environments', helm_envs)
+    update_dict(data, 'helm_environments', helm_envs)
   # End of helm environment checks
 
-  # Check for AUDIT_SQS_QUEUE_URL in the helm files
+  # Shared Helm chart dependency versions
+  update_helm_dep_versions(gh, repo, helm_dir, component_name, data)
+
+  # Apply the value for the audit sqs queue setting
   update_dict(
     data,
     'security_settings',
     {'audit_sqs_queue_defined': audit_sqs_defined},
   )
 
-  log_debug(f'Helm data for {component_name}: {data}')
-  return data
+  return True

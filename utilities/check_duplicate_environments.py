@@ -63,15 +63,13 @@ def main():
     env_name = env.get('name')
     component_name = (env.get('component') or {}).get('name')
     namespace = env.get('namespace')
-    document_id = env.get('documentId') or env.get('id')
+    document_id = env.get('documentId')
 
     if env_name in env_dict:
       if component_name in env_dict.get(env_name):
         if namespace in env_dict[env_name][component_name]:
           env_dict[env_name][component_name][namespace]['qty'] += 1
-          env_dict[env_name][component_name][namespace]['document_ids'].append(
-            document_id
-          )
+          env_dict[env_name][component_name][namespace]['document_ids'].append(document_id)
         else:
           env_dict[env_name][component_name][namespace] = {
             'qty': 1,
@@ -112,30 +110,32 @@ def main():
           link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
 
           doc_id_list = ', '.join([str(doc_id) for doc_id in env_info['document_ids']])
+
           if not message:
             message += '*Environments*:\n===========\n'
+
           message += (
             f'- <{link_url}|{env} - {component_name}> has {qty} entries '
             f'(namespace: {namespace}, documentId: {doc_id_list})\n'
           )
+          
+        # Construct the message
+        if message:
+          slack_template['blocks'][1]['text']['text'] = message
+          with open('slack-message.json', 'w') as f:
+            json.dump(slack_template, f)
+          f.close()
+          value = 'YES'
+        else:
+          value = 'NO'
 
-          # Construct the message
-          if message:
-            slack_template['blocks'][1]['text']['text'] = message
-            with open('slack-message.json', 'w') as f:
-              json.dump(slack_template, f)
-            f.close()
-            value = 'YES'
-          else:
-            value = 'NO'
-
-          gh_out = os.environ.get('GITHUB_OUTPUT')
-          if gh_out:
-            with open(gh_out, 'a') as fh:
-              fh.write(f'results={value}\n')
-            eprint(f'Wrote to $GITHUB_OUTPUT: results={value}')
-          else:
-            eprint('GITHUB_OUTPUT env var not found')
+        gh_out = os.environ.get('GITHUB_OUTPUT')
+        if gh_out:
+          with open(gh_out, 'a') as fh:
+            fh.write(f'results={value}\n')
+          eprint(f'Wrote to $GITHUB_OUTPUT: results={value}')
+        else:
+          eprint('GITHUB_OUTPUT env var not found')
 
 
 if __name__ == '__main__':

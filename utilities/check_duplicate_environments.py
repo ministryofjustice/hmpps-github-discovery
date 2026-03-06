@@ -60,35 +60,65 @@ def main():
   environments = sc.get_all_records('environments?populate=component')
   env_dict = {}
   for env in environments:
-    #   attrs = env.get('attributes', {})
     env_name = env.get('name')
     component_name = (env.get('component') or {}).get('name')
+    namespace = env.get('namespace')
+    document_id = env.get('documentId')
+
     if env_name in env_dict:
       if component_name in env_dict.get(env_name):
-        env_dict[env_name][component_name] += 1
+        if namespace in env_dict[env_name][component_name]:
+          env_dict[env_name][component_name][namespace]['qty'] += 1
+          env_dict[env_name][component_name][namespace]['document_ids'].append(document_id)
+        else:
+          env_dict[env_name][component_name][namespace] = {
+            'qty': 1,
+            'document_ids': [document_id],
+          }
       else:
-        env_dict[env_name][component_name] = 1
+        env_dict[env_name][component_name] = {
+          namespace: {
+            'qty': 1,
+            'document_ids': [document_id],
+          }
+        }
     else:
-      env_dict[env_name] = {component_name: 1}
+      env_dict[env_name] = {
+        component_name: {
+          namespace: {
+            'qty': 1,
+            'document_ids': [document_id],
+          }
+        }
+      }
 
   for env, component in env_dict.items():
-    for component_name, qty in component.items():
-      if qty > 1:
-        if component_name:
-          sc_component_filter = (
-            f'&filters[$and][0][component][name][$eq]={component_name}'
-          )
-        else:
-          sc_component_filter = '&filters[$and][0][component][name][$null]=true'
-        if env:
-          sc_env_filter = f'&filters[$and][1][name][$eq]={env}'
-        else:
-          sc_env_filter = '&filters[$and][1][name][$null]=true'
-        link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
-        if not message:
-          message += '*Environments*:\n===========\n'
-        message += f'- <{link_url}|{env} - {component_name}> has {qty} entries\n'
+    for component_name, namespace_data in component.items():
+      for namespace, env_info in namespace_data.items():
+        qty = env_info['qty']
+        if qty > 1:
+          if component_name:
+            sc_component_filter = (
+              f'&filters[$and][0][component][name][$eq]={component_name}'
+            )
+          else:
+            sc_component_filter = '&filters[$and][0][component][name][$null]=true'
+          if env:
+            sc_env_filter = f'&filters[$and][1][name][$eq]={env}'
+          else:
+            sc_env_filter = '&filters[$and][1][name][$null]=true'
+          link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
 
+          doc_id_list = ', '.join([str(doc_id) for doc_id in env_info['document_ids']])
+
+          if not message:
+            message += '*Environments*:\n===========\n'
+
+          message += (
+            f'- <{link_url}|{env} - {component_name}> has {qty} entries '
+            f'(namespace: {namespace}, documentId: {doc_id_list})\n'
+          )
+          
         # Construct the message
         if message:
           slack_template['blocks'][1]['text']['text'] = message

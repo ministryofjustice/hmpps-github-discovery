@@ -181,6 +181,12 @@ def process_environments(
       environment_record = helm_environments[env]
       # Link the environment record with the component record
       component_id = sc.get_id('components', 'name', component_name)
+      if not component_id:
+        log_warning(
+          f'Skipping environment {env} for {component_name}: component ID not found'
+        )
+        env_flags['env_error'] = True
+        continue
       environment_record['component'] = component_id
       # Add the environment name to the environment record
       environment_record['name'] = f'{env}'

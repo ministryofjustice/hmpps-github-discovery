@@ -221,6 +221,13 @@ def get_app_insights_cloud_role_name(
 
 
 def update_app_type(component, data):
+  # Skip app type detection for components that live inside a monorepo.
+  # For these, repo-level topics may not accurately describe the individual
+  # component, so avoid inferring api/frontend/library/worker flags here.
+  if component.get('part_of_monorepo'):
+    log_debug('Component is part_of_monorepo - skipping app type detection')
+    return
+
   component_name = component.get('name')
   topics = data.get('github_topics', [])
 

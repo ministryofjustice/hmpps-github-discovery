@@ -164,9 +164,9 @@ def get_generic_prometheus_alerts(
     # SQS alerts
     sqs_alerts_config = fetch_sqs_alerts_config(generic_prometheus_alerts)
     update_dict(
-      data,
-      'sqs_alerts_config',
-      sqs_alerts_config,
+      helm_envs,
+      env,
+      {'sqs_alerts_config': sqs_alerts_config},
     )
 
 

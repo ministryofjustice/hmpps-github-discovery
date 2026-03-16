@@ -228,7 +228,6 @@ def update_app_type(component, data):
     log_debug('Component is part_of_monorepo - skipping app type detection')
     return
 
-  component_name = component.get('name')
   topics = data.get('github_topics', [])
 
   # Check for app type topics first (highest priority)
@@ -245,20 +244,6 @@ def update_app_type(component, data):
     # Only skip name-based detection if api or frontend topics are present
     if 'api' in found_topics or 'frontend' in found_topics:
       return
-
-  # Fallback: Check to see if the repo is a frontend one (based on the name)
-  if re.search(
-    r'([fF]rontend)|(-ui$)|(-UI$)|([uU]ser\s[iI]nterface)', f'{component_name}'
-  ):
-    log_debug("Detected 'frontend|-ui' - setting frontend flag.")
-    data['frontend'] = True
-    data['api'] = False
-
-  # Fallback: Check to see if the repo is an API (name ends in -api))
-  if re.search(r'(-api$)|(-API$)', f'{component_name}'):
-    log_debug("Detected '-api'  - setting api flag.")
-    data['frontend'] = False
-    data['api'] = True
 
 
 ##################################################################################

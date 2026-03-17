@@ -168,6 +168,29 @@ def get_waiting_runs(services, repo):
   return WaitingRunsDetector(services, repo).find()
 
 
+def get_open_prs(repo):
+  prs = []
+  try:
+    for pr in repo.get_pulls(state='open'):
+      user = pr.user
+      if (
+        user.login == 'renovate[bot]'
+        or user.login == 'dependabot[bot]'
+        or 'snyk' in user.login.lower()
+      ):
+        prs.append(
+          {
+            'created_at': str(pr.created_at),
+            'user': user.login,
+            'url': pr.html_url,
+            'title': pr.title,
+          }
+        )
+  except Exception as e:
+    log_debug(f'Error searching for PRs in {repo.name}: {e}')
+  return prs
+
+
 # Read the npmrc configuration from the root of the project
 def get_npmrc_config(gh, repo):
   """Parse .npmrc file and extract configuration settings."""
@@ -271,8 +294,8 @@ def process_sc_component_security(services, component, **kwargs):
 
   # Open dependabot/snyk/renovate PRs
   ####################################
-  # if open_prs := get_open_prs(repo):
-  #   update_dict(data, 'security_settings', {'open_dependency_prs': open_prs})
+  if open_prs := get_open_prs(repo):
+    update_dict(data, 'security_settings', {'open_dependency_prs': open_prs})
 
   # Open runs waiting for manual intervention
   ####################################

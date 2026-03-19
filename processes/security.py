@@ -170,6 +170,7 @@ def get_waiting_runs(services, repo):
 
 def get_open_prs(repo):
   prs = []
+  now = datetime.now(timezone.utc)
   try:
     for pr in repo.get_pulls(state='open'):
       user = pr.user
@@ -181,6 +182,7 @@ def get_open_prs(repo):
         prs.append(
           {
             'created_at': str(pr.created_at),
+            'age': (now - pr.created_at).days,
             'user': user.login,
             'url': pr.html_url,
             'title': pr.title,

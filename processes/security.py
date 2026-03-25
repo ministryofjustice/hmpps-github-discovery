@@ -168,6 +168,40 @@ def get_waiting_runs(services, repo):
   return WaitingRunsDetector(services, repo).find()
 
 
+def check_dependency_bots(gh, repo):
+  result = {'dependabot': False, 'renovate': False, 'snyk': False}
+
+  # Dependabot: presence of the config file is the definitive signal.
+  # Note: get_vulnerability_alert() reflects GitHub's native vulnerability alerts
+  # feature, which is independent of Dependabot PRs being configured — wrong check.
+  if gh.get_file_plain(repo, '.github/dependabot.yml') or gh.get_file_plain(
+    repo, '.github/dependabot.yaml'
+  ):
+    result['dependabot'] = True
+
+  # Renovate: installed per-repo (not org-wide), so config file presence is the
+  # best available signal. Check all standard locations.
+  for path in (
+    'renovate.json',
+    'renovate.json5',
+    '.renovaterc',
+    '.renovaterc.json',
+    '.github/renovate.json',
+    '.github/renovate.json5',
+  ):
+    if gh.get_file_plain(repo, path):
+      result['renovate'] = True
+      break
+
+  # Snyk: available for all repos. Presence of .snyk policy file in the root
+  # confirms it is configured.
+  if gh.get_file_plain(repo, '.snyk'):
+    result['snyk'] = True
+
+  log_debug(f'Dependency bot detection for {repo.name}: {result}')
+  return True if True in result.values() else False
+
+
 def get_open_prs(repo):
   prs = []
   now = datetime.now(timezone.utc)
@@ -293,6 +327,13 @@ def process_sc_component_security(services, component, **kwargs):
     )
   else:
     log_debug(f'npm ignore-scripts setting not found for {repo.name}')
+
+  # No dependency management tool installed
+  update_dict(
+    data,
+    'security_settings',
+    {'dependency_bot_enabled': check_dependency_bots(gh, repo)},
+  )
 
   # Open dependabot/snyk/renovate PRs
   ####################################

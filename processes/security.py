@@ -328,7 +328,7 @@ def process_sc_component_security(services, component, **kwargs):
   else:
     log_debug(f'npm ignore-scripts setting not found for {repo.name}')
 
-  # No dependency management tool installed
+  # Check if a dependency management tool is installed
   update_dict(
     data,
     'security_settings',

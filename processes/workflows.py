@@ -25,6 +25,8 @@ def add_non_local_actions(yml_data, actions, path):
         log_debug(f'value: {value} (type: {type(value)})')
         try:
           name, ref = value.split('@')
+          if len(ref) > 12:
+            ref = f'{ref[:4]}...{ref[-4:]}'
           action = {name: {'ref': ref, 'path': path}}
           log_debug(f'Action found: {action}')
           actions.update(action)

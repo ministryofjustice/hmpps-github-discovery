@@ -1,6 +1,8 @@
 version: 2
 updates:
   - package-ecosystem: "uv"
+    cooldown:
+      default-days: 7
     directory: "/"  
     schedule:
       interval: "weekly"
@@ -9,10 +11,14 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "helm"
+    cooldown:
+      default-days: 7
     directory: "/helm_deploy/hmpps-github-discovery"
     schedule:
       interval: "weekly"
   - package-ecosystem: "docker"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"

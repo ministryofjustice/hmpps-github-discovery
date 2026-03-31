@@ -11,8 +11,6 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "helm"
-    cooldown:
-      default-days: 7
     directory: "/helm_deploy/hmpps-github-discovery"
     schedule:
       interval: "weekly"

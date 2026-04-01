@@ -13,10 +13,56 @@ from hmpps import find_matching_keys
 # local
 from includes.values import actions_allowlist
 
+# SHA is a 40-character hex string
+_SHA_RE = re.compile(r'^[0-9a-f]{40}$')
+
+# Pattern to extract SHA->version from YAML comment annotations, e.g.:
+#   uses: owner/action@<40-char-sha> # v1.2.3
+_SHA_COMMENT_RE = re.compile(r'uses:\s+\S+@([0-9a-f]{40})\s+#\s*(\S+)', re.MULTILINE)
+
+# Module-level cache so SHA->version mappings discovered in one file or via the
+# GitHub API are reused across all files and components processed in this run.
+_sha_version_cache: dict[str, str] = {}
+
+
+def _extract_sha_comments(yml_content):
+  """Return a {sha: version} dict parsed from inline YAML comments."""
+  return {m.group(1): m.group(2) for m in _SHA_COMMENT_RE.finditer(yml_content)}
+
+
+def _lookup_sha_via_api(gh, action_name, sha):
+  """Look up the version tag for a commit SHA via the GitHub API.
+
+  Results are stored in _sha_version_cache to avoid repeated API calls.
+  Returns the version string, or None if it cannot be determined.
+  """
+  if sha in _sha_version_cache:
+    return _sha_version_cache[sha]
+
+  try:
+    parts = action_name.split('/')
+    if len(parts) >= 2:
+      repo = gh.session.get_repo(f'{parts[0]}/{parts[1]}')
+      for tag in repo.get_tags():
+        if tag.commit.sha == sha:
+          _sha_version_cache[sha] = tag.name
+          log_debug(f'Resolved {sha[:8]}... -> {tag.name} for {action_name}')
+          return tag.name
+  except Exception as e:
+    log_debug(f'Unable to resolve SHA {sha[:8]}... for {action_name}: {e}')
+
+  return None
+
 
 # get non-standard actions (based on whitelist in values.py)
 # This will return an ever growing dictionary of potentially duplicate actions
-def add_non_local_actions(yml_data, actions, path):
+def add_non_local_actions(yml_data, actions, path, yml_content=None, gh=None):
+  # Build a SHA->version map from inline YAML comments for this file, and
+  # merge any new discoveries into the shared module-level cache.
+  if yml_content:
+    discovered = _extract_sha_comments(yml_content)
+    _sha_version_cache.update(discovered)
+
   if uses := find_matching_keys(yml_data, 'uses'):
     log_debug(f'qty of uses in {path}: {len(uses)}')
 
@@ -25,9 +71,21 @@ def add_non_local_actions(yml_data, actions, path):
         log_debug(f'value: {value} (type: {type(value)})')
         try:
           name, ref = value.split('@')
-          if len(ref) > 12:
-            ref = f'{ref[:4]}...{ref[-4:]}'
-          action = {name: {'ref': ref, 'path': path}}
+          if _SHA_RE.match(ref):
+            # ref is a pinned SHA: store hash separately and resolve the version
+            hash_val = f'{ref[:4]}...{ref[-4:]}'
+            version = _sha_version_cache.get(ref)
+            if not version and gh:
+              version = _lookup_sha_via_api(gh, name, ref)
+            action = {
+              name: {'ref': version or hash_val, 'hash': hash_val, 'path': path}
+            }
+          else:
+            # ref is a normal version tag
+            if len(ref) > 12:
+              ref = f'{ref[:4]}...{ref[-4:]}'
+            hash = ''
+            action = {name: {'ref': ref, 'hash': hash, 'path': path}}
           log_debug(f'Action found: {action}')
           actions.update(action)
         except ValueError:
@@ -36,7 +94,7 @@ def add_non_local_actions(yml_data, actions, path):
 
 # Scan the workflow directory (iterating where necessary)
 # to find YAML files, then extract details of the workflows
-def scan_for_local_actions(workflow_dir, repo):
+def scan_for_local_actions(workflow_dir, repo, gh=None):
   non_local_actions = {}
   while workflow_dir:
     file_content = workflow_dir.pop(0)
@@ -52,8 +110,14 @@ def scan_for_local_actions(workflow_dir, repo):
         print(f'Error parsing {file_content.path}: {e}')
         continue
       if yml_data:
-        # add to non-local actions diectionary
-        add_non_local_actions(yml_data, non_local_actions, file_content.path)
+        # add to non-local actions dictionary
+        add_non_local_actions(
+          yml_data,
+          non_local_actions,
+          file_content.path,
+          yml_content=yml_content,
+          gh=gh,
+        )
   return non_local_actions
 
 
@@ -94,7 +158,7 @@ def process_sc_component_workflows(services, component, **kwargs):
     return component_flags
 
   # compare them with the existing actions stored in components
-  if non_local_actions := scan_for_local_actions(workflow_dir, repo):
+  if non_local_actions := scan_for_local_actions(workflow_dir, repo, gh=gh):
     # get the current versions list
     versions = component.get('versions', {}) or {}
 

@@ -34,7 +34,7 @@ def get_circle_ci_orb_version(services, repo):
         hmpps_orb_version = value.split('@')[1]
         update_dict(
           versions_data,
-          'circleci',
+          'CircleCI',
           {'hmpps_orb': {'ref': hmpps_orb_version, 'path': circle_ci_config}},
         )
         log_info(f'hmpps orb version: {hmpps_orb_version}')
@@ -263,24 +263,24 @@ def get_versions(services, data, repo, component_name, component_project_dir):
     update_dict(
       data,
       'versions',
-      {'gradle': gradle_versions},
+      {'Gradle': gradle_versions},
     )
   else:
     log_info(f'Gradle versions not found for {repo.name}')
-    remove_version(data, 'gradle')
+    remove_version(data, 'Gradle')
 
   # Docker
   if docker_versions := get_docker_versions(services, repo, component_project_dir):
     log_info(f'Docker versions: {json.dumps(docker_versions, indent=2)}')
-    update_dict(data, 'versions', {'dockerfile': docker_versions})
+    update_dict(data, 'versions', {'Dockerfile': docker_versions})
   else:
     log_info(f'No Docker version information found for {repo.name}')
-    remove_version(data, 'dockerfile')
+    remove_version(data, 'Dockerfile')
 
   # Pyproject.toml
   if python_versions := get_python_versions(services, repo):
     log_info(f'Python versions: {json.dumps(python_versions, indent=2)}')
-    update_dict(data, 'versions', {'python': python_versions})
+    update_dict(data, 'versions', {'Python': python_versions})
   else:
     log_info(f'No Python version information found for {repo.name}')
-    remove_version(data, 'python')
+    remove_version(data, 'Python')

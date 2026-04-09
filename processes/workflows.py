@@ -54,6 +54,29 @@ def _lookup_sha_via_api(gh, action_name, sha):
   return None
 
 
+def _is_reusable_workflow_reference(reference_name):
+  """Return True when a uses target looks like a reusable workflow file."""
+  # Reusable workflows are referenced by a workflow YAML file path.
+  # Examples:
+  # - owner/repo/.github/workflows/deploy.yml
+  # - ./.github/workflows/deploy.yaml
+  return reference_name.endswith(('.yml', '.yaml'))
+
+
+def _split_actions_and_workflows(non_local_actions):
+  """Split discovered uses references into action and workflow dictionaries."""
+  actions = {}
+  workflows = {}
+
+  for name, details in non_local_actions.items():
+    if _is_reusable_workflow_reference(name):
+      workflows[name] = details
+    else:
+      actions[name] = details
+
+  return actions, workflows
+
+
 # get non-standard actions (based on whitelist in values.py)
 # This will return an ever growing dictionary of potentially duplicate actions
 def add_non_local_actions(yml_data, actions, path, yml_content=None, gh=None):
@@ -73,7 +96,7 @@ def add_non_local_actions(yml_data, actions, path, yml_content=None, gh=None):
           name, ref = value.split('@')
           if _SHA_RE.match(ref):
             # ref is a pinned SHA: store hash separately and resolve the version
-            hash_val = f'{ref[:4]}...{ref[-4:]}'
+            hash_val = ref
             version = _sha_version_cache.get(ref)
             if not version and gh:
               version = _lookup_sha_via_api(gh, name, ref)
@@ -107,7 +130,7 @@ def scan_for_local_actions(workflow_dir, repo, gh=None):
       try:
         yml_data = yaml.safe_load(yml_content)
       except yaml.YAMLError as e:
-        print(f'Error parsing {file_content.path}: {e}')
+        log_error(f'Error parsing {file_content.path}: {e}')
         continue
       if yml_data:
         # add to non-local actions dictionary
@@ -161,14 +184,20 @@ def process_sc_component_workflows(services, component, **kwargs):
   if non_local_actions := scan_for_local_actions(workflow_dir, repo, gh=gh):
     # get the current versions list
     versions = component.get('versions', {}) or {}
+    actions, workflows = _split_actions_and_workflows(non_local_actions)
 
     log_debug(
       f'non_local_actions for {component_name}: '
       f'{json.dumps(non_local_actions, indent=2)}'
     )
-    # Deduplicate the actions
 
-    versions['actions'] = non_local_actions
+    log_debug(
+      f'Classified non-local uses for {component_name}: '
+      f'actions={len(actions)}, workflows={len(workflows)}'
+    )
+
+    versions['Github Actions'] = actions
+    versions['Github Workflows'] = workflows
     component_flags['qty_repos'] = True
 
     log_debug(f'Final versions list: {versions}')

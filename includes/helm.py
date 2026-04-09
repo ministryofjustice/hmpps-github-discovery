@@ -276,9 +276,9 @@ def update_helm_dep_versions(gh, repo, helm_dir, component_name, data):
       break
 
   if helm_dep_versions:
-    update_dict(data, 'versions', {'helm_dependencies': helm_dep_versions})
+    update_dict(data, 'versions', {'Helm Dependencies': helm_dep_versions})
   else:
-    remove_version(data, 'helm_dependencies')
+    remove_version(data, 'Helm Dependencies')
 
 
 # Use this to check for AUDIT_SQS_QUEUE_URL

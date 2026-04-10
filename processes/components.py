@@ -158,6 +158,8 @@ def get_app_insights_cloud_role_name(
 ):
   log_debug('Looking for application insights cloud role name')
   languages = repo.get_languages()
+  # remove the non-integer items ('url' for example)
+  languages = {key: value for key, value in languages.items() if isinstance(value, int)}
   total_bytes = sum(languages.values())
   threshold_percentage = 10.0
   major_languages = {

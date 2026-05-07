@@ -380,7 +380,7 @@ def _update_recommended_version(
 
     if _record_matches_payload(record, payload):
       log_info(
-        f'recommended-versions record already matches payload; skipping update'
+        'recommended-versions record already matches payload; skipping update'
       )
       continue
 
@@ -568,7 +568,9 @@ def main():
       )
 
     github_action_names = _get_unique_github_actions_from_components(sc)
-    log_info(f'Found {len(github_action_names)} unique GitHub Actions across components')
+    log_info(
+      f'Found {len(github_action_names)} unique GitHub Actions across components'
+    )
     log_info(f'GitHub Actions: {github_action_names}')
     for action_name in github_action_names:
       latest_action = _get_latest_version_for_action(gh, action_name)

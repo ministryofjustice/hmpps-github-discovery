@@ -29,3 +29,8 @@ workflowsCronJob:
   enabled: false
   # cron:
   #   github_discovery_workflows: "40 9 * * 4"
+
+dependenciesCronJob:
+  enabled: false
+  # cron:
+  #   github_discovery_dependencies_latest: "15 07 * * *"

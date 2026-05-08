@@ -9,6 +9,7 @@ This includes:
 - **products** - (also run as part of `github_discovery.py`) - processes and updates slack channel names for each product.
 - **security** - (`github_security_discovery.py`) - security information (eg. Codescanning alerts) extracted from the Github repository
 - **workflows** - (`github_workflows_discovery.py`) - Github Workflows extracted from the Github repository
+- **dependency latest versions** - (`github_dependency_discovery.py`) - enriches component version data with latest available dependency releases
 - **teams** - (`github_teams_discovery.py`) - Github teams associated with repositories and the [hmpps-github-teams](https://github.com/ministryofjustice/hmpps-github-teams) Terraform managed repository
 
 Each of these apps are scheduled within the helm configuration.
@@ -83,6 +84,17 @@ This scans the `.github` directory of the associated repository and retrieves al
 
 These workflows and their references (and a representative location for each one) are added to the Versions field of the Components table in Service Catalogue
 
+## Github Dependency Latest-Version Discovery
+
+Github dependency latest-version discovery (`github_dependency_discovery.py`) updates the `recommended-versions` table in Service Catalogue for CircleCI.
+
+It reads the latest CircleCI orb version from `hmpps-circleci-orb` release-notes files (`release-notes/<major>.x.md`) and updates:
+- `name`: `CircleCi`
+- `version`: latest version heading from release notes
+- `type`: `CircleCi`
+- `published_date`: latest release published date when available (else `null`)
+- `source`: Details of where information is collected from
+
 
 ## Classes, processes and functions
 
@@ -137,6 +149,7 @@ The general outline is currently:
 - `github_teams_discovery.py` - every 20 minutes (it's not too intensive a task)
 - `github_security_discovery.py` - once per day (Mon-Fri) at 06:30 UTC 
 - `github_workflows_discovery.py` - once a week (Saturday) at 06:30 UTC
+- `github_dependency_discovery.py` - once per day (daily) to refresh latest available dependency versions
 
 
 ## Crontab

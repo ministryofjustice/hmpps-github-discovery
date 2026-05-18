@@ -3,7 +3,7 @@ name: Backup Repository to SharePoint
 on:
   workflow_dispatch: # manual trigger
   schedule:
-    - cron: '25 3 * * *'
+    - cron: '50 1 * * *'
 
 permissions: 
   contents: read

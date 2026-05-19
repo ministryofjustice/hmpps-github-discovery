@@ -26,6 +26,7 @@ from hmpps.services.job_log_handling import (
 
 # local
 from includes import helm, environments, versions
+import processes.artifacts as artifacts
 
 max_threads = 10
 
@@ -407,6 +408,8 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
   data = {
     'security_settings': (component.get('security_settings') or {}),
     'versions': (component.get('versions') or {}),
+    'ip_allowlist_version': component.get('ip_allowlist_version'),
+    'ip_allowlist_digest_sha': component.get('ip_allowlist_digest_sha'),
   }
 
   # Get the latest commit from the SC
@@ -473,6 +476,12 @@ def process_sc_component(services, component, bootstrap_projects, force_update=F
         component_flags[each_flag] = env_flags[each_flag]
     if 'helm_environments' in data:
       del data['helm_environments']
+
+    # Refresh artifact-derived fields on every run so they are persisted,
+    # even when main/env change detection does not trigger changed-component flow.
+    # This keeps IP allowlist details up to date in the SC, even when there are
+    # no code or environment changes and the pipeline runs manually or on a schedule.
+    artifacts.update_prod_ip_allowlist_version_details(services, repo, data)
 
     # Update component with all results in data dictionary
     if not sc.update(sc.components, component['documentId'], data):

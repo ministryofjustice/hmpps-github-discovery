@@ -34,7 +34,10 @@ class ArtifactDetailsFetcher:
     artifacts = data.get('artifacts', [])
     log_debug(
       f'Artifacts returned for {self.repo_full_name} (count={len(artifacts)}): '
-      f'{[(a.get("id"), a.get("name"), a.get("expired"), a.get("created_at")) for a in artifacts]}'
+      f'{[
+        (a.get("id"), a.get("name"), a.get("expired"), a.get("created_at"))
+        for a in artifacts
+      ]}'
     )
 
     for artifact in artifacts:
@@ -58,7 +61,8 @@ class ArtifactDetailsFetcher:
     artifact_id = int(artifact.get('id'))
     artifact_digest = artifact.get('digest')
     log_debug(
-      f'Found artifact {self.artifact_name} with ID {artifact_id} for {self.repo_full_name}'
+      f'Found artifact {self.artifact_name} with ID {artifact_id} '
+      f'for {self.repo_full_name}'
     )
 
     if (
@@ -94,12 +98,14 @@ class ArtifactDetailsFetcher:
       ip_allowlist_version = details.get('allowlist_version')
       if not ip_allowlist_version:
         log_info(
-          f'No ip_allowlist_version field found in {self.target_file} for {self.repo_full_name}'
+          f'No ip_allowlist_version field found in {self.target_file} '
+          f'for {self.repo_full_name}'
         )
         return None
 
       log_debug(
-        f'Fetched {self.target_file} from artifact {artifact_id} for {self.repo_full_name}'
+        f'Fetched {self.target_file} from artifact {artifact_id} '
+        f'for {self.repo_full_name}'
       )
       return {
         'ip_allowlist_version': ip_allowlist_version,
@@ -107,7 +113,8 @@ class ArtifactDetailsFetcher:
       }
     else:
       log_info(
-        f'No {self.target_file} found in artifact {artifact_id} for {self.repo_full_name}'
+        f'No {self.target_file} found in artifact {artifact_id} '
+        f'for {self.repo_full_name}'
       )
 
     return None
@@ -119,7 +126,9 @@ def extract_target_file_from_zip_bytes(zip_bytes, target_file):
       for name in zip_ref.namelist():
         if name.endswith(target_file):
           with zip_ref.open(name, 'r') as target_handle:
-            file_contents = target_handle.read().decode('utf-8', errors='replace').strip()
+            file_contents = target_handle.read().decode(
+              'utf-8', errors='replace'
+            ).strip()
             if target_file.lower().endswith('.json'):
               try:
                 return json.loads(file_contents)
@@ -128,7 +137,9 @@ def extract_target_file_from_zip_bytes(zip_bytes, target_file):
                 return None
             return file_contents
   except zipfile.BadZipFile as e:
-    log_warning(f'Downloaded artifact zip is invalid for target file {target_file}: {e}')
+    log_warning(
+      f'Downloaded artifact zip is invalid for target file {target_file}: {e}'
+    )
 
   return None
 
@@ -143,7 +154,9 @@ def update_prod_ip_allowlist_version_details(services, repo, data):
       existing_ip_allowlist_version=data.get('ip_allowlist_version'),
     ):
       data['ip_allowlist_version'] = prod_ip_allowlist_details['ip_allowlist_version']
-      data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details['ip_allowlist_digest_sha']
+      data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details[
+        'ip_allowlist_digest_sha'
+      ]
       return True
   except Exception as e:
     log_error(

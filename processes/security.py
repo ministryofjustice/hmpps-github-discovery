@@ -6,6 +6,7 @@ from hmpps.services.job_log_handling import log_debug, log_info, log_warning, lo
 
 # local
 from includes import standards
+from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
 from datetime import datetime, timezone
 import requests
 
@@ -44,12 +45,8 @@ def get_repo_variables(services, repo, component_name):
 class WaitingRunsDetector:
   def __init__(self, services, repo):
     self.owner = services.gh.org.login
-    self.api = 'https://api.github.com'
-    self.headers = {
-      'Authorization': f'Bearer {services.gh.rest_token}',
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    }
+    self.api = GITHUB_API_BASE_URL
+    self.headers = get_github_api_headers(services.gh.rest_token)
     self.repo_name = repo.name
     self.default_branch = repo.default_branch
 

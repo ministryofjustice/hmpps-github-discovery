@@ -21,9 +21,9 @@ class ArtifactDetailsFetcher:
   def get_latest_artifact(self):
     try:
       response = requests.get(
-        f'{self.api}/repos/{self.repo_full_name}/actions/artifacts?name={self.artifact_name}',
+        f'{self.api}/repos/{self.repo_full_name}/actions/artifacts',
         headers=self.headers,
-        params={'per_page': 1000},
+        params={'name': self.artifact_name, 'per_page': 1000},
         timeout=20,
       )
       response.raise_for_status()
@@ -44,10 +44,7 @@ class ArtifactDetailsFetcher:
     matching_active_artifacts = [
       artifact
       for artifact in artifacts
-      if (
-        artifact.get('name') == self.artifact_name
-        and not artifact.get('expired', False)
-      )
+      if (not artifact.get('expired', False))
     ]
 
     if not matching_active_artifacts:

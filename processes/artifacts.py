@@ -2,6 +2,7 @@ import io
 import json
 import os
 import zipfile
+from datetime import datetime, timezone
 import requests
 from hmpps.services.job_log_handling import log_debug, log_info, log_warning, log_error
 from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
@@ -20,9 +21,9 @@ class ArtifactDetailsFetcher:
   def get_latest_artifact(self):
     try:
       response = requests.get(
-        f'{self.api}/repos/{self.repo_full_name}/actions/artifacts',
+        f'{self.api}/repos/{self.repo_full_name}/actions/artifacts?name={self.artifact_name}',
         headers=self.headers,
-        params={'per_page': 100},
+        params={'per_page': 1000},
         timeout=20,
       )
       response.raise_for_status()
@@ -40,11 +41,34 @@ class ArtifactDetailsFetcher:
       ]}'
     )
 
-    for artifact in artifacts:
-      if artifact.get('name') == self.artifact_name:
-        return artifact
+    matching_active_artifacts = [
+      artifact
+      for artifact in artifacts
+      if (
+        artifact.get('name') == self.artifact_name
+        and not artifact.get('expired', False)
+      )
+    ]
 
-    return None
+    if not matching_active_artifacts:
+      return None
+
+    return max(matching_active_artifacts, key=self.artifact_sort_key)
+
+  def artifact_sort_key(self, artifact):
+    created_at = self.parse_iso_datetime(artifact.get('created_at'))
+    updated_at = self.parse_iso_datetime(artifact.get('updated_at'))
+    artifact_id = int(artifact.get('id') or 0)
+    return (created_at, updated_at, artifact_id)
+
+  def parse_iso_datetime(self, value):
+    if not value:
+      return datetime.min.replace(tzinfo=timezone.utc)
+
+    try:
+      return datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+      return datetime.min.replace(tzinfo=timezone.utc)
 
   def get_prod_ip_allowlist_details(
     self,
@@ -59,6 +83,7 @@ class ArtifactDetailsFetcher:
       return None
 
     artifact_id = int(artifact.get('id'))
+    artifact_created_at = artifact.get('created_at')
     artifact_digest = artifact.get('digest')
     log_debug(
       f'Found artifact {self.artifact_name} with ID {artifact_id} '
@@ -77,6 +102,8 @@ class ArtifactDetailsFetcher:
       return {
         'ip_allowlist_version': existing_ip_allowlist_version,
         'ip_allowlist_digest_sha': existing_digest_sha,
+        'artifact_id': artifact_id,
+        'artifact_created_at': artifact_created_at,
       }
 
     try:
@@ -110,6 +137,8 @@ class ArtifactDetailsFetcher:
       return {
         'ip_allowlist_version': ip_allowlist_version,
         'ip_allowlist_digest_sha': artifact_digest,
+        'artifact_id': artifact_id,
+        'artifact_created_at': artifact_created_at,
       }
     else:
       log_info(
@@ -153,6 +182,11 @@ def update_prod_ip_allowlist_version_details(services, repo, data):
       existing_digest_sha=data.get('ip_allowlist_digest_sha'),
       existing_ip_allowlist_version=data.get('ip_allowlist_version'),
     ):
+      log_info(
+        f'Updating prod IP allowlist details for {repo.name} from artifact '
+        f'id={prod_ip_allowlist_details.get("artifact_id")} '
+        f'created_at={prod_ip_allowlist_details.get("artifact_created_at")}'
+      )
       data['ip_allowlist_version'] = prod_ip_allowlist_details['ip_allowlist_version']
       data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details[
         'ip_allowlist_digest_sha'

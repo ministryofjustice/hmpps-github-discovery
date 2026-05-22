@@ -454,6 +454,19 @@ def get_info_from_helm(data, component, repo, services):
           if container_image := values['generic-service']['image']['repository']:
             data['container_image'] = container_image
 
+      # Check if front-end app
+      component_project_dir = (
+        component.get('path_to_project', component_name)
+        if component.get('part_of_monorepo')
+        else '.'
+      )
+      is_node_app = False
+      if services.gh.get_file_json(repo, f'{component_project_dir}/package.json'):
+        is_node_app = True
+
+      data['api'] = not is_node_app
+      data['frontend'] = is_node_app
+
       # Modsecurity settings
       get_mod_security_settings(values, helm_defaults, helm_envs, env)
 
@@ -478,7 +491,7 @@ def get_info_from_helm(data, component, repo, services):
         if test_endpoint(env_url, info_path):
           update_dict(helm_envs, env, {'info_path': info_path})
         # Test for API docs - and if found also test for SAR endpoint.
-        if test_swagger_docs(env_url):
+        if not data['frontend'] and test_swagger_docs(env_url):
           update_dict(helm_envs, env, {'swagger_docs': '/swagger-ui.html'})
           data['api'] = True
           data['frontend'] = False

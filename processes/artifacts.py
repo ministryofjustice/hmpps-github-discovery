@@ -2,7 +2,6 @@ import io
 import json
 import os
 import zipfile
-from datetime import datetime, timezone
 import requests
 from hmpps.services.job_log_handling import log_debug, log_info, log_warning, log_error
 from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
@@ -50,22 +49,10 @@ class ArtifactDetailsFetcher:
     if not matching_active_artifacts:
       return None
 
-    return max(matching_active_artifacts, key=self.artifact_sort_key)
-
-  def artifact_sort_key(self, artifact):
-    created_at = self.parse_iso_datetime(artifact.get('created_at'))
-    updated_at = self.parse_iso_datetime(artifact.get('updated_at'))
-    artifact_id = int(artifact.get('id') or 0)
-    return (created_at, updated_at, artifact_id)
-
-  def parse_iso_datetime(self, value):
-    if not value:
-      return datetime.min.replace(tzinfo=timezone.utc)
-
-    try:
-      return datetime.fromisoformat(value.replace('Z', '+00:00'))
-    except ValueError:
-      return datetime.min.replace(tzinfo=timezone.utc)
+    return max(
+      matching_active_artifacts,
+      key=lambda artifact: int(artifact.get('id') or 0),
+    )
 
   def get_prod_ip_allowlist_details(
     self,

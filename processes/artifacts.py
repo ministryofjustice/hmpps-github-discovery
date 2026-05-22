@@ -22,7 +22,7 @@ class ArtifactDetailsFetcher:
       response = requests.get(
         f'{self.api}/repos/{self.repo_full_name}/actions/artifacts',
         headers=self.headers,
-        params={'per_page': 100},
+        params={'name': self.artifact_name, 'per_page': 1000},
         timeout=20,
       )
       response.raise_for_status()
@@ -40,11 +40,19 @@ class ArtifactDetailsFetcher:
       ]}'
     )
 
-    for artifact in artifacts:
-      if artifact.get('name') == self.artifact_name:
-        return artifact
+    matching_active_artifacts = [
+      artifact
+      for artifact in artifacts
+      if (not artifact.get('expired', False))
+    ]
 
-    return None
+    if not matching_active_artifacts:
+      return None
+
+    return max(
+      matching_active_artifacts,
+      key=lambda artifact: int(artifact.get('id') or 0),
+    )
 
   def get_prod_ip_allowlist_details(
     self,
@@ -59,6 +67,7 @@ class ArtifactDetailsFetcher:
       return None
 
     artifact_id = int(artifact.get('id'))
+    artifact_created_at = artifact.get('created_at')
     artifact_digest = artifact.get('digest')
     log_debug(
       f'Found artifact {self.artifact_name} with ID {artifact_id} '
@@ -77,6 +86,8 @@ class ArtifactDetailsFetcher:
       return {
         'ip_allowlist_version': existing_ip_allowlist_version,
         'ip_allowlist_digest_sha': existing_digest_sha,
+        'artifact_id': artifact_id,
+        'artifact_created_at': artifact_created_at,
       }
 
     try:
@@ -110,6 +121,8 @@ class ArtifactDetailsFetcher:
       return {
         'ip_allowlist_version': ip_allowlist_version,
         'ip_allowlist_digest_sha': artifact_digest,
+        'artifact_id': artifact_id,
+        'artifact_created_at': artifact_created_at,
       }
     else:
       log_info(
@@ -153,6 +166,11 @@ def update_prod_ip_allowlist_version_details(services, repo, data):
       existing_digest_sha=data.get('ip_allowlist_digest_sha'),
       existing_ip_allowlist_version=data.get('ip_allowlist_version'),
     ):
+      log_info(
+        f'Updating prod IP allowlist details for {repo.name} from artifact '
+        f'id={prod_ip_allowlist_details.get("artifact_id")} '
+        f'created_at={prod_ip_allowlist_details.get("artifact_created_at")}'
+      )
       data['ip_allowlist_version'] = prod_ip_allowlist_details['ip_allowlist_version']
       data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details[
         'ip_allowlist_digest_sha'

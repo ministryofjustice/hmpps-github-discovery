@@ -24,7 +24,10 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      - dependency-name: "*"
+      - dependency-name: "generic-prometheus-alerts"
+        update-types:
+          - "version-update:semver-patch"
+      - dependency-name: "generic-service"
         update-types:
           - "version-update:semver-patch"
   - package-ecosystem: "docker"

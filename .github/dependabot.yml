@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: "uv"
     cooldown:
       default-days: 7
-    directory: "/"  
+    directory: "/"
     schedule:
       interval: "weekly"
   - package-ecosystem: "github-actions"
@@ -12,6 +12,11 @@ updates:
     directory: "/"  # Location of workflow files
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "ministryofjustice/hmpps-github-actions"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
   - package-ecosystem: "helm"
     directory: "/helm_deploy/hmpps-github-discovery"
     schedule:

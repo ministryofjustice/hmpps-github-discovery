@@ -366,6 +366,14 @@ def process_changed_component(data, component, repo, services):
   # Versions information
   versions.get_versions(services, data, repo, component_name, component_project_dir)
 
+  # Snyk ignore config - set from root .snyk only when the file exists.
+  snyk_ignore_content = gh.get_file_plain(repo, '.snyk')
+  if snyk_ignore_content is not None:
+    data['snyk_ignore'] = snyk_ignore_content
+  else:
+    data['snyk_ignore'] = None
+
+
   # All done with the branch dependent components
 
   # End of other component information

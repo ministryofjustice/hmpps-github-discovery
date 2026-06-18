@@ -181,9 +181,11 @@ def process_sc_component_workflows(services, component, **kwargs):
     return component_flags
 
   # compare them with the existing actions stored in components
+  actions = workflows = {}
+  versions = component.get('versions', {}) or {}
   if non_local_actions := scan_for_local_actions(workflow_dir, repo, gh=gh):
     # get the current versions list
-    versions = component.get('versions', {}) or {}
+
     actions, workflows = _split_actions_and_workflows(non_local_actions)
 
     log_debug(
@@ -195,14 +197,14 @@ def process_sc_component_workflows(services, component, **kwargs):
       f'Classified non-local uses for {component_name}: '
       f'actions={len(actions)}, workflows={len(workflows)}'
     )
-
-    versions['Github Actions'] = actions
-    versions['Github Workflows'] = workflows
     component_flags['qty_repos'] = True
 
-    log_debug(f'Final versions list: {versions}')
+  versions['Github Actions'] = actions
+  versions['Github Workflows'] = workflows
 
-    data['versions'] = versions
+  log_debug(f'Final versions list: {versions}')
+
+  data['versions'] = versions
 
   # Update component with all results in data dictionary if there's data to do so
   if data:

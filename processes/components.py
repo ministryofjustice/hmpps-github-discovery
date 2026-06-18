@@ -504,7 +504,11 @@ def batch_process_sc_components(
 
   bootstrap_projects = get_bootstrap_projects(services)
 
-  components = sc.get_all_records(sc.components_get)
+  components = [
+    comp
+    for comp in sc.get_all_records(sc.components_get)
+    if comp.get('name') == 'hmpps-prisoner-communication-monitoring-api'
+  ]
 
   log_info(f'Processing batch of {len(components)} components...')
 

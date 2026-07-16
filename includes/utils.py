@@ -66,15 +66,19 @@ def test_subject_access_request_endpoint(url):
 # This method read the value stored in dictionary passed to it checks 
 # if the ip allow list is present or not and returns boolean
 def is_ipallowList_enabled(yaml_data):
-  ip_allow_list_enabled = False
-  if isinstance(yaml_data, dict):
-    for value in yaml_data.values():
-      # Only string values (CIDR ranges) count as an active allowlist entry,
-      # matching how the helm template uses the data (kindIs "string" check).
-      if isinstance(value, dict) and value:
-        if any(isinstance(v, str) for v in value.values()):
-          ip_allow_list_enabled = True
-  return ip_allow_list_enabled
+  def has_allowlist_entries(value):
+    if isinstance(value, str):
+      return True
+    if isinstance(value, dict):
+      return any(has_allowlist_entries(item) for item in value.values())
+    if isinstance(value, list):
+      return any(has_allowlist_entries(item) for item in value)
+    return False
+
+  return isinstance(yaml_data, dict) and any(
+    isinstance(value, dict) and has_allowlist_entries(value)
+    for value in yaml_data.values()
+  )
 
 
 #######################################################################################

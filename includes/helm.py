@@ -54,15 +54,19 @@ def get_envs_from_helm(component, repo, services):
 
 
 def fetch_helm_default_values(
-  sc, helm_default_values, allow_list_key, component_name, data
+  sc, helm_default_values, allow_list_keys, component_name, data
 ):
   helm_defaults = {
     'mod_security': {},
     'alert_severity_label': None,
-    'ip_allow_list': (
-      fetch_yaml_values_for_key(helm_default_values, allow_list_key) or {}
-    ),
+    'ip_allow_list': {},
   }
+
+  # Support legacy and replacement key names for IP allow list settings.
+  for allow_list_key in allow_list_keys:
+    if ip_allow_list := fetch_yaml_values_for_key(helm_default_values, allow_list_key):
+      helm_defaults['ip_allow_list'] = ip_allow_list
+      break
 
   # Try to get the container image
   if container_image := helm_default_values.get('image', {}).get('repository', {}):
@@ -318,7 +322,7 @@ def get_info_from_helm(data, component, repo, services):
     return False
 
   # variables used for implementation of findind IP allowlist in helm values files
-  allow_list_key = 'allowlist'
+  allow_list_keys = ('allowlist', 'whitelist')
   ip_allow_list_data = {}
   ip_allow_list = {}
 
@@ -332,10 +336,12 @@ def get_info_from_helm(data, component, repo, services):
 
     # HEAT-223 Start : Read and collate data for IPallowlist from all environment
     # specific values.yaml files.
-    ip_allow_list[helm_file] = fetch_yaml_values_for_key(
-      gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}'),
-      allow_list_key,
-    )
+    ip_allow_list[helm_file] = {}
+    helm_file_values = gh.get_file_yaml(repo, f'{helm_dir}/{helm_file.name}')
+    for allow_list_key in allow_list_keys:
+      if ip_allow_values := fetch_yaml_values_for_key(helm_file_values, allow_list_key):
+        ip_allow_list[helm_file] = ip_allow_values
+        break
     if ip_allow_list[helm_file]:
       ip_allow_list_data[helm_file.name] = ip_allow_list[helm_file]
     # HEAT-223 End : Read and collate data for IPallowlist from all environment
@@ -365,7 +371,7 @@ def get_info_from_helm(data, component, repo, services):
 
   if helm_default_values:
     helm_defaults = fetch_helm_default_values(
-      sc, helm_default_values, allow_list_key, component_name, data
+      sc, helm_default_values, allow_list_keys, component_name, data
     )
 
   # Main dictionary to store helm data as we go

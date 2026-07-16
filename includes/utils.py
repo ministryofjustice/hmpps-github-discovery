@@ -69,7 +69,9 @@ def is_ipallowList_enabled(yaml_data):
   ip_allow_list_enabled = False
   if isinstance(yaml_data, dict):
     for value in yaml_data.values():
-      if isinstance(value, dict) and value:
+      # Only string values (CIDR ranges) count as an active allowlist entry,
+      # matching how the helm template uses the data (kindIs "string" check).
+      if isinstance(value, dict) and value and any(isinstance(v, str) for v in value.values()):
         ip_allow_list_enabled = True
   return ip_allow_list_enabled
 

@@ -1,17 +1,3 @@
-import sys
-import types
-
-
-hmpps_module = types.ModuleType('hmpps')
-services_module = types.ModuleType('hmpps.services')
-job_log_module = types.ModuleType('hmpps.services.job_log_handling')
-job_log_module.log_debug = lambda *args, **kwargs: None
-job_log_module.log_info = lambda *args, **kwargs: None
-
-sys.modules.setdefault('hmpps', hmpps_module)
-sys.modules.setdefault('hmpps.services', services_module)
-sys.modules.setdefault('hmpps.services.job_log_handling', job_log_module)
-
 from includes.utils import is_ipallowList_enabled
 
 

@@ -1,4 +1,5 @@
 import requests
+from hmpps.utils.utilities import get_request_proxies
 
 # hmpps
 from hmpps.services.job_log_handling import (
@@ -6,13 +7,19 @@ from hmpps.services.job_log_handling import (
   log_info,
 )
 
+REQUEST_PROXIES = get_request_proxies()
+
 
 # Various endoint tests
 def test_endpoint(url, endpoint):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
-      f'{url}{endpoint}', headers=headers, allow_redirects=False, timeout=10
+      f'{url}{endpoint}',
+      headers=headers,
+      allow_redirects=False,
+      timeout=10,
+      proxies=REQUEST_PROXIES,
     )
     # Test if json is returned
     if r.json() and r.status_code != 404:
@@ -27,7 +34,11 @@ def test_swagger_docs(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
-      f'{url}/swagger-ui.html', headers=headers, allow_redirects=False, timeout=10
+      f'{url}/swagger-ui.html',
+      headers=headers,
+      allow_redirects=False,
+      timeout=10,
+      proxies=REQUEST_PROXIES,
     )
     # Test for 302 redirect)
     if r.status_code == 302 and (
@@ -45,7 +56,11 @@ def test_subject_access_request_endpoint(url):
   headers = {'User-Agent': 'hmpps-service-discovery'}
   try:
     r = requests.get(
-      f'{url}/v3/api-docs', headers=headers, allow_redirects=False, timeout=10
+      f'{url}/v3/api-docs',
+      headers=headers,
+      allow_redirects=False,
+      timeout=10,
+      proxies=REQUEST_PROXIES,
     )
     if r.status_code == 200:
       try:

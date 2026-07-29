@@ -4,10 +4,12 @@ import os
 import zipfile
 import requests
 from hmpps.services.job_log_handling import log_debug, log_info, log_warning, log_error
+from hmpps.utils.utilities import get_request_proxies
 from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
 
 DEFAULT_ARTIFACT_NAME = 'prod-deploy-details'
 DEFAULT_TARGET_FILE = 'prod-ip-allowlist-version-details.json'
+REQUEST_PROXIES = get_request_proxies()
 
 class ArtifactDetailsFetcher:
   def __init__(self, services, repo):
@@ -24,6 +26,7 @@ class ArtifactDetailsFetcher:
         headers=self.headers,
         params={'name': self.artifact_name, 'per_page': 1000},
         timeout=20,
+        proxies=REQUEST_PROXIES,
       )
       response.raise_for_status()
       data = response.json()
@@ -95,6 +98,7 @@ class ArtifactDetailsFetcher:
         f'{self.api}/repos/{self.repo_full_name}/actions/artifacts/{artifact_id}/zip',
         headers=self.headers,
         timeout=20,
+        proxies=REQUEST_PROXIES,
       )
       response.raise_for_status()
       zip_bytes = response.content
@@ -159,6 +163,7 @@ def extract_target_file_from_zip_bytes(zip_bytes, target_file):
 
 def update_prod_ip_allowlist_version_details(services, repo, data):
   log_info(f'Attempting to update prod IP allowlist version details for {repo.name}')
+  log_info(json.dumps(data, indent=2))
   try:
     if prod_ip_allowlist_details := ArtifactDetailsFetcher(
       services, repo
@@ -175,6 +180,7 @@ def update_prod_ip_allowlist_version_details(services, repo, data):
       data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details[
         'ip_allowlist_digest_sha'
       ]
+      
       return True
   except Exception as e:
     log_error(

@@ -447,9 +447,15 @@ def get_deployment_stats(
         max_retries=MAX_GH_RETRIES,
       )
       if dep_error or dep_page is None:
+        fallback = {
+          'operation': f'get deployments for {repo_name} PR #{pr.number}',
+          'error_type': 'permanent',
+          'status': None,
+          'attempts': 1,
+          'message': 'GitHub API returned no deployments iterator.',
+        }
         report['errors'].append(
-          f'PR #{pr.number}: '
-          f'{format_error_for_log(dep_error or {"operation": f"get deployments for {repo_name} PR #{pr.number}", "error_type": "permanent", "status": None, "attempts": 1, "message": "GitHub API returned no deployments iterator."})}'
+          f'PR #{pr.number}: {format_error_for_log(dep_error or fallback)}'
         )
         continue
 
@@ -476,9 +482,15 @@ def get_deployment_stats(
           max_retries=MAX_GH_RETRIES,
         )
         if status_error or statuses is None:
+          fallback = {
+            'operation': f'get deployment statuses for {repo_name} PR #{pr.number}',
+            'error_type': 'permanent',
+            'status': None,
+            'attempts': 1,
+            'message': 'GitHub API returned no deployment statuses.',
+          }
           report['errors'].append(
-            f'PR #{pr.number}: '
-            f'{format_error_for_log(status_error or {"operation": f"get deployment statuses for {repo_name} PR #{pr.number}", "error_type": "permanent", "status": None, "attempts": 1, "message": "GitHub API returned no deployment statuses."})}'
+            f'PR #{pr.number}: {format_error_for_log(status_error or fallback)}'
           )
           continue
 

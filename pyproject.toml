@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "dockerfile-parse==2.0.1",
     "hmpps-sre-python-lib",
+    "python-dateutil>=2.9.0.post0",
 ]
 
 [dependency-groups]
@@ -15,4 +16,4 @@ dev = [
 ]
 
 [tool.uv.sources]
-hmpps-sre-python-lib = { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v1.2.8/hmpps_sre_python_lib-1.2.8-py3-none-any.whl" }
+hmpps-sre-python-lib = { url = "https://github.com/ministryofjustice/hmpps-sre-python-lib/releases/download/v1.2.9/hmpps_sre_python_lib-1.2.9-py3-none-any.whl" }

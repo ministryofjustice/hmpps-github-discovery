@@ -34,3 +34,11 @@ dependenciesCronJob:
   enabled: false
   # cron:
   #   github_discovery_dependencies_latest: "15 07 * * *"
+
+deploymentAnalyticsCronJob:
+  enabled: true
+  cron:
+    github_deployment_analytics: "00 14 * 30 *"
+  env:
+    LOG_LEVEL: "DEBUG"
+

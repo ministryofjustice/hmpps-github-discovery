@@ -20,6 +20,8 @@ def get_repo_variables(services, repo, component_name):
     ('slack_channel_security_scans_notify', 'SECURITY_ALERTS_SLACK_CHANNEL_ID'),
     ('slack_channel_prod_release_notify', 'PROD_RELEASES_SLACK_CHANNEL'),
     ('slack_channel_nonprod_release_notify', 'NONPROD_RELEASES_SLACK_CHANNEL'),
+    ('slack_channel_prod_alerts', 'PROD_ALERTS_SLACK_CHANNEL'),
+    ('slack_channel_nonprod_alerts', 'NONPROD_ALERTS_SLACK_CHANNEL'),
   ]
   for var in repo_var_list:
     try:

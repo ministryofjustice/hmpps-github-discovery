@@ -12,13 +12,13 @@ github_discovery:
 discoveryCronJob:
   enabled: true
   cron:
-    github_discovery: "05 10 * * 0"
-    github_discovery_full: "20 * * * *"
+    github_discovery: "05 10 * * 1-5"
+    github_discovery_full: "20 * * * 0"
 
 teamsCronJob:
   enabled: true
   cron:
-    github_teams_discovery: "35 10 * * *"
+    github_teams_discovery: "35 10 * * 1-5"
 
 securityCronJob:
   enabled: true
@@ -28,9 +28,9 @@ securityCronJob:
 workflowsCronJob:
   enabled: true
   cron:
-    github_discovery_workflows: "40 * * * 4"
+    github_discovery_workflows: "40 * * * 1-5"
 
 dependenciesCronJob:
   enabled: true
   cron:
-    github_discovery_dependencies_latest: "50 18 * * *"
+    github_discovery_dependencies_latest: "50 18 * * 1-5"

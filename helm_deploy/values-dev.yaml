@@ -10,27 +10,27 @@ github_discovery:
     SC_FILTER: "SC_FILTER"
 
 discoveryCronJob:
-  enabled: true
-  cron:
-    github_discovery: "05 10 * * 1-5"
-    github_discovery_full: "20 * * * 0"
+  enabled: false
+  # cron:
+  #   github_discovery: "05 10 * * 1-5"
+  #   github_discovery_full: "20 * * * 0"
 
 teamsCronJob:
-  enabled: true
-  cron:
-    github_teams_discovery: "35 10 * * 1-5"
+  enabled: false
+  # cron:
+    # github_teams_discovery: "35 10 * * 1-5"
 
 securityCronJob:
-  enabled: true
-  cron:
-    github_discovery_security: "30 18 * * 1-5"
+  enabled: false
+  # cron:
+  #   github_discovery_security: "30 18 * * 1-5"
 
 workflowsCronJob:
-  enabled: true
-  cron:
-    github_discovery_workflows: "40 * * * 1-5"
+  enabled: false
+  # cron:
+  #   github_discovery_workflows: "40 * * * 1-5"
 
 dependenciesCronJob:
-  enabled: true
-  cron:
-    github_discovery_dependencies_latest: "50 18 * * 1-5"
+  enabled: false
+  # cron:
+  #   github_discovery_dependencies_latest: "50 18 * * 1-5"

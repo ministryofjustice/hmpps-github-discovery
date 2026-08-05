@@ -262,6 +262,18 @@ Or for a single component:
 python github_component_discovery.py <component_name>
 ```
 
+## Local run job
+
+When running locally, requests now use proxy settings from `hmpps.utils.utilities.get_request_proxies`.
+
+Test without proxy (local only):
+
+```bash
+unset HTTPS_PROXY HTTP_PROXY NO_PROXY https_proxy http_proxy no_proxy
+export ALLOW_NO_PROXY_LOCAL=true
+uv run python -u github_discovery.py -i
+```
+
 ---
 
 For more details on environment variables and scheduling, see the sections above.

@@ -13,7 +13,7 @@ discoveryCronJob:
   enabled: true
   cron:
     github_discovery: "45 12,13,14 * * *"
-  #   github_discovery_full: "50 9 * * 0"
+    github_discovery_full: "50 9 * * 0"
 
 teamsCronJob:
   enabled: true

@@ -7,8 +7,8 @@ generic-prometheus-alerts:
 discoveryCronJob:
   enabled: true
   env:
-    LOG_LEVEL: "DEBUG"
-    SC_FILTER: "SC_FILTER"
+    LOG_LEVEL: "INFO"
+    # SC_FILTER: "SC_FILTER"
   cron:
     github_discovery: "45 12,13,14 * * *"
     github_discovery_full: "50 9 * * 0"

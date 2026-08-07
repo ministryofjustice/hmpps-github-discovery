@@ -187,7 +187,6 @@ def main():
 
   if not am.json_config_data:
     slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
-    raise SystemExit('Testing alertmanager connection')
     log_error('*Github Discovery*: Unable to connect to Alertmanager')
   else:
     log_info('Alertmanager connection OK')

@@ -12,7 +12,6 @@ utils_module = types.ModuleType('hmpps.utils')
 utilities_module = types.ModuleType('hmpps.utils.utilities')
 job_log_module.log_debug = lambda *args, **kwargs: None
 job_log_module.log_info = lambda *args, **kwargs: None
-utilities_module.get_request_proxies = lambda: None
 
 sys.modules.setdefault('hmpps', hmpps_module)
 sys.modules.setdefault('hmpps.services', services_module)

@@ -4,12 +4,10 @@ import os
 import zipfile
 import requests
 from hmpps.services.job_log_handling import log_debug, log_info, log_warning, log_error
-from hmpps.utils.utilities import get_request_proxies
 from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
 
 DEFAULT_ARTIFACT_NAME = 'prod-deploy-details'
 DEFAULT_TARGET_FILE = 'prod-ip-allowlist-version-details.json'
-REQUEST_PROXIES = get_request_proxies()
 
 class ArtifactDetailsFetcher:
   def __init__(self, services, repo):
@@ -26,7 +24,6 @@ class ArtifactDetailsFetcher:
         headers=self.headers,
         params={'name': self.artifact_name, 'per_page': 1000},
         timeout=20,
-        proxies=REQUEST_PROXIES,
       )
       response.raise_for_status()
       data = response.json()
@@ -98,7 +95,6 @@ class ArtifactDetailsFetcher:
         f'{self.api}/repos/{self.repo_full_name}/actions/artifacts/{artifact_id}/zip',
         headers=self.headers,
         timeout=20,
-        proxies=REQUEST_PROXIES,
       )
       response.raise_for_status()
       zip_bytes = response.content

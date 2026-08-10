@@ -229,8 +229,7 @@ def fetch_alertmanager_config(
       f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
     )
     log_debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
-
-  if not alert_severity_label and helm_defaults.get('alert_severity_label'):
+  elif not alert_severity_label and helm_defaults.get('alert_severity_label'):
     log_info(
       f'Alert severity label not found for {component_name} in {env} - '
       f'setting to default'
@@ -253,19 +252,20 @@ def fetch_alertmanager_config(
         )
       else:
         log_warning(
-          f'Alerts slack channel not found for {component_name} '
+          f'Alerts slack channel not found for {component_name}-'
           f'{alert_severity_label} for {env}'
         )
+      if alerts_slack_channel:
+        alertmanager_config['alerts_slack_channel'] = alerts_slack_channel
   else:
     log_warning(
       f'Alertmanager data not available - skipping slack channel update for'
       f'{component_name} {alert_severity_label} for {env}'
-    ) 
+    )
 
-    alertmanager_config = {
-      'alert_severity_label': alert_severity_label,
-      'alerts_slack_channel': alerts_slack_channel,
-    }
+  if alert_severity_label:
+    alertmanager_config['alert_severity_label'] = alert_severity_label
+
   return alertmanager_config
 
 

@@ -9,10 +9,6 @@ from includes import standards
 from includes.github_api import GITHUB_API_BASE_URL, get_github_api_headers
 from datetime import datetime, timezone
 import requests
-from hmpps.utils.utilities import get_request_proxies
-
-
-REQUEST_PROXIES = get_request_proxies()
 
 
 # Repository variables - processed daily to ensure that the Service Catalogue
@@ -68,7 +64,6 @@ class WaitingRunsDetector:
           headers=self.headers,
           params=params,
           timeout=20,
-          proxies=REQUEST_PROXIES,
         )
         r.raise_for_status()
         data = r.json()
@@ -97,7 +92,6 @@ class WaitingRunsDetector:
         headers=self.headers,
         params=params,
         timeout=20,
-        proxies=REQUEST_PROXIES,
       )
       if r.status_code == 200:
         runs = r.json().get('workflow_runs', [])
@@ -118,7 +112,6 @@ class WaitingRunsDetector:
       url,
       headers=self.headers,
       timeout=20,
-      proxies=REQUEST_PROXIES,
     )
     log_debug(
       f'Status code for pending deployments for run_id {run_id}: {r.status_code}'

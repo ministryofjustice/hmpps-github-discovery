@@ -34,11 +34,6 @@ import yaml
 
 from hmpps import ServiceCatalogue, GithubSession, Slack
 from hmpps.services.job_log_handling import log_error, log_info, log_warning, job
-from hmpps.utils.utilities import get_request_proxies
-
-
-REQUEST_PROXIES = get_request_proxies()
-
 
 class Services:
   def __init__(self):
@@ -178,7 +173,7 @@ def _get_latest_version_from_kotlin_build_file(gh, repo_name):
 def _get_latest_helm_chart_versions(chart_names):
   source = 'https://ministryofjustice.github.io/hmpps-helm-charts/index.yaml'
   try:
-    response = requests.get(source, timeout=15, proxies=REQUEST_PROXIES)
+    response = requests.get(source, timeout=15)
     response.raise_for_status()
     index_data = yaml.safe_load(response.text) or {}
   except Exception as e:

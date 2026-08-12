@@ -18,10 +18,3 @@ github_discovery:
       CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
     hmpps-sre-app-slack-bot:
       SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
-    hmpps-envoy-https-proxy-env:
-      HTTP_PROXY: "HTTP_PROXY"
-      HTTPS_PROXY: "HTTPS_PROXY"
-      NO_PROXY: "NO_PROXY"
-      http_proxy: "HTTP_PROXY"
-      https_proxy: "HTTPS_PROXY"
-      no_proxy: "NO_PROXY"

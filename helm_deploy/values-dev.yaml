@@ -32,3 +32,23 @@ dependenciesCronJob:
   enabled: true
   cron:
     github_discovery_dependencies_latest: "40 06 * * *"
+
+github_discovery:
+  namespace_secrets:
+    hmpps-github-discovery:
+      SERVICE_CATALOGUE_API_ENDPOINT: "SERVICE_CATALOGUE_API_ENDPOINT"
+      SERVICE_CATALOGUE_API_KEY: "SERVICE_CATALOGUE_API_KEY"
+      GITHUB_APP_ID: "GITHUB_APP_ID"
+      GITHUB_APP_INSTALLATION_ID: "GITHUB_APP_INSTALLATION_ID"
+      GITHUB_APP_PRIVATE_KEY: "GITHUB_APP_PRIVATE_KEY"
+      CIRCLECI_TOKEN: "CIRCLECI_TOKEN"
+      CIRCLECI_API_ENDPOINT: "CIRCLECI_API_ENDPOINT"
+    hmpps-sre-app-slack-bot:
+      SLACK_BOT_TOKEN: "SLACK_BOT_TOKEN"
+    hmpps-envoy-https-proxy-env:
+      HTTP_PROXY: "HTTP_PROXY"
+      HTTPS_PROXY: "HTTPS_PROXY"
+      NO_PROXY: "NO_PROXY"
+      http_proxy: "HTTP_PROXY"
+      https_proxy: "HTTPS_PROXY"
+      no_proxy: "NO_PROXY"

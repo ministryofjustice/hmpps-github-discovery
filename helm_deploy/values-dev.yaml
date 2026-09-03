@@ -9,6 +9,15 @@ github_discovery:
     LOG_LEVEL: "DEBUG"
     SC_FILTER: "SC_FILTER"
 
+  namespace_secrets:
+    hmpps-envoy-https-proxy-env:
+      HTTP_PROXY: "HTTP_PROXY"
+      HTTPS_PROXY: "HTTPS_PROXY"
+      NO_PROXY: "NO_PROXY"
+      http_proxy: "HTTP_PROXY"
+      https_proxy: "HTTPS_PROXY"
+      no_proxy: "NO_PROXY"
+
 discoveryCronJob:
   enabled: false
   # cron:
@@ -42,4 +51,3 @@ deploymentAnalyticsCronJob:
   env:
     LOG_LEVEL: "DEBUG"
     FOLDER_PATH: "analytics-validation/deployments"
-

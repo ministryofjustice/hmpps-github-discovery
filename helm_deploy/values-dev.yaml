@@ -47,7 +47,7 @@ dependenciesCronJob:
 deploymentAnalyticsCronJob:
   enabled: true
   cron:
-    github_deployment_analytics: "45 16 * * tue"
+    github_deployment_analytics: "05 22 * * tue"
   env:
     LOG_LEVEL: "DEBUG"
     FOLDER_PATH: "analytics-validation/deployments"
@@ -58,4 +58,3 @@ deploymentAnalyticsCronJob:
       SP_CLIENT_SECRET: SP_CLIENT_SECRET
       AZ_TENANT_ID: AZ_TENANT_ID
       SITE_NAME: SITE_NAME
-

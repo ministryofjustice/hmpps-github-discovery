@@ -47,7 +47,7 @@ dependenciesCronJob:
 deploymentAnalyticsCronJob:
   enabled: true
   cron:
-    github_deployment_analytics: "15 22 * * tue"
+    github_deployment_analytics: "45 22 * * tue"
   env:
     LOG_LEVEL: "DEBUG"
     FOLDER_PATH: "analytics-validation/deployments"

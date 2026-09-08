@@ -47,8 +47,15 @@ dependenciesCronJob:
 deploymentAnalyticsCronJob:
   enabled: true
   cron:
-    github_deployment_analytics: "00 01 * * sun"
+    github_deployment_analytics: "45 16 * * tue"
   env:
     LOG_LEVEL: "DEBUG"
     FOLDER_PATH: "analytics-validation/deployments"
     UPLOAD: true
+  namespace_secrets:
+    azure-sharepoint-service-principal:
+      SP_CLIENT_ID: SP_CLIENT_ID
+      SP_CLIENT_SECRET: SP_CLIENT_SECRET
+      AZ_TENANT_ID: AZ_TENANT_ID
+      SITE_NAME: SITE_NAME
+

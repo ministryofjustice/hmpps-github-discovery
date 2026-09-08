@@ -1,22 +1,11 @@
 {{- define "deploymentAnalyticsCronJob.envs" -}}
-{{- if or .github_discovery.namespace_secrets .deploymentAnalyticsCronJob.env -}}
+{{- if or .deploymentAnalyticsCronJob.namespace_secrets .deploymentAnalyticsCronJob.env -}}
 env:
-{{- if .github_discovery.namespace_secrets -}}
-{{- range $secret, $envs := .github_discovery.namespace_secrets }}
-  {{- range $key, $val := $envs }}
-  - name: {{ $key }}
-    valueFrom:
-      secretKeyRef:
-        key: {{ trimSuffix "?" $val }}
-        name: {{ $secret }}{{ if hasSuffix "?" $val }}
-        optional: true{{ end }}  {{- end }}
-{{- end }}
+{{- if .deploymentAnalyticsCronJob.namespace_secrets -}}
+{{- include "common.envFromSecretMap" .deploymentAnalyticsCronJob.namespace_secrets | nindent 2 -}}
 {{- end }}
 {{- if .deploymentAnalyticsCronJob.env -}}
-{{- range $key, $val := .deploymentAnalyticsCronJob.env }}
-  - name: {{ $key }}
-    value: {{ quote $val }}
-{{- end }}
+{{- include "common.envFromLiteralMap" .deploymentAnalyticsCronJob.env | nindent 2 -}}
 {{- end }}
 {{- end -}}
-{{- end -}}
+{{- end }}

@@ -837,7 +837,7 @@ def collect_deployments(
     remaining_rate = rate.remaining if rate else 'unknown'
     log_info(
       f'Getting deployment stats for {github_repo}: {idx}/{len(components)} '
-      f'({int(idx / len(components) * 100)}%) - {remaining_rate})'
+      f'({int(idx / len(components) * 100)}%) - {remaining_rate}'
     )
 
     result = get_deployment_stats(gh, github_repo, since_dt, until_dt)

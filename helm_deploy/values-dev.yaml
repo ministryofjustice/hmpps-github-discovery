@@ -4,6 +4,20 @@
 generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-nonprod
 
+github_discovery:
+  env:
+    LOG_LEVEL: "DEBUG"
+    SC_FILTER: "SC_FILTER"
+
+  namespace_secrets:
+    hmpps-envoy-https-proxy-env:
+      HTTP_PROXY: "HTTP_PROXY"
+      HTTPS_PROXY: "HTTPS_PROXY"
+      NO_PROXY: "NO_PROXY"
+      http_proxy: "HTTP_PROXY"
+      https_proxy: "HTTPS_PROXY"
+      no_proxy: "NO_PROXY"
+
 discoveryCronJob:
   enabled: true
   env:
@@ -29,16 +43,20 @@ workflowsCronJob:
     github_discovery_workflows: "40 7 * * 0"
 
 dependenciesCronJob:
-  enabled: true
-  cron:
-    github_discovery_dependencies_latest: "40 06 * * *"
+  enabled: false
+  # cron:
+  #   github_discovery_dependencies_latest: "15 07 * * *"
 
-github_discovery:
-  namespace_secrets:
-    hmpps-envoy-https-proxy-env:
-      HTTP_PROXY: "HTTP_PROXY"
-      HTTPS_PROXY: "HTTPS_PROXY"
-      NO_PROXY: "NO_PROXY"
-      http_proxy: "HTTP_PROXY"
-      https_proxy: "HTTPS_PROXY"
-      no_proxy: "NO_PROXY"
+deploymentAnalyticsCronJob:
+  enabled: false
+  # cron:
+  #   github_deployment_analytics: "45 22 * * tue"
+  # env:
+  #   LOG_LEVEL: "DEBUG"
+  #   FOLDER_PATH: "analytics-validation/deployments"
+  #   UPLOAD: true
+  # namespace_secrets:
+  #   azure-sharepoint-service-principal:
+  #     SP_CLIENT_ID: SP_CLIENT_ID
+  #     SP_CLIENT_SECRET: SP_CLIENT_SECRET
+  #     AZ_TENANT_ID: AZ_TENANT_ID

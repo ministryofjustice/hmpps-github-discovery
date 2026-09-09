@@ -1,6 +1,28 @@
 #!/usr/bin/env python
-"""Github discovery - queries the github API for info about hmpps services and stores
-the results in the service catalogue"""
+"""Github teams discovery.
+
+This script identifies teams associated with HMPPS repositories and stores the
+results in the Service Catalogue.
+
+Required environment variables
+------------------------------
+
+Github (Credentials for Discovery app that has access to the repositories)
+- GITHUB_APP_ID: Github App ID
+- GITHUB_APP_INSTALLATION_ID: Github App Installation ID
+- GITHUB_APP_PRIVATE_KEY: Github App Private Key
+
+Service Catalogue
+- SERVICE_CATALOGUE_API_ENDPOINT: Service Catalogue API endpoint
+- SERVICE_CATALOGUE_API_KEY: Service Catalogue API key
+
+Slack
+- SLACK_BOT_TOKEN: Slack Bot Token
+Optional environment variables
+- SLACK_NOTIFY_CHANNEL: Slack channel for notifications
+- SLACK_ALERT_CHANNEL: Slack channel for alerts
+- LOG_LEVEL: Log level (default: INFO)
+"""
 
 # hmpps
 from hmpps import GithubSession, ServiceCatalogue, Slack

@@ -13,7 +13,7 @@ spec:
   successfulJobsHistoryLimit: 5
   jobTemplate:
     spec:
-      backoffLimit: 0 # Set to 0 to prevent retries after job failure - API Rate limit is 15000 per hour so reties will not solve the issue
+      backoffLimit: 0 # Set to 0 to prevent retries after job failure - API Rate limit is 15000 per hour so retries will not solve the issue
       ttlSecondsAfterFinished: 345600
       template:
         spec:

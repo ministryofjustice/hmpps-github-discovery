@@ -525,7 +525,7 @@ def get_deployment_stats(
       report['prs_with_deployments'] += 1
 
       for dep in deps_list:
-        if dep.created_at <= since_dt:
+        if dep.created_at < since_dt:
           continue
         if until_dt and dep.created_at >= until_dt:
           continue

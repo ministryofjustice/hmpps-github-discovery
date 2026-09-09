@@ -52,29 +52,29 @@ Boolean values accepted by `UPLOAD` and `PARTITION_BY_DATE`:
 
 Run using `uv`:
 
-```bash
-uv run process_deployments.py
-```
+~~~bash
+uv run python github_deployment_analytics.py
+~~~
 
 Run for a specific month (recommended):
 
-```bash
-uv run process_deployments.py --month 2026-06
-```
+~~~bash
+uv run python github_deployment_analytics.py --month 2026-06
+~~~
 
 Run a custom window (advanced):
 
-```bash
-uv run process_deployments.py \
+~~~bash
+uv run python github_deployment_analytics.py \
   --since 2026-06-01T00:00:00Z \
   --until 2026-07-01T00:00:00Z
-```
+~~~
 
 Show CLI help:
 
-```bash
-uv run process_deployments.py --help
-```
+~~~bash
+uv run python github_deployment_analytics.py --help
+~~~
 
 ## Output Files
 

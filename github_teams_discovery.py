@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Github teams discovery.
 
-This script identifies teams associated with HMPS repositories and stores the
+This script identifies teams associated with HMPPS repositories and stores the
 results in the Service Catalogue.
 
 Required environment variables

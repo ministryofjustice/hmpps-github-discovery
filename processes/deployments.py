@@ -1,3 +1,35 @@
+"""Deployment analytics helpers.
+
+This module collects deployment metrics for HMPS repositories, flattens the
+results into CSV rows, writes JSON manifests, and optionally uploads artifacts
+to SharePoint for reporting.
+
+Required environment variables
+------------------------------
+
+Github (Credentials for Discovery app that has access to the repositories)
+- GITHUB_APP_ID: Github App ID
+- GITHUB_APP_INSTALLATION_ID: Github App Installation ID
+- GITHUB_APP_PRIVATE_KEY: Github App Private Key
+
+Service Catalogue
+- SERVICE_CATALOGUE_API_ENDPOINT: Service Catalogue API endpoint
+- SERVICE_CATALOGUE_API_KEY: Service Catalogue API key
+
+SharePoint / Microsoft Graph
+- SP_CLIENT_ID: SharePoint application client ID
+- SP_CLIENT_SECRET: SharePoint application client secret
+- AZ_TENANT_ID: Azure tenant ID
+- SITE_NAME: SharePoint site name for upload targets (default: HMPPSSRE)
+
+Optional environment variables
+- UPLOAD: Upload generated analytics files to SharePoint (default: false)
+- DRIVE_NAME: SharePoint drive name (default: Documents)
+- FOLDER_PATH: SharePoint folder path for analysis exports (default: analytics/deployments)
+- PARTITION_BY_DATE: Partition output by year/month (default: true)
+- LOG_LEVEL: Log level (default: INFO)
+"""
+
 from datetime import datetime, timezone
 import csv
 import json
@@ -81,7 +113,9 @@ RETRY_BASE_SECONDS = 5
 MAX_RETRY_SLEEP_SECONDS = 60
 
 
+# This section is all about writing the files in various formats
 def _write_json_atomic(path: Path, payload: dict) -> None:
+  """Write a JSON payload atomically by replacing the final file once complete."""
   temp_path = path.with_suffix(f'{path.suffix}.tmp')
   with temp_path.open('w') as f:
     json.dump(payload, f, indent=2)
@@ -89,6 +123,7 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
 
 
 def write_csv(path: Path, rows: list[dict], columns: list[str]) -> None:
+  """Persist a list of row dictionaries as CSV using the supplied column ordering."""
   path.parent.mkdir(parents=True, exist_ok=True)
   with path.open('w', newline='') as f:
     writer = csv.DictWriter(f, fieldnames=columns)
@@ -97,11 +132,14 @@ def write_csv(path: Path, rows: list[dict], columns: list[str]) -> None:
 
 
 def write_json(path: Path, payload: dict) -> None:
+  """Write a JSON payload to disk, creating parent directories as required."""
   path.parent.mkdir(parents=True, exist_ok=True)
   _write_json_atomic(path, payload)
 
 
+# Error handling
 def classify_github_error(error: Exception) -> tuple[str, int | None]:
+  """Classify a GitHub API exception as temporary or permanent for retry handling."""
   status = getattr(error, 'status', None) or getattr(error, 'status_code', None)
   message = str(error).lower()
 
@@ -133,6 +171,7 @@ def classify_github_error(error: Exception) -> tuple[str, int | None]:
 
 
 def classify_upload_error(error: Exception) -> str:
+  """Decide whether a SharePoint upload failure should be retried or treated as permanent."""
   status = getattr(error, 'status', None) or getattr(error, 'status_code', None)
   message = str(error).lower()
 
@@ -161,6 +200,7 @@ def classify_upload_error(error: Exception) -> str:
 
 
 def run_call_with_retries(operation: str, fn, classify_error, max_retries: int):
+  """Run a GitHub or upload call with exponential backoff for transient failures."""
   for attempt in range(1, max_retries + 1):
     try:
       return fn(), None
@@ -202,6 +242,7 @@ def run_call_with_retries(operation: str, fn, classify_error, max_retries: int):
 
 
 def format_error_for_log(error_info: dict) -> str:
+  """Convert an error payload into a single readable log line for diagnostics."""
   return (
     f'{error_info.get("operation")} | '
     f'type={error_info.get("error_type")} | '
@@ -211,7 +252,9 @@ def format_error_for_log(error_info: dict) -> str:
   )
 
 
+# Rate checking - very similar to what we do with Github discovery
 def check_gh_rate(gh: GithubSession) -> None:
+  """Sleep when the GitHub API is approaching its remaining quota to avoid rate-limit errors."""
   cur_rate_limit = gh.get_rate_limit()
   if cur_rate_limit:
     log_info(
@@ -238,7 +281,11 @@ def check_gh_rate(gh: GithubSession) -> None:
       cur_rate_limit = gh.get_rate_limit()
 
 
+# Deployment analysis section
+#############################
 def is_revert(pr, repo) -> tuple[bool, str]:
+  """Check whether a PR looks like a revert and return the referenced PR number if found."""
+
   def referenced_pr_from(text: str) -> str:
     match = re.search(r'#(\d+)', text)
     return match.group(1) if match else ''
@@ -260,6 +307,7 @@ def is_revert(pr, repo) -> tuple[bool, str]:
 
 
 def format_duration(duration_seconds: float) -> str:
+  """Render a duration in a readable day/hour/minute/second format for deployment logs."""
   days = int(duration_seconds // 86400)
   hours = int((duration_seconds % 86400) // 3600)
   minutes = int((duration_seconds % 3600) // 60)
@@ -268,6 +316,7 @@ def format_duration(duration_seconds: float) -> str:
 
 
 def build_metrics(report: dict) -> dict:
+  """Aggregate deploy-time metrics into average and median durations for the reporting summary."""
   durations_seconds = [
     record['duration_seconds']
     for record in report['merge_to_deploy_times']
@@ -300,6 +349,7 @@ def build_metrics(report: dict) -> dict:
 
 
 def get_push_triggered_run_ids(repo, commit_sha: str) -> set[int]:
+  """Return the workflow run IDs triggered by a push on a given commit SHA."""
   runs, error = run_call_with_retries(
     operation=f'get workflow runs for commit {commit_sha}',
     fn=lambda: repo.get_workflow_runs(head_sha=commit_sha, event='push'),
@@ -328,6 +378,7 @@ def get_push_triggered_run_ids(repo, commit_sha: str) -> set[int]:
 
 
 def extract_run_id(log_url: str | None) -> int | None:
+  """Extract the workflow run ID from a GitHub Actions log URL when present."""
   if not log_url:
     return None
   try:
@@ -342,6 +393,7 @@ def get_deployment_stats(
   since_dt: datetime,
   until_dt: datetime | None = None,
 ) -> dict:
+  """Collect deployment-related PR statistics for a single repository over a time window."""
   repo, repo_error = run_call_with_retries(
     operation=f'load repository {repo_name}',
     fn=lambda: gh.get_org_repo(repo_name),
@@ -546,6 +598,7 @@ def get_deployment_stats(
 
 
 def safe_ratio(numerator: float, denominator: float) -> float | None:
+  """Return a rounded percentage-like ratio, or None when the denominator is zero."""
   if not denominator:
     return None
   return round(numerator / denominator, 4)
@@ -554,6 +607,7 @@ def safe_ratio(numerator: float, denominator: float) -> float | None:
 def flatten_deployments(
   deployments: dict, snapshot_at: str, report_month: str | None = None
 ) -> tuple[list[dict], list[dict], list[dict]]:
+  """Convert per-service deployment summaries into CSV-ready row dictionaries."""
   service_metrics_rows: list[dict] = []
   deployment_event_rows: list[dict] = []
   revert_rows: list[dict] = []
@@ -652,6 +706,7 @@ def flatten_deployments(
 
 
 def build_month_partition(period_start: datetime) -> str:
+  """Build the folder partition path used when output is grouped by month."""
   return f'year={period_start:%Y}/month={period_start:%m}'
 
 
@@ -660,6 +715,7 @@ def resolve_reporting_window(
   since_dt: datetime | None,
   until_dt: datetime | None,
 ) -> tuple[datetime, datetime]:
+  """Resolve the month or custom time window used to collect deployment statistics."""
   if since_dt is None and until_dt is None:
     this_month_start = run_at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     start = this_month_start - relativedelta(months=1)
@@ -686,6 +742,7 @@ def resolve_reporting_window(
 def upload_file_with_retries(
   sp: SharePoint, drive_name: str, folder_path: str, file_path: Path
 ) -> tuple[bool, str | None]:
+  """Upload a generated report file to SharePoint with retry handling for transient failures."""
   for attempt in range(1, MAX_UPLOAD_RETRIES + 1):
     last_error: Exception | None = None
     try:
@@ -728,12 +785,15 @@ def upload_file_with_retries(
   )
 
 
+# Main function for looping through components and collecting deployments from Github
+####################################################################################
 def collect_deployments(
   gh: GithubSession,
   sc: ServiceCatalogue,
   since_dt: datetime,
   until_dt: datetime | None = None,
 ) -> tuple[dict, dict, dict[str, str]]:
+  """Collect deployment stats for every component in Service Catalogue for the chosen window."""
   deployments: dict = {}
   failed_components: dict[str, str] = {}
   components = sc.get_all_records(sc.components_get)
@@ -806,12 +866,17 @@ def collect_deployments(
   return deployments, summary, failed_components
 
 
+# Main function to get the stats - this is called by github_deployment_analytics.py
+###################################################################################
 def run_deployments_pipeline(
   config: dict | None = None,
   since_dt: datetime | None = None,
   until_dt: datetime | None = None,
   report_month: str | None = None,
 ) -> dict:
+  """Run the full deployment analytics job: collect, flatten, write, and optionally upload reports."""
+
+  # 1 - get all the parameters set up
   config = {**DEFAULT_RUNTIME_CONFIG, **(config or {})}
   run_at = datetime.now(timezone.utc)
   snapshot_at = run_at.isoformat()
@@ -831,6 +896,7 @@ def run_deployments_pipeline(
   gh = GithubSession()
   sc = ServiceCatalogue()
 
+  # 2 - collect the deployments
   deployments, collection_summary, failed_components = collect_deployments(
     gh=gh,
     sc=sc,
@@ -838,6 +904,7 @@ def run_deployments_pipeline(
     until_dt=window_end,
   )
 
+  # 3 - process the results and write the json & CSV
   write_json(OUTPUT_PATH, deployments)
 
   service_metrics_rows, deployment_event_rows, revert_rows = flatten_deployments(
@@ -876,6 +943,7 @@ def run_deployments_pipeline(
     manifest_path,
   ]
 
+  # 4 - upload the summary if configured to do so
   upload_summary = None
   uploaded = False
   if config['upload']:

@@ -1,3 +1,41 @@
+#!/usr/bin/env python
+"""Github deployment analytics.
+
+This script is the entry point to collect deployment activity across HMPPS Github
+repositories, and store summary CSV/JSON outputs for reporting.
+
+It mainly just
+- parses the arguments and parameters into a config
+- calculates the time window
+- calls the run_deployments_pipeline function in deployments.py
+
+
+Required environment variables
+------------------------------
+
+Github (Credentials for Discovery app that has access to the repositories)
+- GITHUB_APP_ID: Github App ID
+- GITHUB_APP_INSTALLATION_ID: Github App Installation ID
+- GITHUB_APP_PRIVATE_KEY: Github App Private Key
+
+Service Catalogue
+- SERVICE_CATALOGUE_API_ENDPOINT: Service Catalogue API endpoint
+- SERVICE_CATALOGUE_API_KEY: Service Catalogue API key
+
+SharePoint / Microsoft Graph
+- SP_CLIENT_ID: SharePoint application client ID
+- SP_CLIENT_SECRET: SharePoint application client secret
+- AZ_TENANT_ID: Azure tenant ID
+- SITE_NAME: SharePoint site name for upload targets
+
+Optional environment variables
+- UPLOAD: Upload generated analytics files to SharePoint (default: false)
+- DRIVE_NAME: SharePoint drive name (default: Documents)
+- FOLDER_PATH: SharePoint folder path for analysis exports (default: analytics/deployments)
+- PARTITION_BY_DATE: Partition output by year/month (default: true)
+- LOG_LEVEL: Log level (default: INFO)
+"""
+
 import argparse
 import json
 import os

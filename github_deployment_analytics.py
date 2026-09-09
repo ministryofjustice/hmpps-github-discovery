@@ -31,7 +31,8 @@ SharePoint / Microsoft Graph
 Optional environment variables
 - UPLOAD: Upload generated analytics files to SharePoint (default: false)
 - DRIVE_NAME: SharePoint drive name (default: Documents)
-- FOLDER_PATH: SharePoint folder path for analysis exports (default: analytics/deployments)
+- FOLDER_PATH: SharePoint folder path for analysis exports
+                           (default: analytics/deployments)
 - PARTITION_BY_DATE: Partition output by year/month (default: true)
 - LOG_LEVEL: Log level (default: INFO)
 """

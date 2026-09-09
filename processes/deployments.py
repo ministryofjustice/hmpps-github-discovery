@@ -25,7 +25,8 @@ SharePoint / Microsoft Graph
 Optional environment variables
 - UPLOAD: Upload generated analytics files to SharePoint (default: false)
 - DRIVE_NAME: SharePoint drive name (default: Documents)
-- FOLDER_PATH: SharePoint folder path for analysis exports (default: analytics/deployments)
+- FOLDER_PATH: SharePoint folder path for analysis exports
+                             (default: analytics/deployments)
 - PARTITION_BY_DATE: Partition output by year/month (default: true)
 - LOG_LEVEL: Log level (default: INFO)
 """
@@ -171,7 +172,7 @@ def classify_github_error(error: Exception) -> tuple[str, int | None]:
 
 
 def classify_upload_error(error: Exception) -> str:
-  """Decide whether a SharePoint upload failure should be retried or treated as permanent."""
+  """Decide if a SharePoint upload failure should be retried or treated as permanent."""
   status = getattr(error, 'status', None) or getattr(error, 'status_code', None)
   message = str(error).lower()
 
@@ -254,7 +255,7 @@ def format_error_for_log(error_info: dict) -> str:
 
 # Rate checking - very similar to what we do with Github discovery
 def check_gh_rate(gh: GithubSession) -> None:
-  """Sleep when the GitHub API is approaching its remaining quota to avoid rate-limit errors."""
+  """Sleep when the GitHub API approaches quota to avoid rate-limit errors."""
   cur_rate_limit = gh.get_rate_limit()
   if cur_rate_limit:
     log_info(
@@ -284,7 +285,7 @@ def check_gh_rate(gh: GithubSession) -> None:
 # Deployment analysis section
 #############################
 def is_revert(pr, repo) -> tuple[bool, str]:
-  """Check whether a PR looks like a revert and return the referenced PR number if found."""
+  """Check if a PR looks like a revert and return the ref PR number if found."""
 
   def referenced_pr_from(text: str) -> str:
     match = re.search(r'#(\d+)', text)
@@ -393,7 +394,7 @@ def get_deployment_stats(
   since_dt: datetime,
   until_dt: datetime | None = None,
 ) -> dict:
-  """Collect deployment-related PR statistics for a single repository over a time window."""
+  """Collect deployment-related PR stats for a single repository over a time window."""
   repo, repo_error = run_call_with_retries(
     operation=f'load repository {repo_name}',
     fn=lambda: gh.get_org_repo(repo_name),
@@ -742,7 +743,7 @@ def resolve_reporting_window(
 def upload_file_with_retries(
   sp: SharePoint, drive_name: str, folder_path: str, file_path: Path
 ) -> tuple[bool, str | None]:
-  """Upload a generated report file to SharePoint with retry handling for transient failures."""
+  """Upload a generated report file to SharePoint with retry for transient failures."""
   for attempt in range(1, MAX_UPLOAD_RETRIES + 1):
     last_error: Exception | None = None
     try:
@@ -793,7 +794,8 @@ def collect_deployments(
   since_dt: datetime,
   until_dt: datetime | None = None,
 ) -> tuple[dict, dict, dict[str, str]]:
-  """Collect deployment stats for every component in Service Catalogue for the chosen window."""
+  """Collect deployment stats for every component in Service Catalogue
+  for the chosen window."""
   deployments: dict = {}
   failed_components: dict[str, str] = {}
   components = sc.get_all_records(sc.components_get)
@@ -874,7 +876,8 @@ def run_deployments_pipeline(
   until_dt: datetime | None = None,
   report_month: str | None = None,
 ) -> dict:
-  """Run the full deployment analytics job: collect, flatten, write, and optionally upload reports."""
+  """Run the full deployment analytics job: collect, flatten,
+  write, and optionally upload reports."""
 
   # 1 - get all the parameters set up
   config = {**DEFAULT_RUNTIME_CONFIG, **(config or {})}

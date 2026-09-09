@@ -18,7 +18,8 @@ def test_classify_github_error_handles_temporary_and_permanent_cases():
   assert classify_github_error(permanent_error) == ('permanent', None)
 
   auth_error = RuntimeError('401 Unauthorized')
-  # status is not available on this synthetic exception, so it resolves to a generic permanent error.
+  # status is not available on this synthetic exception,
+  # so it resolves to a generic permanent error.
   assert classify_github_error(auth_error)[0] == 'permanent'
 
 

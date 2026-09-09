@@ -308,7 +308,8 @@ def is_revert(pr, repo) -> tuple[bool, str]:
 
 
 def format_duration(duration_seconds: float) -> str:
-  """Render a duration in a readable day/hour/minute/second format for deployment logs."""
+  """Render a duration in a readable day/hour/minute/second
+  format for deployment logs."""
   days = int(duration_seconds // 86400)
   hours = int((duration_seconds % 86400) // 3600)
   minutes = int((duration_seconds % 3600) // 60)
@@ -317,7 +318,8 @@ def format_duration(duration_seconds: float) -> str:
 
 
 def build_metrics(report: dict) -> dict:
-  """Aggregate deploy-time metrics into average and median durations for the reporting summary."""
+  """Aggregate deploy-time metrics into average and median
+  durations for the reporting summary."""
   durations_seconds = [
     record['duration_seconds']
     for record in report['merge_to_deploy_times']

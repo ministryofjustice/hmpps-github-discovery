@@ -78,18 +78,19 @@ uv run python github_deployment_analytics.py --help
 
 ## Output Files
 
-Local files are always written to:
+Local files are written to:
 
 - `deployments.json`
-- `analytics/service_metrics.csv`
-- `analytics/deployment_events.csv`
-- `analytics/reverts.csv`
-- `analytics/manifest.json`
+- `analytics/` (CSV + manifest outputs)
+  - when `PARTITION_BY_DATE=true` (default): `analytics/year=YYYY/month=MM/`
+  - when `PARTITION_BY_DATE=false`: `analytics/`
 
-If `PARTITION_BY_DATE=true` (default), CSV/manifest outputs are written under:
+The CSV/manifest outputs are:
 
-- `analytics/year=YYYY/month=MM/`
-
+- `service_metrics.csv`
+- `deployment_events.csv`
+- `reverts.csv`
+- `manifest.json`
 ### CSV Columns
 
 All CSV outputs include:

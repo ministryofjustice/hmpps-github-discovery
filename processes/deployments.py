@@ -468,8 +468,11 @@ def get_deployment_stats(
     for pr in prs:
       if not pr.merged_at:
         continue
-      if pr.merged_at < since_dt:
+      updated_at = getattr(pr, 'updated_at', None)
+      if updated_at and updated_at < since_dt:
         break
+      if pr.merged_at < since_dt:
+        continue
       if until_dt and pr.merged_at >= until_dt:
         continue
 

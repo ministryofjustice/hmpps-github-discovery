@@ -159,6 +159,7 @@ def extract_target_file_from_zip_bytes(zip_bytes, target_file):
 
 def update_prod_ip_allowlist_version_details(services, repo, data):
   log_info(f'Attempting to update prod IP allowlist version details for {repo.name}')
+  log_info(json.dumps(data, indent=2))
   try:
     if prod_ip_allowlist_details := ArtifactDetailsFetcher(
       services, repo
@@ -175,6 +176,7 @@ def update_prod_ip_allowlist_version_details(services, repo, data):
       data['ip_allowlist_digest_sha'] = prod_ip_allowlist_details[
         'ip_allowlist_digest_sha'
       ]
+      
       return True
   except Exception as e:
     log_error(

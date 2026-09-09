@@ -188,6 +188,8 @@ def main():
   if not am.json_config_data:
     slack.alert('*Github Discovery*: Unable to connect to Alertmanager')
     log_error('*Github Discovery*: Unable to connect to Alertmanager')
+  else:
+    log_info('Alertmanager connection OK')
 
   if not cc.test_connection():
     slack.alert('*Github Discovery failed*: Unable to connect to CircleCI')

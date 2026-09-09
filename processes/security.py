@@ -20,6 +20,8 @@ def get_repo_variables(services, repo, component_name):
     ('slack_channel_security_scans_notify', 'SECURITY_ALERTS_SLACK_CHANNEL_ID'),
     ('slack_channel_prod_release_notify', 'PROD_RELEASES_SLACK_CHANNEL'),
     ('slack_channel_nonprod_release_notify', 'NONPROD_RELEASES_SLACK_CHANNEL'),
+    ('slack_channel_prod_alerts', 'PROD_ALERTS_SLACK_CHANNEL'),
+    ('slack_channel_nonprod_alerts', 'NONPROD_ALERTS_SLACK_CHANNEL'),
   ]
   for var in repo_var_list:
     try:
@@ -57,7 +59,12 @@ class WaitingRunsDetector:
       try:
         url = f'{self.api}/repos/{self.owner}/{self.repo_name}/actions/runs'
         params = {'status': 'waiting', 'per_page': 100, 'page': page}
-        r = requests.get(url, headers=self.headers, params=params, timeout=20)
+        r = requests.get(
+          url,
+          headers=self.headers,
+          params=params,
+          timeout=20,
+        )
         r.raise_for_status()
         data = r.json()
         batch = data.get('workflow_runs', [])
@@ -80,7 +87,12 @@ class WaitingRunsDetector:
       {'branch': branch, 'status': 'success', 'per_page': 1},
       {'branch': branch, 'status': 'completed', 'per_page': 3},
     ):
-      r = requests.get(url, headers=self.headers, params=params, timeout=20)
+      r = requests.get(
+        url,
+        headers=self.headers,
+        params=params,
+        timeout=20,
+      )
       if r.status_code == 200:
         runs = r.json().get('workflow_runs', [])
         # prefer success if we got it; else pick first with conclusion==success
@@ -96,7 +108,11 @@ class WaitingRunsDetector:
       f'{self.api}/repos/{self.owner}/{self.repo_name}/'
       f'actions/runs/{run_id}/pending_deployments'
     )
-    r = requests.get(url, headers=self.headers, timeout=20)
+    r = requests.get(
+      url,
+      headers=self.headers,
+      timeout=20,
+    )
     log_debug(
       f'Status code for pending deployments for run_id {run_id}: {r.status_code}'
     )

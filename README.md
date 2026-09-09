@@ -262,6 +262,12 @@ Or for a single component:
 python github_component_discovery.py <component_name>
 ```
 
+## Local run job
+
+```bash
+uv run python -u github_discovery.py -i
+```
+
 ---
 
 For more details on environment variables and scheduling, see the sections above.

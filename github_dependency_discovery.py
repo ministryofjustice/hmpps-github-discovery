@@ -35,7 +35,6 @@ import yaml
 from hmpps import ServiceCatalogue, GithubSession, Slack
 from hmpps.services.job_log_handling import log_error, log_info, log_warning, job
 
-
 class Services:
   def __init__(self):
     self.slack = Slack()

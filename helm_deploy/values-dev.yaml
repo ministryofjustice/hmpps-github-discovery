@@ -19,25 +19,28 @@ github_discovery:
       no_proxy: "NO_PROXY"
 
 discoveryCronJob:
-  enabled: false
-  # cron:
-  #   github_discovery: "05 10 * * *"
-  #   github_discovery_full: "50 9 * * 0"
+  enabled: true
+  env:
+    LOG_LEVEL: "INFO"
+    SC_FILTER: "&filters[name][$contains]=hmpps-book"
+  cron:
+    github_discovery: "45 12 * * 1-5"
+    github_discovery_full: "50 9 * * 0"
 
 teamsCronJob:
   enabled: true
   cron:
-    github_teams_discovery: "35 10 * * *"
+    github_teams_discovery: "35 10 * * 0"
 
 securityCronJob:
-  enabled: false
-  # cron:
-  #   github_discovery_security: "30 06 * * 1-5"
+  enabled: true
+  cron:
+    github_discovery_security: "00 07 * * 0"
 
 workflowsCronJob:
-  enabled: false
-  # cron:
-  #   github_discovery_workflows: "40 9 * * 4"
+  enabled: true
+  cron:
+    github_discovery_workflows: "40 7 * * 0"
 
 dependenciesCronJob:
   enabled: false

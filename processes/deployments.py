@@ -1,6 +1,6 @@
 """Deployment analytics helpers.
 
-This module collects deployment metrics for HMPS repositories, flattens the
+This module collects deployment metrics for HMPPS repositories, flattens the
 results into CSV rows, writes JSON manifests, and optionally uploads artifacts
 to SharePoint for reporting.
 

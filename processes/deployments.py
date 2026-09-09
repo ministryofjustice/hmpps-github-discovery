@@ -269,13 +269,13 @@ def check_gh_rate(gh: GithubSession) -> None:
   while cur_rate_limit and cur_rate_limit.remaining < 500:
     time_delta = cur_rate_limit.reset - datetime.now(timezone.utc)
     time_to_reset = int(time_delta.total_seconds())
-    if time_to_reset > 10:
-      log_info(
-        f'Backing off for {time_to_reset + 10} seconds to avoid GitHub API limits.'
-      )
-      sleep(time_to_reset + 10)
-      log_debug('Reauthenticating')
-      gh.auth()
+    sleep_seconds = max(time_to_reset + 10, 1)
+    log_info(
+      f'Backing off for {sleep_seconds} seconds to avoid GitHub API limits.'
+    )
+    sleep(sleep_seconds)
+    log_debug('Reauthenticating')
+    gh.auth()
     cur_rate_limit = gh.get_rate_limit()
     if not cur_rate_limit:
       gh.auth()

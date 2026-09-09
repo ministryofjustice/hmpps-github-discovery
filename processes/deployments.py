@@ -893,7 +893,7 @@ def run_deployments_pipeline(
   if window_end <= window_start:
     raise ValueError('until_dt must be later than since_dt')
 
-  if not report_month:
+  if report_month is None and since_dt is None and until_dt is None:
     report_month = window_start.strftime('%Y-%m')
 
   partition_suffix = (

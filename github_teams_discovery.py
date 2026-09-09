@@ -16,8 +16,8 @@ Service Catalogue
 - SERVICE_CATALOGUE_API_ENDPOINT: Service Catalogue API endpoint
 - SERVICE_CATALOGUE_API_KEY: Service Catalogue API key
 
+Slack
 - SLACK_BOT_TOKEN: Slack Bot Token
-
 Optional environment variables
 - SLACK_NOTIFY_CHANNEL: Slack channel for notifications
 - SLACK_ALERT_CHANNEL: Slack channel for alerts

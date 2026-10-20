@@ -80,8 +80,10 @@ jobs:
     name: Deploy to the development environment
     needs:
       - build
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_env.yml@feat/HEAT-1346-notify-sre-event-workflow-on-deploy # WORKFLOW_VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_to_env.yml@v2 # WORKFLOW_VERSION
     secrets: inherit
+    permissions:
+      id-token: write
     with:
       environment: 'dev'
       app_version: '${{ needs.build.outputs.app_version }}'

@@ -84,6 +84,7 @@ jobs:
     secrets: inherit
     permissions:
       id-token: write
+      contents: read
     with:
       environment: 'dev'
       app_version: '${{ needs.build.outputs.app_version }}'

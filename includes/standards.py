@@ -44,6 +44,15 @@ def get_standards_compliance(repo):
       if isinstance(repo_attr, int) and not isinstance(repo_attr, bool):
         if repo_attr >= standard[2]:
           data[standard[0]] = True
+      elif isinstance(repo_attr, dict):
+        # Custom properties: standard value is 'property-name|expected-value'
+        prop_name, expected = standard[2].split('|', 1)
+        prop_value = repo_attr.get(prop_name)
+        if isinstance(prop_value, list):
+          if expected in prop_value:
+            data[standard[0]] = True
+        elif prop_value == expected:
+          data[standard[0]] = True
       else:
         if repo_attr == standard[2]:
           data[standard[0]] = True

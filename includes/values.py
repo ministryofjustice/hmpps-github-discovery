@@ -63,9 +63,9 @@ standards = [
   ('authoritative_owner', 'basic.owner'),
   ('licence_mit', 'basic.license', 'mit'),
   ('issues_section_enabled', 'basic.has_issues', True),
-  ('custom_business-unit_HMPPS', 'basic.custom_properties', 'business-unit|HMPPS'),
+  ('business_unit_is_HMPPS', 'basic.custom_properties', 'business-unit|HMPPS'),
   (
-    'custom_public-release',
+    'public_release_criteria_met',
     'basic.custom_properties',
     'public-release-criteria-met|true',
   ),

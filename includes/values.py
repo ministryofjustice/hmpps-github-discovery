@@ -34,40 +34,34 @@ env_mapping = {
 # issues_section_enabled: Issues section is enabled (optional)
 
 standards = [
-  ('visibility_public', 'basic.visibility', 'public'),
-  ('default_branch_main', 'basic.default_branch_name', 'main'),
-  ('repository_description', 'basic.description'),
+  ('licence_mit', 'basic.license', 'mit'),
   ('secret_scanning', 'security_and_analysis.secret_scanning_status', 'enabled'),
-  (
-    'secret_scanning_push_protection',
-    'security_and_analysis.push_protection_status',
-    'enabled',
-  ),
+  ('authoritative_owner', 'basic.owner'),
+  ('business_unit_is_HMPPS', 'basic.custom_properties', 'business-unit|HMPPS'),
+  ('issues_section_enabled', 'basic.has_issues', True),
+  ('repository_description', 'basic.description'),
+  ('default_branch_main', 'basic.default_branch_name', 'main'),
   ('branch_protection_admins', 'default_branch_protection.enforce_admins', True),
   ('branch_protection_signed', 'default_branch_protection.required_signatures', True),
-  (
-    'branch_protection_code_owner_review',
-    'default_branch_protection.require_code_owner_reviews',
-    True,
-  ),
   (
     'pull_dismiss_stale_reviews',
     'default_branch_protection.dismiss_stale_reviews',
     True,
   ),
   (
+    'secret_scanning_push_protection',
+    'security_and_analysis.push_protection_status',
+    'enabled',
+  ),
+  (
+    'branch_protection_code_owner_review',
+    'default_branch_protection.require_code_owner_reviews',
+    True,
+  ),
+  (
     'pull_requires_review',
     'default_branch_protection.required_approving_review_count',
     1,
-  ),
-  ('authoritative_owner', 'basic.owner'),
-  ('licence_mit', 'basic.license', 'mit'),
-  ('issues_section_enabled', 'basic.has_issues', True),
-  ('business_unit_is_HMPPS', 'basic.custom_properties', 'business-unit|HMPPS'),
-  (
-    'public_release_criteria_met',
-    'basic.custom_properties',
-    'public-release-criteria-met|true',
   ),
 ]
 

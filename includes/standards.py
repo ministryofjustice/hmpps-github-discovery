@@ -25,6 +25,20 @@ from hmpps.services.job_log_handling import log_debug, log_info
 from includes.values import standards
 
 
+def visibility_logic(repo_details):
+  # internal (or private) by default
+  # public if public-release-criteria-met
+  visibility = repo_details.basic.visibility
+  if visibility in ('private', 'internal'):
+    return True
+  if visibility == 'public':
+    # GitHub returns true/false custom properties as strings
+    custom_properties = repo_details.basic.custom_properties or {}
+    criteria_met = custom_properties.get('public-release-criteria-met')
+    return str(criteria_met).lower() == 'true'
+  return False
+
+
 def get_standards_compliance(repo):
   if repo_details := RepositoryInfoFactory.from_github_repo(repo):
     log_info(f'{repo_details}')
@@ -32,6 +46,11 @@ def get_standards_compliance(repo):
     return None
 
   data = {}
+
+  # Custom standard for visibility, since it's nuanced:
+  data['visibility'] = visibility_logic(repo_details)
+
+  # Basic standards from the values files
   for standard in standards:
     data[standard[0]] = False
     repo_attr = repo_details
@@ -42,8 +61,7 @@ def get_standards_compliance(repo):
     if len(standard) > 2:
       # If there is a value, validate against it
       if isinstance(repo_attr, int) and not isinstance(repo_attr, bool):
-        if repo_attr >= standard[2]:
-          data[standard[0]] = True
+        data[standard[0]] = repo_attr >= standard[2]
       elif isinstance(repo_attr, dict):
         # Custom properties: standard value is 'property-name|expected-value'
         prop_name, expected = standard[2].split('|', 1)
@@ -54,10 +72,11 @@ def get_standards_compliance(repo):
         elif prop_value == expected:
           data[standard[0]] = True
       else:
+        # Exact match
         if repo_attr == standard[2]:
           data[standard[0]] = True
     else:
-      # if there isn't a value, just make sure it's not 'None'
       if repo_attr:
         data[standard[0]] = True
+
   return data

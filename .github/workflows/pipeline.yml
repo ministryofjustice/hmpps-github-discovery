@@ -32,13 +32,13 @@ jobs:
       matrix:
         environments: ['dev', 'prod']
     name: helm lint
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/test_helm_lint.yml@v2 # WORKFLOW VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/test_helm_lint.yml@renovate/ubuntu-26.x # WORKFLOW VERSION
     secrets: inherit
     with:
       environment: ${{ matrix.environments }}
   python_lint:
     name: python lint
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/test_python_lint.yml@v2 # WORKFLOW VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/test_python_lint.yml@renovate/ubuntu-26.x # WORKFLOW VERSION
     secrets: inherit
   python_tests:
     name: python tests
@@ -65,7 +65,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/docker_build.yml@v2 # WORKFLOW_VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/docker_build.yml@renovate/ubuntu-26.x # WORKFLOW_VERSION
     with:
       docker_registry: 'ghcr.io'
       registry_org: 'ministryofjustice'
@@ -80,7 +80,7 @@ jobs:
     name: Deploy to the development environment
     needs:
       - build
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_to_env.yml@v2 # WORKFLOW_VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_to_env.yml@renovate/ubuntu-26.x # WORKFLOW_VERSION
     secrets: inherit
     permissions:
       id-token: write
@@ -95,7 +95,7 @@ jobs:
     needs:
       - build
       - deploy_dev
-    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_to_env.yml@v2 # WORKFLOW_VERSION
+    uses: ministryofjustice/hmpps-github-actions/.github/workflows/deploy_to_env.yml@renovate/ubuntu-26.x # WORKFLOW_VERSION
     secrets: inherit
     permissions:
       id-token: write

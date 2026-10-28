@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+from unittest.mock import Mock, call
+
+import pytest
 
 from processes.deployments import (
   build_month_partition,
@@ -6,8 +9,124 @@ from processes.deployments import (
   flatten_deployments,
   format_duration,
   resolve_reporting_window,
+  run_call_with_retries,
   safe_ratio,
 )
+
+
+@pytest.fixture
+def retry_sleep(monkeypatch):
+  sleep = Mock()
+  monkeypatch.setattr('processes.deployments.sleep', sleep)
+  return sleep
+
+
+def test_run_call_with_retries_returns_success_without_retrying(retry_sleep):
+  fn = Mock(return_value={'uploaded': True})
+  classify_error = Mock()
+
+  assert run_call_with_retries('upload', fn, classify_error, 4) == (
+    {'uploaded': True},
+    None,
+  )
+  fn.assert_called_once_with()
+  classify_error.assert_not_called()
+  retry_sleep.assert_not_called()
+
+
+def test_run_call_with_retries_recovers_after_temporary_failures(retry_sleep):
+  error = RuntimeError('timed out')
+  fn = Mock(side_effect=[error, error, 'result'])
+  classify_error = Mock(return_value=('temporary', 503))
+
+  assert run_call_with_retries('fetch', fn, classify_error, 4) == ('result', None)
+  assert fn.call_count == 3
+  assert classify_error.call_args_list == [call(error), call(error)]
+  assert retry_sleep.call_args_list == [call(5), call(10)]
+
+
+@pytest.mark.parametrize(
+  'classification, status',
+  [(('permanent', 403), 403), ('permanent', None)],
+)
+def test_run_call_with_retries_stops_on_permanent_errors(
+  retry_sleep, classification, status
+):
+  error = RuntimeError('permission denied')
+  fn = Mock(side_effect=error)
+  classify_error = Mock(return_value=classification)
+
+  assert run_call_with_retries('fetch', fn, classify_error, 4) == (
+    None,
+    {
+      'operation': 'fetch',
+      'error_type': 'permanent',
+      'status': status,
+      'attempts': 1,
+      'message': 'permission denied',
+    },
+  )
+  fn.assert_called_once_with()
+  classify_error.assert_called_once_with(error)
+  retry_sleep.assert_not_called()
+
+
+@pytest.mark.parametrize('status_attribute', ['status', 'status_code'])
+def test_run_call_with_retries_exhausts_attempts_for_upload_errors(
+  retry_sleep, status_attribute
+):
+  class UploadError(RuntimeError):
+    status = 503 if status_attribute == 'status' else None
+    status_code = 503 if status_attribute == 'status_code' else None
+
+  error = UploadError('service unavailable')
+  fn = Mock(side_effect=error)
+  classify_error = Mock(return_value='temporary')
+
+  assert run_call_with_retries('upload', fn, classify_error, 4) == (
+    None,
+    {
+      'operation': 'upload',
+      'error_type': 'temporary',
+      'status': 503,
+      'attempts': 4,
+      'message': 'service unavailable',
+    },
+  )
+  assert fn.call_count == 4
+  assert classify_error.call_args_list == [call(error)] * 4
+  assert retry_sleep.call_args_list == [call(5), call(10), call(20)]
+
+
+def test_run_call_with_retries_caps_exponential_backoff(retry_sleep):
+  error = RuntimeError('timed out')
+  fn = Mock(side_effect=[error] * 6 + ['result'])
+  classify_error = Mock(return_value=('temporary', None))
+
+  assert run_call_with_retries('fetch', fn, classify_error, 7) == ('result', None)
+  assert fn.call_count == 7
+  assert retry_sleep.call_args_list == [
+    call(5), call(10), call(20), call(40), call(60), call(60),
+  ]
+
+
+def test_run_call_with_retries_reports_zero_attempt_budget(retry_sleep):
+  fn = Mock()
+  classify_error = Mock()
+
+  assert run_call_with_retries('fetch', fn, classify_error, 0) == (
+    None,
+    {
+      'operation': 'fetch',
+      'error_type': 'temporary',
+      'status': None,
+      'attempts': 0,
+      'message': 'Retry loop exhausted unexpectedly.',
+    },
+  )
+  fn.assert_not_called()
+  classify_error.assert_not_called()
+  retry_sleep.assert_not_called()
 
 
 def test_classify_github_error_handles_temporary_and_permanent_cases():

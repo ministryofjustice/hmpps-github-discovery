@@ -5,10 +5,6 @@ generic-prometheus-alerts:
   alertSeverity: hmpps-sre-alerts-nonprod
 
 github_discovery:
-  env:
-    LOG_LEVEL: "DEBUG"
-    SC_FILTER: "SC_FILTER"
-
   namespace_secrets:
     hmpps-envoy-https-proxy-env:
       HTTP_PROXY: "HTTP_PROXY"
@@ -21,7 +17,7 @@ github_discovery:
 discoveryCronJob:
   enabled: true
   env:
-    LOG_LEVEL: "INFO"
+    LOG_LEVEL: "DEBUG"
     SC_FILTER: "&filters[name][$contains]=hmpps-book"
   cron:
     github_discovery: "45 12 * * 1-5"

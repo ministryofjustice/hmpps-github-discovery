@@ -760,10 +760,10 @@ def upload_file_with_retries(
       last_error = RuntimeError(
         f'Upload returned false for {file_path.name} without exception.'
       )
+      error_kind = 'temporary'
     except Exception as error:
       last_error = error
-
-    error_kind = classify_upload_error(last_error)
+      error_kind = classify_upload_error(error)
     if error_kind == 'temporary' and attempt < MAX_UPLOAD_RETRIES:
       sleep_seconds = min(
         RETRY_BASE_SECONDS * (2 ** (attempt - 1)), MAX_RETRY_SLEEP_SECONDS

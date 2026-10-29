@@ -1,5 +1,7 @@
 import re
 
+from github import GithubException
+
 # hmpps
 from hmpps import update_dict, fetch_yaml_values_for_key
 from hmpps.services.job_log_handling import (
@@ -19,13 +21,18 @@ from includes.utils import (
 from includes.values import env_mapping
 
 
-def get_ecr_repository(repo):
-  variables = {variable.name: variable.value for variable in repo.get_variables()}
+def get_ecr_repository(repo) -> str | None:
+  try:
+    variables = {variable.name: variable.value for variable in repo.get_variables()}
+  except GithubException as e:
+    log_warning(f'Unable to get Actions variables for {repo.name}: {e}')
+    return None
+
   registry_url = variables.get('CLOUD_PLATFORM_ECR_REGISTRY_URL')
   ecr_repository = variables.get('ECR_REPOSITORY')
   if registry_url and ecr_repository:
     return f'{registry_url}/{ecr_repository}'
-  return False
+  return None
 
 
 def get_container_image(repo, helm_default_values, component_name):

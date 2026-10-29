@@ -1,5 +1,7 @@
 import re
 
+from github import GithubException
+
 # hmpps
 from hmpps import update_dict, fetch_yaml_values_for_key
 from hmpps.services.job_log_handling import (
@@ -17,6 +19,51 @@ from includes.utils import (
   is_ipallowList_enabled,
 )
 from includes.values import env_mapping
+
+
+def get_ecr_repository(repo) -> str | None:
+  try:
+    variables = {variable.name: variable.value for variable in repo.get_variables()}
+  except GithubException as e:
+    log_warning(f'Unable to get Actions variables for {repo.name}: {e}')
+    return None
+
+  registry_url = variables.get('CLOUD_PLATFORM_ECR_REGISTRY_URL')
+  ecr_repository = variables.get('ECR_REPOSITORY')
+  if registry_url and ecr_repository:
+    return f'{registry_url}/{ecr_repository}'
+  return None
+
+
+def get_container_image(repo, helm_default_values, component_name):
+  # First check to see if it's an ECR image
+  if container_image := get_ecr_repository(repo):
+    log_debug(
+      f'Container image found in ECR variables for {component_name}: {container_image}'
+    )
+    return container_image
+  # Then check to see if it's immediately referred
+  if container_image := helm_default_values.get('image', {}).get('repository', {}):
+    log_debug(
+      f'Container image found in image->repository for {component_name}: '
+      f'{container_image}'
+    )
+    return container_image
+
+  # Finally check to see if it's in generic-service
+  if 'generic-service' in helm_default_values:
+    log_debug(f'generic-service found for {component_name}')
+    if 'generic-service' in helm_default_values and (
+      container_image := helm_default_values.get('generic-service', {})
+      .get('image', {})
+      .get('repository')
+    ):
+      log_debug(
+        f'Container image found in generic-service->image->repository for '
+        f'{component_name}: {container_image}'
+      )
+      return container_image
+  return None
 
 
 def get_helm_dirs(repo, component):
@@ -54,7 +101,7 @@ def get_envs_from_helm(component, repo, services):
 
 
 def fetch_helm_default_values(
-  sc, helm_default_values, allow_list_keys, component_name, data
+  sc, repo, helm_default_values, allow_list_keys, component_name, data
 ):
   helm_defaults = {
     'mod_security': {},
@@ -68,25 +115,11 @@ def fetch_helm_default_values(
       helm_defaults['ip_allow_list'] = ip_allow_list
       break
 
-  # Try to get the container image
-  if container_image := helm_default_values.get('image', {}).get('repository', {}):
-    data['container_image'] = container_image
-    log_debug(
-      f'Container image found in image->repository for {component_name}: '
-      f'{container_image}'
-    )
-  if 'generic-service' in helm_default_values:
-    log_debug(f'generic-service found for {component_name}')
-    if 'generic-service' in helm_default_values and (
-      container_image := helm_default_values.get('generic-service', {})
-      .get('image', {})
-      .get('repository')
+    # Try to get the container image - first off check to see if it's ECR
+    if container_image := get_container_image(
+      repo, helm_default_values, component_name
     ):
       data['container_image'] = container_image
-      log_debug(
-        f'Container image found in generic-service->image->repository for '
-        f'{component_name}: {container_image}'
-      )
 
     # Try to get the productID from helm values.yaml
     if helm_product_id := helm_default_values.get('generic-service', {}).get(
@@ -225,9 +258,7 @@ def fetch_alertmanager_config(
   # Update Alert severity label and slack channel
   alert_severity_label = generic_prometheus_alerts.get('alertSeverity')
   if alert_severity_label:
-    log_debug(
-      f'generic-prometheus alerts found in values: {generic_prometheus_alerts}'
-    )
+    log_debug(f'generic-prometheus alerts found in values: {generic_prometheus_alerts}')
     log_debug(f'Updating {env} alert_severity_label to {alert_severity_label}')
   elif not alert_severity_label and helm_defaults.get('alert_severity_label'):
     log_info(
@@ -377,7 +408,7 @@ def get_info_from_helm(data, component, repo, services):
 
   if helm_default_values:
     helm_defaults = fetch_helm_default_values(
-      sc, helm_default_values, allow_list_keys, component_name, data
+      sc, repo, helm_default_values, allow_list_keys, component_name, data
     )
 
   # Main dictionary to store helm data as we go

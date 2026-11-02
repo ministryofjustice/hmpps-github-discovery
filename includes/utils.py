@@ -1,3 +1,5 @@
+import re
+
 import requests
 
 # hmpps
@@ -5,6 +7,12 @@ from hmpps.services.job_log_handling import (
   log_debug,
   log_info,
 )
+
+
+def get_slack_channel_name_if_id(slack, channel):
+  if not isinstance(channel, str) or not re.fullmatch(r'[CG][A-Z0-9]{8,}', channel):
+    return None
+  return slack.get_slack_channel_name_by_id(channel)
 
 
 # Various endoint tests

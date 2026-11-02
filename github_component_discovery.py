@@ -32,7 +32,7 @@ Optional environment variables
 import argparse
 
 # hmpps
-from hmpps import ServiceCatalogue, GithubSession, AlertmanagerData, CircleCI
+from hmpps import ServiceCatalogue, GithubSession, AlertmanagerData, CircleCI, Slack
 from hmpps.services.job_log_handling import log_debug, log_error, log_info
 
 
@@ -50,6 +50,7 @@ class Services:
     self.gh = GithubSession()
     self.am = AlertmanagerData()
     self.cc = CircleCI()
+    self.slack = Slack()
 
 
 #######################################################################################

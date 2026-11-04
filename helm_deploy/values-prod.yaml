@@ -34,3 +34,16 @@ dependenciesCronJob:
   cron:
     github_discovery_dependencies_latest: "15 00 * * *"
 
+deploymentAnalyticsCronJob:
+  enabled: true
+  cron:
+    github_deployment_analytics: "00 04 1 * *"
+  env:
+    LOG_LEVEL: "info"
+    FOLDER_PATH: "analytics/deployments"
+    UPLOAD: true
+  namespace_secrets:
+    azure-sharepoint-service-principal:
+      SP_CLIENT_ID: SP_CLIENT_ID
+      SP_CLIENT_SECRET: SP_CLIENT_SECRET
+      AZ_TENANT_ID: AZ_TENANT_ID

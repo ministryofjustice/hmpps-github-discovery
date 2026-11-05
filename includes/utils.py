@@ -11,6 +11,8 @@ from hmpps.services.job_log_handling import (
 
 
 def get_slack_channel_name_and_id(slack, channel):
+  if isinstance(channel, str):
+    channel = channel.strip()
   if not isinstance(channel, str) or not channel:
     log_warning(f'Unable to resolve Slack channel from value {channel!r}')
     return 'none|none'

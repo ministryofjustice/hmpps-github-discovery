@@ -58,6 +58,23 @@ def test_slack_channel_name_and_id_returns_none_values_for_empty_channel():
   assert get_slack_channel_name_and_id(slack, '') == 'none|none'
 
 
+def test_slack_channel_name_and_id_strips_surrounding_whitespace():
+  slack = SlackStub()
+
+  assert (
+    get_slack_channel_name_and_id(slack, ' C0123456789\t')
+    == 'resolved-channel|C0123456789'
+  )
+  assert slack.looked_up_ids == ['C0123456789']
+
+
+def test_slack_channel_name_and_id_treats_whitespace_only_as_empty():
+  slack = SlackStub()
+
+  assert get_slack_channel_name_and_id(slack, ' \t') == 'none|none'
+  assert slack.looked_up_ids == []
+
+
 def test_ip_allow_list_disabled_when_false():
 	data = {
 		'values-dev.yaml': {'allowlist': False},

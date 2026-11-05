@@ -26,7 +26,7 @@ from hmpps.services.job_log_handling import (
 
 # local
 from includes import helm, environments, versions
-from includes.utils import get_slack_channel_name_if_id
+from includes.utils import get_slack_channel_name_and_id
 import processes.artifacts as artifacts
 
 max_threads = 10
@@ -278,12 +278,12 @@ def get_repo_variables(services, repo, component_name):
         repo_vars[var[0]] = sc_product_id
       else:
         log_debug(f'Unable to find product entry for {repo_var_value}')
+    elif not repo_var_value:
+        repo_vars[var[0]] = repo_var_value
     else:
-      repo_vars[var[0]] = repo_var_value
-      if channel_name := get_slack_channel_name_if_id(
-        services.slack, repo_var_value
-      ):
-        repo_vars[f'{var[0]}_name'] = channel_name
+        repo_vars[var[0]] = get_slack_channel_name_and_id(
+          services.slack, repo_var_value
+        )
   log_debug(f'Repository variables: {repo_vars}')
   return repo_vars
 

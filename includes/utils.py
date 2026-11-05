@@ -6,13 +6,26 @@ import requests
 from hmpps.services.job_log_handling import (
   log_debug,
   log_info,
+  log_warning,
 )
 
 
-def get_slack_channel_name_if_id(slack, channel):
-  if not isinstance(channel, str) or not re.fullmatch(r'[CG][A-Z0-9]{8,}', channel):
-    return None
-  return slack.get_slack_channel_name_by_id(channel)
+def get_slack_channel_name_and_id(slack, channel):
+  if not isinstance(channel, str) or not channel:
+    log_warning(f'Unable to resolve Slack channel from value {channel!r}')
+    return 'none|none'
+
+  if re.fullmatch(r'[CG][A-Z0-9]{8,}', channel):
+    channel_id = channel
+    channel_name = slack.get_slack_channel_counterpart(channel) or 'none'
+  else:
+    channel_name = channel.lstrip('#')
+    channel_id = slack.get_slack_channel_counterpart(channel) or 'none'
+
+  if channel_name == 'none' or channel_id == 'none':
+    log_warning(f'Unable to fully resolve Slack channel value {channel!r}')
+
+  return f'{channel_name}|{channel_id}'
 
 
 # Various endoint tests

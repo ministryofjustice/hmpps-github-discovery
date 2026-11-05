@@ -8,7 +8,7 @@ from hmpps import ServiceCatalogue
 from hmpps.services.job_log_handling import log_debug, log_info
 
 # local
-from includes.utils import get_slack_channel_name_if_id
+from includes.utils import get_slack_channel_name_and_id
 
 max_threads = 10
 
@@ -30,14 +30,11 @@ def process_sc_product(product, services):
   # and finally used in PUT request to service catalogue
   data = {}
 
-  # Update Slack Channel name if necessary:
-  if p_slack_channel_id := product.get('slack_channel_id'):
-    p_slack_channel_name = product.get('slack_channel_name')
-    if slack_channel_name := get_slack_channel_name_if_id(
-      slack, p_slack_channel_id
-    ):
-      if p_slack_channel_name != slack_channel_name:
-        data['slack_channel_name'] = slack_channel_name
+  # Keep the channel ID field unchanged and store both parts in the name field.
+  if p_slack_channel := product.get('slack_channel_id'):
+    channel_name_and_id = get_slack_channel_name_and_id(slack, p_slack_channel)
+    if product.get('slack_channel_name') != channel_name_and_id:
+      data['slack_channel_name'] = channel_name_and_id
 
   if data:
     # Update product with all results in data dict.

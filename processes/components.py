@@ -278,12 +278,13 @@ def get_repo_variables(services, repo, component_name):
         repo_vars[var[0]] = sc_product_id
       else:
         log_debug(f'Unable to find product entry for {repo_var_value}')
-    elif not repo_var_value:
-        repo_vars[var[0]] = repo_var_value
+    elif not repo_var_value or not repo_var_value.strip():
+      # Blank variables clear the field rather than storing none|none
+      repo_vars[var[0]] = ''
     else:
-        repo_vars[var[0]] = get_slack_channel_name_and_id(
-          services.slack, repo_var_value
-        )
+      repo_vars[var[0]] = get_slack_channel_name_and_id(
+        services.slack, repo_var_value
+      )
   log_debug(f'Repository variables: {repo_vars}')
   return repo_vars
 

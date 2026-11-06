@@ -110,8 +110,7 @@ def main():
           link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
 
           doc_id_list = ', '.join([str(doc_id) for doc_id in env_info['document_ids']])
-          kept_doc_id = env_info['document_ids'][0]
-          duplicate_doc_ids = env_info['document_ids'][1:]
+          duplicate_doc_ids = env_info['document_ids']
           deleted_doc_ids = []
           failed_doc_ids = []
 
@@ -129,7 +128,6 @@ def main():
             f'  Namespace: {namespace}\n'
             f'  Total entries: {qty}\n'
             f'  All documentIds: {doc_id_list}\n'
-            f'  ℹ️ Kept original: {kept_doc_id}\n'
           )
 
           if deleted_doc_ids:

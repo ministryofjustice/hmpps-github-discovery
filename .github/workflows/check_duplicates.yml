@@ -29,9 +29,9 @@ jobs:
           rm -f uv.lock
           uv run python utilities/check_duplicate_environments.py
         env:
-          SERVICE_CATALOGUE_API_ENDPOINT: ${{ vars.SERVICE_CATALOGUE_API_ENDPOINT }}
+          SERVICE_CATALOGUE_API_ENDPOINT: ${{ github.ref == 'refs/heads/main' && vars.SERVICE_CATALOGUE_API_ENDPOINT || vars.DEV_SERVICE_CATALOGUE_API_ENDPOINT }}
           SERVICE_CATALOGUE_API_KEY: ${{ secrets.SERVICE_CATALOGUE_API_KEY }}
-          SLACK_ALERTS_CHANNEL: ${{ vars.PROD_SLACK_ALERT_CHANNEL}}
+          SLACK_ALERTS_CHANNEL: ${{ github.ref == 'refs/heads/main' && vars.PROD_SLACK_ALERT_CHANNEL || vars.DEV_SLACK_ALERT_CHANNEL }}
 
       - id: send-slack 
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0

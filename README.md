@@ -6,7 +6,6 @@ A suite of Python discovery apps that query Github for information about hmpps p
 
 This includes:
 - **components** - (`github_discovery.py`) - Github repository parameters to update the Components collection within the Service Catalogue
-- **products** - (also run as part of `github_discovery.py`) - processes and updates slack channel names for each product.
 - **security** - (`github_security_discovery.py`) - security information (eg. Codescanning alerts) extracted from the Github repository
 - **workflows** - (`github_workflows_discovery.py`) - Github Workflows extracted from the Github repository
 - **dependency latest versions** - (`github_dependency_discovery.py`) - enriches component version data with latest available dependency releases
@@ -34,9 +33,9 @@ A single component can be processed using `github_component_discovery.py` using 
 - If the environment configuration or main branch SHA has changed since the last scan it retrieves data from Helm and other files within the repository 
 - It then updates each component in the service catalogue with the latest data from github.
 
-### Products
-- Retrieves a list of all products from the service catalogue
-- For each product which has a valid (and non-private) Slack channel ID, it fetches the Slack channel name and updates that field in the service catalogue
+Product records are not updated by Github Discovery. Product lookups are retained
+to associate components with their products. Component Slack channel resolution
+is unchanged; product Slack enrichment is no longer performed by this app.
 
 ### Key information retrieved
 
@@ -114,10 +113,6 @@ These are all inherited from [hmpps-sre-python-lib](https://github.com/ministryo
 
 - **Github Teams** (`processes/github_teams.py`) is the script that carries out the actual processing of Github teams
 
-- **products** (`processes/products.py`) contains the main functions for processing products. These include:
-  - `batch_process_sc_products` - the main batch dispatcher that loops through all the products using Python threads for multithreaded operation
-  - `process_sc_product` - this is the function that's called by the batch processor for each product
-
 - **Security** (`processes/security.py`) contains the main function for processing security statuses for components (`process_sc_component_security`). 
   This calls functions that extract Codescanning alerts from a repository and also checks the repos against standards compliance criteria
 
@@ -144,8 +139,8 @@ Using crontabs defined in the [helm values](helm_deploy) files for each environm
 separate times can be set aside to run more intensive discovery scripts less often.
 
 The general outline is currently:
-- `github_discovery.py -f`  - full component/product discovery once per day (Mon-Fri) at 08:30 UTC
-- `github_discovery.py` - incremental component/product discovery once every two hours at 45 minutes past, except 06:45 and 08:45 UTC
+- `github_discovery.py -f`  - full component discovery once per day (Mon-Fri) at 08:30 UTC
+- `github_discovery.py` - incremental component discovery once every two hours at 45 minutes past, except 06:45 and 08:45 UTC
 - `github_teams_discovery.py` - every 20 minutes (it's not too intensive a task)
 - `github_security_discovery.py` - once per day (Mon-Fri) at 06:30 UTC 
 - `github_workflows_discovery.py` - once a week (Saturday) at 06:30 UTC
@@ -305,4 +300,3 @@ Ensure following redis environment variables are set:
 ```bash
 export ALERTMANAGER_ENDPOINT='http://localhost:6574/alertmanager/status'
 ```
-

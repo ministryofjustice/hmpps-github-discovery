@@ -43,7 +43,6 @@ from hmpps import AlertmanagerData
 from hmpps import CircleCI
 
 # Components
-import processes.products as products
 import processes.components as components
 from hmpps.services.job_log_handling import log_error, log_info, job
 
@@ -64,7 +63,6 @@ class Services:
 def create_summary(
   services,
   processed_components,
-  processed_products,
   duplicate_appinsights_cloud_role,
   force_update=False,
 ):
@@ -90,14 +88,6 @@ def create_summary(
           for item in filtered_items:
             summary += f'  {item[0]}\n'
           summary += '\n'
-    return summary
-
-  def summarize_processed_products(qty, item_type, force_update=False):
-    if force_update:
-      summary = f'\n\n{item_type.upper()} SUMMARY\n{"=" * (len(item_type) + 8)}\n'
-      summary += f'{qty} {item_type.lower()}(s) processed\n'
-    else:
-      summary = f'{qty} {item_type.lower()}(s) processed\n'
     return summary
 
   def summarize_duplicate_app_role_with_details(
@@ -148,7 +138,6 @@ def create_summary(
   summary += summarize_processed_components(
     processed_components, 'component', component_attributes, force_update
   )
-  summary += summarize_processed_products(processed_products, 'product', force_update)
   summary += summarize_duplicate_app_role_with_details(
     duplicate_appinsights_cloud_role, 'component', force_update
   )
@@ -214,10 +203,6 @@ def main():
     services, max_threads, force_update=force_update
   )
 
-  # Process products
-  log_info('Batch processing products...')
-  processed_products = products.batch_process_sc_products(services, max_threads)
-
   # Report on duplicate Application Insights cloud role names
   duplicate_appinsights_cloud_role = components.find_duplicate_app_cloud_role(
     services, max_threads, force_update=force_update
@@ -226,7 +211,6 @@ def main():
   create_summary(
     services,
     processed_components,
-    processed_products,
     duplicate_appinsights_cloud_role,
     force_update,
   )

@@ -7,7 +7,7 @@ generic-prometheus-alerts:
 discoveryCronJob:
   enabled: true
   env:
-    LOG_LEVEL: "INFO"
+    LOG_LEVEL: "DEBUG"
     SC_FILTER: "&filters[name][$contains]=hmpps-book"
   cron:
     github_discovery: "45 12 * * 1-5"

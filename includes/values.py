@@ -7,6 +7,7 @@ env_mapping = {
   'stage': 'stage',
   'test': 'stage',
   'demo': 'test',
+  'qa': 'test',
   'dev': 'dev',
   'development': 'dev',
   'preprod': 'preprod',

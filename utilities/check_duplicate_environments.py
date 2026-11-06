@@ -110,6 +110,7 @@ def main():
           link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
 
           doc_id_list = ', '.join([str(doc_id) for doc_id in env_info['document_ids']])
+          kept_doc_id = env_info['document_ids'][0]
           duplicate_doc_ids = env_info['document_ids'][1:]
           deleted_doc_ids = []
           failed_doc_ids = []
@@ -124,35 +125,41 @@ def main():
             message += '*Environments*:\n===========\n'
 
           message += (
-            f'- <{link_url}|{env} - {component_name}> has {qty} entries '
-            f'(namespace: {namespace}, documentId: {doc_id_list})\n'
+            f'- <{link_url}|{env} - {component_name}>\n'
+            f'  Namespace: {namespace}\n'
+            f'  Total entries: {qty}\n'
+            f'  All documentIds: {doc_id_list}\n'
+            f'  ℹ️ Kept original: {kept_doc_id}\n'
           )
 
           if deleted_doc_ids:
             deleted_doc_id_list = ', '.join([str(doc_id) for doc_id in deleted_doc_ids])
-            message += f'  Deleted duplicate documentId(s): {deleted_doc_id_list}\n'
+            message += f'  ✅ Deleted documentId(s): {deleted_doc_id_list}\n'
 
           if failed_doc_ids:
             failed_doc_id_list = ', '.join([str(doc_id) for doc_id in failed_doc_ids])
-            message += f'  Failed to delete documentId(s): {failed_doc_id_list}\n'
+            message += f'  ❌ Failed to delete documentId(s): {failed_doc_id_list}\n'
           
-        # Construct the message
-        if message:
-          slack_template['blocks'][1]['text']['text'] = message
-          with open('slack-message.json', 'w') as f:
-            json.dump(slack_template, f)
-          f.close()
-          value = 'YES'
-        else:
-          value = 'NO'
+          message += '\n'
 
-        gh_out = os.environ.get('GITHUB_OUTPUT')
-        if gh_out:
-          with open(gh_out, 'a') as fh:
-            fh.write(f'results={value}\n')
-          eprint(f'Wrote to $GITHUB_OUTPUT: results={value}')
-        else:
-          eprint('GITHUB_OUTPUT env var not found')
+  # Construct the message and set results
+  if message:
+    slack_template['blocks'][1]['text']['text'] = message
+    with open('slack-message.json', 'w') as f:
+      json.dump(slack_template, f)
+    f.close()
+    value = 'YES'
+    eprint('Duplicates found and processed. Slack notification prepared.')
+  else:
+    value = 'NO'
+    eprint('No duplicate environments found.')
+
+  gh_out = os.environ.get('GITHUB_OUTPUT')
+  if gh_out:
+    with open(gh_out, 'a') as fh:
+      fh.write(f'results={value}\n')
+  else:
+    eprint('GITHUB_OUTPUT env var not found')
 
 
 if __name__ == '__main__':

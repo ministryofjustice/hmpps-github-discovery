@@ -29,7 +29,7 @@ jobs:
           rm -f uv.lock
           uv run python utilities/check_duplicate_environments.py
         env:
-          SERVICE_CATALOGUE_API_ENDPOINT: ${{ vars.SERVICE_CATALOGUE_API_ENDPOINT }}
+          SERVICE_CATALOGUE_API_ENDPOINT: ${{ github.ref == 'refs/heads/main' && vars.SERVICE_CATALOGUE_API_ENDPOINT || vars.DEV_SERVICE_CATALOGUE_API_ENDPOINT }}
           SERVICE_CATALOGUE_API_KEY: ${{ secrets.SERVICE_CATALOGUE_API_KEY }}
           SLACK_ALERTS_CHANNEL: ${{ vars.PROD_SLACK_ALERT_CHANNEL}}
 

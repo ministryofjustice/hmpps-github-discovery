@@ -35,15 +35,15 @@ def main():
   message = ''
   slack_template = {
     'channel': f'{channel_id}',
-    'text': ':warning: Duplicate environments found in Service Catalogue\n'
-    'Please check and remedy as soon as possible.',
+    'text': ':warning: Duplicate environments found in Service Catalogue '
+    '(duplicate cleanup attempted automatically).',
     'blocks': [
       {
         'type': 'section',
         'text': {
           'type': 'mrkdwn',
-          'text': ':warning: Duplicate environments found in Service Catalogue\n'
-          'Please check and remedy as soon as possible.',
+          'text': ':warning: Duplicate environments found in Service Catalogue '
+          '(duplicate cleanup attempted automatically).',
         },
       },
       {
@@ -110,6 +110,15 @@ def main():
           link_url = f'{sc_link_stub}{sc_component_filter}{sc_env_filter}'
 
           doc_id_list = ', '.join([str(doc_id) for doc_id in env_info['document_ids']])
+          duplicate_doc_ids = env_info['document_ids'][1:]
+          deleted_doc_ids = []
+          failed_doc_ids = []
+
+          for duplicate_doc_id in duplicate_doc_ids:
+            if sc.delete(sc.environments, duplicate_doc_id):
+              deleted_doc_ids.append(duplicate_doc_id)
+            else:
+              failed_doc_ids.append(duplicate_doc_id)
 
           if not message:
             message += '*Environments*:\n===========\n'
@@ -118,6 +127,14 @@ def main():
             f'- <{link_url}|{env} - {component_name}> has {qty} entries '
             f'(namespace: {namespace}, documentId: {doc_id_list})\n'
           )
+
+          if deleted_doc_ids:
+            deleted_doc_id_list = ', '.join([str(doc_id) for doc_id in deleted_doc_ids])
+            message += f'  Deleted duplicate documentId(s): {deleted_doc_id_list}\n'
+
+          if failed_doc_ids:
+            failed_doc_id_list = ', '.join([str(doc_id) for doc_id in failed_doc_ids])
+            message += f'  Failed to delete documentId(s): {failed_doc_id_list}\n'
           
         # Construct the message
         if message:
